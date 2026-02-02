@@ -43,7 +43,7 @@ export function ThreeDViewer({ modelUrl, onDownload, onReset }: ThreeDViewerProp
         <button
           type="button"
           onClick={onReset}
-          className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+          className="bg-muted text-foreground px-6 py-3 rounded-lg font-medium hover:bg-accent transition-colors"
         >
           Create New
         </button>

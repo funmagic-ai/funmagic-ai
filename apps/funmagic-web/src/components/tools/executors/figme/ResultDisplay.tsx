@@ -55,7 +55,7 @@ export function ResultDisplay({
         <button
           type="button"
           onClick={onReset}
-          className="flex-1 sm:flex-none bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 transition-colors"
+          className="flex-1 sm:flex-none bg-muted text-foreground px-6 py-3 rounded-lg font-medium hover:bg-accent transition-colors"
         >
           Start Over
         </button>

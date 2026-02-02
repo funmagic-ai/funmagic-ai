@@ -56,16 +56,16 @@ async function CreditHistorySection() {
 
 function CreditBalanceSkeleton() {
   return (
-    <div className="bg-white rounded-xl border shadow-sm p-6 animate-pulse">
+    <div className="bg-card rounded-xl border border-border shadow-sm p-6 animate-pulse">
       <div className="flex items-center justify-between mb-6">
-        <div className="h-6 bg-gray-200 rounded w-32" />
-        <div className="h-10 bg-gray-200 rounded w-24" />
+        <div className="h-6 bg-muted rounded w-32" />
+        <div className="h-10 bg-muted rounded w-24" />
       </div>
       <div className="grid grid-cols-3 gap-6">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="text-center p-4 bg-gray-100 rounded-lg">
-            <div className="h-8 bg-gray-200 rounded w-16 mx-auto mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-20 mx-auto" />
+          <div key={i} className="text-center p-4 bg-muted rounded-lg">
+            <div className="h-8 bg-muted-foreground/20 rounded w-16 mx-auto mb-2" />
+            <div className="h-4 bg-muted-foreground/20 rounded w-20 mx-auto" />
           </div>
         ))}
       </div>
@@ -75,21 +75,21 @@ function CreditBalanceSkeleton() {
 
 function CreditHistorySkeleton() {
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden animate-pulse">
-      <div className="p-6 border-b">
-        <div className="h-6 bg-gray-200 rounded w-40" />
+    <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden animate-pulse">
+      <div className="p-6 border-b border-border">
+        <div className="h-6 bg-muted rounded w-40" />
       </div>
-      <div className="divide-y">
+      <div className="divide-y divide-border">
         {[1, 2, 3].map((i) => (
           <div key={i} className="p-4">
             <div className="flex justify-between">
               <div className="space-y-2">
-                <div className="h-5 bg-gray-200 rounded w-20" />
-                <div className="h-4 bg-gray-200 rounded w-32" />
+                <div className="h-5 bg-muted rounded w-20" />
+                <div className="h-4 bg-muted rounded w-32" />
               </div>
               <div className="space-y-2 text-right">
-                <div className="h-5 bg-gray-200 rounded w-12 ml-auto" />
-                <div className="h-3 bg-gray-200 rounded w-24 ml-auto" />
+                <div className="h-5 bg-muted rounded w-12 ml-auto" />
+                <div className="h-3 bg-muted rounded w-24 ml-auto" />
               </div>
             </div>
           </div>

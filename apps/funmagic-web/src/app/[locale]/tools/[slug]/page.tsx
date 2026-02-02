@@ -13,15 +13,17 @@ interface ToolPageProps {
 function ToolPageSkeleton() {
   return (
     <div className="max-w-4xl mx-auto py-12 px-4 animate-pulse">
-      <div className="h-10 w-3/4 bg-gray-200 rounded mb-4" />
-      <div className="h-6 w-full bg-gray-200 rounded mb-8" />
-      <div className="h-64 w-full bg-gray-200 rounded" />
+      <div className="h-10 w-3/4 bg-muted rounded mb-4" />
+      <div className="h-6 w-full bg-muted rounded mb-8" />
+      <div className="h-64 w-full bg-muted rounded" />
     </div>
   )
 }
 
-async function ToolContent({ slug }: { slug: string }) {
+async function ToolContent({ params }: { params: Promise<{ locale: string; slug: string }> }) {
   await connection()
+  const { locale, slug } = await params
+  setRequestLocale(locale)
 
   const tool = await getToolBySlug(slug)
 
@@ -44,9 +46,9 @@ async function ToolContent({ slug }: { slug: string }) {
 
   return (
     <div className="max-w-4xl mx-auto py-12 px-4">
-      <h1 className="text-4xl font-bold text-gray-900 mb-4">{tool.title}</h1>
+      <h1 className="text-4xl font-bold mb-4">{tool.title}</h1>
       {tool.description && (
-        <p className="text-gray-600 mb-8">{tool.description}</p>
+        <p className="text-muted-foreground mb-8">{tool.description}</p>
       )}
       <ToolExecutor tool={toolDetail} />
     </div>
@@ -54,12 +56,9 @@ async function ToolContent({ slug }: { slug: string }) {
 }
 
 export default async function ToolPage({ params }: ToolPageProps) {
-  const { locale, slug } = await params
-  setRequestLocale(locale)
-
   return (
     <Suspense fallback={<ToolPageSkeleton />}>
-      <ToolContent slug={slug} />
+      <ToolContent params={params} />
     </Suspense>
   )
 }

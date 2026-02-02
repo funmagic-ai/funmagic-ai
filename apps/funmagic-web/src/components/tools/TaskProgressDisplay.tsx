@@ -40,16 +40,16 @@ export function TaskProgressDisplay({
         <StatusBadge status={progress.status} />
       </div>
 
-      <div className="w-full bg-gray-200 rounded-full h-3">
+      <div className="w-full bg-muted rounded-full h-3">
         <div
           className={`h-3 rounded-full transition-all duration-300 ${
-            isFailed ? 'bg-red-500' : isCompleted ? 'bg-green-500' : 'bg-blue-600'
+            isFailed ? 'bg-destructive' : isCompleted ? 'bg-green-500' : 'bg-primary'
           }`}
           style={{ width: `${progress.progress}%` }}
         />
       </div>
 
-      <div className="flex justify-between text-sm text-gray-500">
+      <div className="flex justify-between text-sm text-muted-foreground">
         <span>{progress.currentStep || 'Waiting...'}</span>
         <span>{Math.round(progress.progress)}%</span>
       </div>

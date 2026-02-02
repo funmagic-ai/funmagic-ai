@@ -1,26 +1,220 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================
+   Theme System - CSS Custom Properties
+   ============================================ */
 
-@theme inline {
+@theme {
+  /* Font family */
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  /* Theme colors - mapped to CSS custom properties */
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ============================================
+   Light Mode (Default)
+   ============================================ */
+
+:root {
+  /* Primary colors - Purple theme */
+  --primary: #3713ec;
+  --primary-foreground: #ffffff;
+
+  /* Background & Surface */
+  --background: #f6f6f8;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+
+  /* Border */
+  --border: #e2e8f0;
+
+  /* Muted */
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+
+  /* Accent */
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+
+  /* Input & Ring */
+  --input: #e2e8f0;
+  --ring: #3713ec;
+
+  /* Destructive */
+  --destructive: #ef4444;
+
+  /* Glass panel */
+  --glass-bg: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(0, 0, 0, 0.05);
+}
+
+/* ============================================
+   Dark Mode
+   ============================================ */
+
+.dark {
+  --primary: #3713ec;
+  --primary-foreground: #ffffff;
+
+  --background: #131022;
+  --foreground: #ffffff;
+  --card: #1e1b2e;
+  --card-foreground: #ffffff;
+
+  --border: #2b2839;
+
+  --muted: #2b2839;
+  --muted-foreground: #a19db9;
+
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+
+  /* Input & Ring */
+  --input: #2b2839;
+  --ring: #8b5cf6;
+
+  /* Destructive */
+  --destructive: #ef4444;
+
+  --glass-bg: rgba(30, 27, 46, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.05);
+}
+
+/* ============================================
+   Accent Themes (Work with both light/dark)
+   ============================================ */
+
+[data-accent='purple'] {
+  --primary: #3713ec;
+  --accent: #8b5cf6;
+}
+
+[data-accent='blue'] {
+  --primary: #2563eb;
+  --accent: #3b82f6;
+}
+
+[data-accent='green'] {
+  --primary: #16a34a;
+  --accent: #22c55e;
+}
+
+[data-accent='orange'] {
+  --primary: #ea580c;
+  --accent: #f97316;
+}
+
+[data-accent='pink'] {
+  --primary: #db2777;
+  --accent: #ec4899;
+}
+
+/* ============================================
+   Utility Classes
+   ============================================ */
+
+/* Glassmorphism panel */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+/* Neon hover effect */
+.neon-hover {
+  transition: all 0.3s ease;
+}
+
+.neon-hover:hover {
+  border-color: rgba(55, 19, 236, 0.5);
+  box-shadow: 0 0 20px rgba(55, 19, 236, 0.25);
+  transform: translateY(-2px);
+}
+
+/* Primary glow */
+.primary-glow {
+  box-shadow: 0 0 15px rgba(55, 19, 236, 0.6);
+}
+
+/* Primary button hover (only buttons with bg-primary class) */
+[data-slot="button"].bg-primary:hover {
+  background-color: color-mix(in srgb, var(--primary) 80%, transparent);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ============================================
+   Base Styles
+   ============================================ */
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-feature-settings: 'rlig' 1, 'calt' 1;
+}
+
+/* Selection styling */
+::selection {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
 }

@@ -49,7 +49,20 @@
     "cancel": "取消",
     "delete": "删除",
     "download": "下载",
-    "close": "关闭"
+    "close": "关闭",
+    "home": "首页",
+    "tools": "工具",
+    "pricing": "定价",
+    "menu": "菜单",
+    "viewAll": "查看全部",
+    "loadMore": "加载更多",
+    "copyright": "保留所有权利。"
+  },
+  "footer": {
+    "privacy": "隐私政策",
+    "terms": "服务条款",
+    "about": "关于我们",
+    "contact": "联系我们"
   },
   "nav": {
     "tools": "工具",
@@ -64,7 +77,11 @@
     "popularTools": "热门工具",
     "getStarted": "准备好开始了吗？",
     "freeCredits": "立即注册，获得100积分免费试用我们的工具。",
-    "createAccount": "创建免费账户"
+    "createAccount": "创建免费账户",
+    "featured": "精选",
+    "trending": "热门推荐",
+    "newArrival": "新品上线",
+    "discoverTools": "发现AI工具"
   },
   "tools": {
     "allTools": "所有工具",
@@ -78,7 +95,23 @@
     "processing": "处理中...",
     "completed": "完成！",
     "failed": "失败",
-    "saveToAssets": "保存到资产"
+    "saveToAssets": "保存到资产",
+    "filter": "筛选",
+    "card": {
+      "free": "免费",
+      "freemium": "免费增值",
+      "paid": "付费",
+      "visit": "访问"
+    },
+    "categories": {
+      "copywriting": "文案写作",
+      "imageGen": "图像生成",
+      "coding": "编程",
+      "video": "视频",
+      "audio": "音频",
+      "productivity": "效率工具",
+      "research": "研究"
+    }
   },
   "assets": {
     "title": "我的资产",

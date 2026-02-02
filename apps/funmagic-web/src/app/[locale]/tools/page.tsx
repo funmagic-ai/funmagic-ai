@@ -16,57 +16,51 @@ interface ToolsPageProps {
 
 export default async function ToolsPage({ params, searchParams }: ToolsPageProps) {
   const { locale } = await params
-  const search = await searchParams
   setRequestLocale(locale)
   const t = await getTranslations('tools')
 
-  const page = search.page ? parseInt(search.page, 10) : 1
-
   return (
     <div className="max-w-7xl mx-auto py-12 px-4">
-      <h1 className="text-4xl font-bold text-gray-900 mb-8">{t('allTools')}</h1>
+      <h1 className="text-4xl font-bold mb-8">{t('allTools')}</h1>
 
       <Suspense fallback={<SearchSkeleton />}>
-        <ToolsSearchWrapper q={search.q} category={search.category} />
+        <ToolsSearchWrapper searchParams={searchParams} />
       </Suspense>
 
       <Suspense fallback={<ToolGridSkeleton count={6} />}>
-        <ToolsGrid q={search.q} category={search.category} page={page} />
+        <ToolsGrid searchParams={searchParams} />
       </Suspense>
     </div>
   )
 }
 
 async function ToolsSearchWrapper({
-  q,
-  category,
+  searchParams,
 }: {
-  q?: string
-  category?: string
+  searchParams: Promise<{ q?: string; category?: string; page?: string }>
 }) {
   await connection()
+  const search = await searchParams
   const { categories } = await getTools({ limit: 1 })
 
-  return <ToolsSearch q={q} category={category} categories={categories} />
+  return <ToolsSearch q={search.q} category={search.category} categories={categories} />
 }
 
 async function ToolsGrid({
-  q,
-  category,
-  page,
+  searchParams,
 }: {
-  q?: string
-  category?: string
-  page: number
+  searchParams: Promise<{ q?: string; category?: string; page?: string }>
 }) {
   await connection()
+  const search = await searchParams
   const t = await getTranslations('tools')
-  const { tools, pagination } = await getTools({ q, category, page, limit: TOOLS_PER_PAGE })
+  const page = search.page ? parseInt(search.page, 10) : 1
+  const { tools, pagination } = await getTools({ q: search.q, category: search.category, page, limit: TOOLS_PER_PAGE })
 
   if (tools.length === 0) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">{q ? t('noSearchResults') : t('noTools')}</p>
+        <p className="text-muted-foreground">{search.q ? t('noSearchResults') : t('noTools')}</p>
       </div>
     )
   }
@@ -78,10 +72,10 @@ async function ToolsGrid({
           <Link
             key={tool.id}
             href={`/tools/${tool.slug}`}
-            className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow border group"
+            className="glass-panel p-6 rounded-xl neon-hover group"
           >
             {tool.thumbnail && (
-              <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden">
+              <div className="aspect-video bg-muted rounded-lg mb-4 overflow-hidden">
                 <img
                   src={tool.thumbnail}
                   alt={tool.title}
@@ -91,15 +85,15 @@ async function ToolsGrid({
             )}
             <div className="flex items-center gap-2 mb-2">
               {tool.category && (
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded border border-primary/20">
                   {tool.category}
                 </span>
               )}
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
               {tool.title}
             </h3>
-            <p className="text-sm text-gray-600 line-clamp-2">
+            <p className="text-sm text-muted-foreground line-clamp-2">
               {tool.description || tool.slug}
             </p>
           </Link>
@@ -121,8 +115,8 @@ function SearchSkeleton() {
   return (
     <div className="mb-8 animate-pulse">
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="h-10 bg-gray-200 rounded-lg flex-1" />
-        <div className="h-10 bg-gray-200 rounded-lg w-40" />
+        <div className="h-10 bg-muted rounded-lg flex-1" />
+        <div className="h-10 bg-muted rounded-lg w-40" />
       </div>
     </div>
   )

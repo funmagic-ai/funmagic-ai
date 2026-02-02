@@ -17,15 +17,10 @@ export default async function AssetsPage({ params, searchParams }: AssetsPagePro
   setRequestLocale(locale)
   const t = await getTranslations('assets')
 
-  const search = await searchParams
-  const page = Math.max(1, parseInt(search.page || '1', 10))
-  const limit = 20
-  const offset = (page - 1) * limit
-
   return (
     <div className="max-w-7xl mx-auto py-12 px-4">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900">{t('title')}</h1>
+        <h1 className="text-4xl font-bold">{t('title')}</h1>
       </div>
 
       <div className="mb-6">
@@ -35,25 +30,23 @@ export default async function AssetsPage({ params, searchParams }: AssetsPagePro
       </div>
 
       <Suspense fallback={<AssetsGridSkeleton />}>
-        <AssetsGrid module={search.module} limit={limit} offset={offset} page={page} />
+        <AssetsGrid searchParams={searchParams} />
       </Suspense>
     </div>
   )
 }
 
 async function AssetsGrid({
-  module,
-  limit,
-  offset,
-  page,
+  searchParams,
 }: {
-  module?: string
-  limit: number
-  offset: number
-  page: number
+  searchParams: Promise<{ module?: string; page?: string }>
 }) {
   await connection()
-  const { assets, pagination } = await getUserAssets({ module, limit, offset })
+  const search = await searchParams
+  const page = Math.max(1, parseInt(search.page || '1', 10))
+  const limit = 20
+  const offset = (page - 1) * limit
+  const { assets, pagination } = await getUserAssets({ module: search.module, limit, offset })
 
   return <AssetGallery assets={assets} pagination={pagination} currentPage={page} />
 }
@@ -62,11 +55,11 @@ function AssetsGridSkeleton() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
       {Array.from({ length: 10 }).map((_, i) => (
-        <div key={i} className="bg-white rounded-lg border shadow-sm overflow-hidden animate-pulse">
-          <div className="aspect-square bg-gray-200" />
+        <div key={i} className="bg-card rounded-lg border border-border shadow-sm overflow-hidden animate-pulse">
+          <div className="aspect-square bg-muted" />
           <div className="p-3 space-y-2">
-            <div className="h-4 bg-gray-200 rounded w-3/4" />
-            <div className="h-3 bg-gray-200 rounded w-1/2" />
+            <div className="h-4 bg-muted rounded w-3/4" />
+            <div className="h-3 bg-muted rounded w-1/2" />
           </div>
         </div>
       ))}

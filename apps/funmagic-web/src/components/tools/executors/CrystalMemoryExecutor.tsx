@@ -19,8 +19,8 @@ const PointCloudViewer = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-gray-900 rounded-lg h-[500px] flex items-center justify-center">
-        <div className="text-gray-400 text-center">
+      <div className="bg-zinc-900 rounded-lg h-[500px] flex items-center justify-center">
+        <div className="text-muted-foreground text-center">
           <div className="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2" />
           <p className="text-sm">Loading 3D Viewer...</p>
         </div>
@@ -159,7 +159,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
   if (!session) {
     return (
       <div className="bg-white p-8 rounded-xl shadow-sm border text-center">
-        <p className="text-gray-600 mb-4">Please sign in to use this tool</p>
+        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
         <a
           href="/login"
           className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
@@ -193,21 +193,21 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
           isActive={step === 'upload'}
           isComplete={step !== 'upload'}
         />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator
           number={2}
           label="Remove BG"
           isActive={step === 'removing-bg'}
           isComplete={step === 'generating-cloud' || step === 'result'}
         />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator
           number={3}
           label="Generate 3D"
           isActive={step === 'generating-cloud'}
           isComplete={step === 'result'}
         />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator
           number={4}
           label="View"
@@ -218,8 +218,8 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === 'upload' && (
         <>
-          <h3 className="font-medium text-gray-900">Upload Your Image</h3>
-          <p className="text-sm text-gray-500">
+          <h3 className="font-medium text-foreground">Upload Your Image</h3>
+          <p className="text-sm text-muted-foreground">
             Upload a photo to transform it into a 3D point cloud. Works best with objects
             that have clear edges and distinct colors.
           </p>
@@ -241,7 +241,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
               : `Create 3D Point Cloud (${totalCost} credits)`}
           </button>
 
-          <p className="text-xs text-gray-400 text-center">
+          <p className="text-xs text-muted-foreground text-center">
             Cost breakdown: {bgRemoveCost} credits (background removal) + {vggtCost} credits (3D generation)
           </p>
         </>
@@ -249,7 +249,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === 'removing-bg' && bgRemoveTaskId && (
         <div className="space-y-4">
-          <h3 className="font-medium text-gray-900">Step 1: Removing Background</h3>
+          <h3 className="font-medium text-foreground">Step 1: Removing Background</h3>
           {originalPreview && (
             <div className="flex justify-center">
               <img
@@ -265,7 +265,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === 'generating-cloud' && vggtTaskId && (
         <div className="space-y-4">
-          <h3 className="font-medium text-gray-900">Step 2: Generating 3D Point Cloud</h3>
+          <h3 className="font-medium text-foreground">Step 2: Generating 3D Point Cloud</h3>
           {bgRemovedPreview && (
             <div className="flex justify-center">
               <img
@@ -281,16 +281,16 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === 'result' && vggtOutput && (
         <div className="space-y-4">
-          <h3 className="font-medium text-gray-900">Your 3D Point Cloud</h3>
-          <p className="text-sm text-gray-500">
+          <h3 className="font-medium text-foreground">Your 3D Point Cloud</h3>
+          <p className="text-sm text-muted-foreground">
             Generated {vggtOutput.pointCount.toLocaleString()} points. Use your mouse to rotate,
             scroll to zoom, and right-click to pan.
           </p>
 
           <Suspense
             fallback={
-              <div className="bg-gray-900 rounded-lg h-[500px] flex items-center justify-center">
-                <div className="text-gray-400">Loading viewer...</div>
+              <div className="bg-zinc-900 rounded-lg h-[500px] flex items-center justify-center">
+                <div className="text-muted-foreground">Loading viewer...</div>
               </div>
             }
           >
@@ -323,8 +323,8 @@ function StepIndicator({
           isComplete
             ? 'bg-green-500 text-white'
             : isActive
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-200 text-gray-500'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground'
         }`}
       >
         {isComplete ? (
@@ -341,7 +341,7 @@ function StepIndicator({
       </div>
       <span
         className={`hidden sm:inline ${
-          isActive ? 'text-gray-900 font-medium' : 'text-gray-500'
+          isActive ? 'text-foreground font-medium' : 'text-muted-foreground'
         }`}
       >
         {label}

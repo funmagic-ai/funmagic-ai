@@ -53,8 +53,8 @@ function DefaultExecutor({ tool }: { tool: ToolDetail }) {
 
 function ExecutorSkeleton() {
   return (
-    <div className="bg-white p-8 rounded-xl shadow-sm border animate-pulse">
-      <div className="h-64 bg-gray-200 rounded-lg" />
+    <div className="bg-card p-8 rounded-xl shadow-sm border border-border animate-pulse">
+      <div className="h-64 bg-muted rounded-lg" />
     </div>
   )
 }

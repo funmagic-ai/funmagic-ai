@@ -3,9 +3,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
-import { Header } from '@/components/Header'
-import { Footer } from '@/components/Footer'
-import { HeaderSkeleton, FooterSkeleton } from '@/components/skeletons'
+import { Header, Footer, HeaderSkeleton, FooterSkeleton } from '@/components/layout'
 
 interface LocaleLayoutProps {
   children: React.ReactNode
@@ -32,7 +30,7 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages}>
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex flex-col">
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
         <Suspense fallback={<HeaderSkeleton />}>
           <Header />
         </Suspense>
@@ -40,7 +38,7 @@ export default async function LocaleLayout({
         <main className="flex-1">{children}</main>
 
         <Suspense fallback={<FooterSkeleton />}>
-          <Footer />
+          <Footer locale={locale} />
         </Suspense>
       </div>
     </NextIntlClientProvider>

@@ -49,7 +49,20 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "download": "Download",
-    "close": "Close"
+    "close": "Close",
+    "home": "Home",
+    "tools": "Tools",
+    "pricing": "Pricing",
+    "menu": "Menu",
+    "viewAll": "View All",
+    "loadMore": "Load More",
+    "copyright": "All rights reserved."
+  },
+  "footer": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "about": "About",
+    "contact": "Contact"
   },
   "nav": {
     "tools": "Tools",
@@ -64,7 +77,11 @@
     "popularTools": "Popular Tools",
     "getStarted": "Ready to get started?",
     "freeCredits": "Sign up now and get 100 free credits to try our tools.",
-    "createAccount": "Create Free Account"
+    "createAccount": "Create Free Account",
+    "featured": "Featured",
+    "trending": "Trending",
+    "newArrival": "New Arrival",
+    "discoverTools": "Discover AI Tools"
   },
   "tools": {
     "allTools": "All Tools",
@@ -78,7 +95,23 @@
     "processing": "Processing...",
     "completed": "Completed!",
     "failed": "Failed",
-    "saveToAssets": "Save to Assets"
+    "saveToAssets": "Save to Assets",
+    "filter": "Filter",
+    "card": {
+      "free": "Free",
+      "freemium": "Freemium",
+      "paid": "Paid",
+      "visit": "Visit"
+    },
+    "categories": {
+      "copywriting": "Copywriting",
+      "imageGen": "Image Generation",
+      "coding": "Coding",
+      "video": "Video",
+      "audio": "Audio",
+      "productivity": "Productivity",
+      "research": "Research"
+    }
   },
   "assets": {
     "title": "My Assets",

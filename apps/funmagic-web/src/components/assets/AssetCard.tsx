@@ -74,14 +74,14 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
 
   return (
     <div
-      className={`relative bg-white rounded-lg border shadow-sm overflow-hidden transition-shadow hover:shadow-md ${
+      className={`relative bg-card rounded-lg border border-border shadow-sm overflow-hidden transition-shadow hover:shadow-md ${
         onClick ? 'cursor-pointer' : ''
       }`}
       onClick={onClick}
     >
-      <div className="aspect-square bg-gray-100 flex items-center justify-center">
+      <div className="aspect-square bg-muted flex items-center justify-center">
         {isImage ? (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">
+          <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
             <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -92,7 +92,7 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
             </svg>
           </div>
         ) : (
-          <div className="text-gray-400">
+          <div className="text-muted-foreground">
             <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 strokeLinecap="round"
@@ -106,10 +106,10 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
       </div>
 
       <div className="p-3">
-        <p className="text-sm font-medium text-gray-900 truncate" title={asset.filename}>
+        <p className="text-sm font-medium text-foreground truncate" title={asset.filename}>
           {asset.filename}
         </p>
-        <div className="flex items-center justify-between mt-1 text-xs text-gray-500">
+        <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
           <span>{formatSize(asset.size)}</span>
           <span>{formatDate(asset.createdAt)}</span>
         </div>
@@ -124,7 +124,7 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
           }}
           className="p-1 bg-white/80 rounded-full hover:bg-white transition-colors"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
