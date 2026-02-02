@@ -28,7 +28,7 @@ export function BackgroundRemoveExecutor({ tool }: { tool: ToolDetail }) {
   const [error, setError] = useState<string | null>(null)
 
   const upload = useSubmitUpload({
-    route: 'tool-input',
+    route: 'background-remove',
     onError: (err) => setError(err),
   })
 

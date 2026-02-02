@@ -43,7 +43,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
   const [isSaving, setIsSaving] = useState(false)
 
   const upload = useSubmitUpload({
-    route: 'tool-input',
+    route: 'figme',
     onError: (err) => setError(err),
   })
 

@@ -3,8 +3,17 @@
 import { useState, useCallback } from 'react'
 import { useUploadFile } from '@better-upload/client'
 
+const UPLOAD_CONFIG = {
+  figme: { route: 'input', api: '/api/tools/figme/upload' },
+  'background-remove': { route: 'input', api: '/api/tools/background-remove/upload' },
+  'crystal-memory': { route: 'input', api: '/api/tools/crystal-memory/upload' },
+  avatar: { route: 'avatar', api: '/api/user/avatar/upload' },
+} as const
+
+type UploadRoute = keyof typeof UPLOAD_CONFIG
+
 interface UseSubmitUploadOptions {
-  route: 'tool-input' | 'avatar'
+  route: UploadRoute
   onSuccess?: (file: { key: string; name: string; size: number }) => void
   onError?: (error: string) => void
 }
@@ -14,13 +23,16 @@ export function useSubmitUpload({ route, onSuccess, onError }: UseSubmitUploadOp
   const [preview, setPreview] = useState<string | null>(null)
   const [uploadedKey, setUploadedKey] = useState<string | null>(null)
 
+  const config = UPLOAD_CONFIG[route]
+
   const {
     uploadAsync,
     isPending: isUploading,
     progress,
     reset: resetUpload,
   } = useUploadFile({
-    route,
+    route: config.route,
+    api: config.api,
     credentials: 'include',
     onUploadComplete: ({ file, metadata }) => {
       const key = (metadata as { key?: string } | undefined)?.key || ''

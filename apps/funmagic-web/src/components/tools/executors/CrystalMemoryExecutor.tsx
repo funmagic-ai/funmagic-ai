@@ -61,7 +61,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
   const [error, setError] = useState<string | null>(null)
 
   const upload = useSubmitUpload({
-    route: 'tool-input',
+    route: 'crystal-memory',
     onError: (err) => setError(err),
   })
 
