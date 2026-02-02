@@ -1,6 +1,6 @@
 import { connection } from 'next/server';
 import { Suspense } from 'react';
-import { auth } from '@funmagic/auth/server';
+import { auth, type Session } from '@funmagic/auth/server';
 import { isAdmin } from '@funmagic/auth/permissions';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -10,7 +10,7 @@ import { SidebarSkeleton } from '@/components/layout/sidebar-skeleton';
 async function requireAdmin() {
   const session = await auth.api.getSession({
     headers: await headers(),
-  });
+  }) as Session | null;
   if (!session || !isAdmin(session.user.role)) {
     redirect('/unauthorized');
   }

@@ -1,7 +1,7 @@
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi';
 import { db } from '@funmagic/database';
 import { sql } from 'drizzle-orm';
-import { redis } from '../lib/redis';
+import { redis } from '@funmagic/services';
 import {
   HealthSchema,
   HealthDbSchema,

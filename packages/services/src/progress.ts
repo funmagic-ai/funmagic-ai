@@ -159,7 +159,7 @@ export function subscribeProgress(
   redis: Redis,
   taskId: string
 ): {
-  iterator: AsyncGenerator<ProgressEvent, void, unknown>;
+  iterator: AsyncIterableIterator<ProgressEvent>;
   unsubscribe: () => Promise<void>;
 } {
   const channel = getTaskChannel(taskId);
@@ -195,8 +195,8 @@ export function subscribeProgress(
 
   redis.on('message', messageHandler);
 
-  const iterator: AsyncGenerator<ProgressEvent, void, unknown> = {
-    async next() {
+  const iterator = {
+    async next(): Promise<IteratorResult<ProgressEvent, void>> {
       if (eventQueue.length > 0) {
         return { value: eventQueue.shift()!, done: false };
       }
@@ -210,22 +210,22 @@ export function subscribeProgress(
       });
     },
 
-    async return() {
+    async return(): Promise<IteratorResult<ProgressEvent, void>> {
       isCompleted = true;
       redis.off('message', messageHandler);
       await redis.unsubscribe(channel);
       return { value: undefined, done: true };
     },
 
-    async throw(e) {
+    async throw(e: unknown): Promise<never> {
       isCompleted = true;
       redis.off('message', messageHandler);
       await redis.unsubscribe(channel);
       throw e;
     },
 
-    [Symbol.asyncIterator]() {
-      return this;
+    [Symbol.asyncIterator](): AsyncIterableIterator<ProgressEvent> {
+      return this as AsyncIterableIterator<ProgressEvent>;
     },
   };
 

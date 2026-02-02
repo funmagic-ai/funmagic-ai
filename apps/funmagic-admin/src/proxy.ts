@@ -1,4 +1,4 @@
-import { auth } from "@funmagic/auth/server"
+import { auth, type Session } from "@funmagic/auth/server"
 import { isAdmin } from "@funmagic/auth/permissions"
 import { NextRequest, NextResponse } from "next/server"
 import { headers } from "next/headers"
@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
 
   const session = await auth.api.getSession({
     headers: await headers(),
-  })
+  }) as Session | null
 
   if (!session) {
     return NextResponse.redirect(new URL("/login", request.url))

@@ -27,7 +27,8 @@ export function FigmeStyleEditor({ styles, maxStyles, onChange }: FigmeStyleEdit
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const uploadControl = useUploadFiles({
-    route: 'style-images',
+    route: 'styles',
+    api: '/api/admin/tools/figme/styles/upload',
     onUploadComplete: ({ files }) => {
       if (files.length > 0 && editingIndex !== null) {
         const file = files[0];

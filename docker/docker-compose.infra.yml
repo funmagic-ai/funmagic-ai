@@ -10,9 +10,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
-      POSTGRES_USER: funmagic
-      POSTGRES_PASSWORD: funmagic_dev
-      POSTGRES_DB: funmagic
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U funmagic"]
       interval: 5s
@@ -41,8 +41,8 @@ services:
     volumes:
       - minio_data:/data
     environment:
-      MINIO_ROOT_USER: funmagic
-      MINIO_ROOT_PASSWORD: funmagic_dev
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
@@ -56,13 +56,19 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE}
+      S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN}
     entrypoint: >
       /bin/sh -c "
-      mc alias set myminio http://minio:9000 funmagic funmagic_dev;
-      mc mb myminio/funmagic-public --ignore-existing;
-      mc mb myminio/funmagic-private --ignore-existing;
-      mc mb myminio/funmagic-admin --ignore-existing;
-      mc anonymous set download myminio/funmagic-public;
+      mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb myminio/$${S3_BUCKET_PUBLIC} --ignore-existing;
+      mc mb myminio/$${S3_BUCKET_PRIVATE} --ignore-existing;
+      mc mb myminio/$${S3_BUCKET_ADMIN} --ignore-existing;
+      mc anonymous set download myminio/$${S3_BUCKET_PUBLIC};
       exit 0;
       "
 

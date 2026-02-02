@@ -10,20 +10,20 @@ const PRESIGNED_URL_EXPIRATION_UPLOAD = parseInt(process.env.PRESIGNED_URL_EXPIR
 
 // S3 Configuration
 const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-  region: process.env.S3_REGION || 'us-east-2',
+  endpoint: process.env.S3_ENDPOINT!,
+  region: process.env.S3_REGION!,
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY || 'funmagic',
-    secretAccessKey: process.env.S3_SECRET_KEY || 'funmagic_dev',
+    accessKeyId: process.env.S3_ACCESS_KEY!,
+    secretAccessKey: process.env.S3_SECRET_KEY!,
   },
   forcePathStyle: true, // Required for MinIO
 });
 
 // Bucket configuration
 const BUCKETS = {
-  public: process.env.S3_BUCKET_PUBLIC || 'funmagic-public',
-  private: process.env.S3_BUCKET_PRIVATE || 'funmagic-private',
-  admin: process.env.S3_BUCKET_ADMIN || 'funmagic-admin',
+  public: process.env.S3_BUCKET_PUBLIC!,
+  private: process.env.S3_BUCKET_PRIVATE!,
+  admin: process.env.S3_BUCKET_ADMIN!,
 } as const;
 
 // CDN configuration

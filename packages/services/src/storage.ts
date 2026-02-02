@@ -42,14 +42,14 @@ export interface PresignedDownloadParams {
 // Default config from environment
 function getDefaultConfig(): StorageConfig {
   return {
-    endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-    region: process.env.S3_REGION || 'us-east-2',
-    accessKeyId: process.env.S3_ACCESS_KEY || 'funmagic',
-    secretAccessKey: process.env.S3_SECRET_KEY || 'funmagic_dev',
+    endpoint: process.env.S3_ENDPOINT!,
+    region: process.env.S3_REGION!,
+    accessKeyId: process.env.S3_ACCESS_KEY!,
+    secretAccessKey: process.env.S3_SECRET_KEY!,
     buckets: {
-      public: process.env.S3_BUCKET_PUBLIC || 'funmagic-public',
-      private: process.env.S3_BUCKET_PRIVATE || 'funmagic-private',
-      admin: process.env.S3_BUCKET_ADMIN || 'funmagic-admin',
+      public: process.env.S3_BUCKET_PUBLIC!,
+      private: process.env.S3_BUCKET_PRIVATE!,
+      admin: process.env.S3_BUCKET_ADMIN!,
     },
     cdnBaseUrl: process.env.CDN_BASE_URL,
     privateCdnBaseUrl: process.env.PRIVATE_CDN_BASE_URL,

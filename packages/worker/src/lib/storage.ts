@@ -7,16 +7,16 @@ const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPI
 
 // S3 Configuration
 const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-  region: process.env.S3_REGION || 'us-east-2',
+  endpoint: process.env.S3_ENDPOINT!,
+  region: process.env.S3_REGION!,
   credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY || 'funmagic',
-    secretAccessKey: process.env.S3_SECRET_KEY || 'funmagic_dev',
+    accessKeyId: process.env.S3_ACCESS_KEY!,
+    secretAccessKey: process.env.S3_SECRET_KEY!,
   },
   forcePathStyle: true,
 });
 
-const BUCKET_PRIVATE = process.env.S3_BUCKET_PRIVATE || 'funmagic-private';
+const BUCKET_PRIVATE = process.env.S3_BUCKET_PRIVATE!;
 
 interface UploadResult {
   id: string;

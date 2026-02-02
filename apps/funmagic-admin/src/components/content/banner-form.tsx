@@ -55,7 +55,8 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
   const [isPending, startTransition] = useTransition();
 
   const uploadControl = useUploadFiles({
-    route: 'banner-images',
+    route: 'banners',
+    api: '/api/admin/content/banners/upload',
     onUploadComplete: ({ files }) => {
       if (files.length > 0) {
         const file = files[0];

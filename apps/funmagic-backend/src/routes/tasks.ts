@@ -3,7 +3,7 @@ import { db, tasks, taskPayloads, tools, credits, creditTransactions } from '@fu
 import { eq, sql } from 'drizzle-orm';
 import { streamSSE } from 'hono/streaming';
 import { addAITaskJob } from '../lib/queue';
-import { redis } from '../lib/redis';
+import { redis } from '@funmagic/services';
 import { CreateTaskSchema, TaskSchema, TaskDetailSchema, ErrorSchema } from '../schemas';
 
 // Step config from tool.config

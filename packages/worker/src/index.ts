@@ -1,7 +1,7 @@
 import { Worker, Job } from 'bullmq';
 import { db, tasks, taskPayloads, credits, creditTransactions } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis } from './lib/redis';
+import { createRedisConnection, redis } from '@funmagic/services';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
 import { confirmCharge, releaseCredits } from '@funmagic/services/credit';

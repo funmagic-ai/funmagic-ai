@@ -1,4 +1,4 @@
-export { redis, createRedisConnection } from './redis';
+export { redis, createRedisConnection } from '@funmagic/services';
 export { decryptCredentials, maskCredential } from './credentials';
 export { uploadFromUrl, uploadBuffer, getDownloadUrl } from './storage';
 export {

@@ -17,6 +17,7 @@
     "@aws-sdk/s3-request-presigner": "^3.980.0",
     "@funmagic/auth": "workspace:*",
     "@funmagic/database": "workspace:*",
+    "@funmagic/services": "workspace:*",
     "@funmagic/shared": "workspace:*",
     "@hono/zod-openapi": "^1.2.0",
     "bullmq": "^5.67.2",

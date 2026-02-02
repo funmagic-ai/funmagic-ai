@@ -1,23 +1,9 @@
-import { auth } from "@funmagic/auth/server"
+import { auth, type User, type Session } from "@funmagic/auth/server"
 import { createMiddleware } from "hono/factory"
-
-type User = {
-  id: string
-  email: string
-  name: string | null
-  role: string
-}
-
-type Session = {
-  id: string
-  userId: string
-  token: string
-  expiresAt: Date
-}
 
 type Variables = {
   user: User
-  session: Session
+  session: Session["session"]
 }
 
 export const requireAuth = createMiddleware<{ Variables: Variables }>(async (c, next) => {
@@ -29,8 +15,8 @@ export const requireAuth = createMiddleware<{ Variables: Variables }>(async (c, 
     return c.json({ error: "Unauthorized" }, 401)
   }
 
-  c.set("user", session.user as User)
-  c.set("session", session.session as Session)
+  c.set("user", session.user)
+  c.set("session", session.session)
   await next()
 })
 

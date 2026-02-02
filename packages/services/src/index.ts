@@ -48,3 +48,10 @@ export {
   subscribeProgress,
   ProgressTracker,
 } from './progress';
+
+// Redis service
+export {
+  getRedis,
+  redis,
+  createRedisConnection,
+} from './redis';

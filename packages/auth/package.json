@@ -11,12 +11,14 @@
   },
   "dependencies": {
     "better-auth": "^1.4.18",
-    "@funmagic/database": "workspace:*"
+    "@funmagic/database": "workspace:*",
+    "@funmagic/services": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0"
   },
   "devDependencies": {
+    "@types/node": "^22",
     "typescript": "^5.9.3"
   }
 }

@@ -5,6 +5,6 @@ export default defineConfig({
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.DATABASE_URL || 'postgres://funmagic:funmagic_dev@localhost:5432/funmagic',
+    url: process.env.DATABASE_URL!,
   },
 });
