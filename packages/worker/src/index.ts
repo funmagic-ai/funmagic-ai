@@ -1,3 +1,5 @@
+import 'dotenv/config';
+
 import { Worker, Job } from 'bullmq';
 import { db, tasks, taskPayloads, credits, creditTransactions } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
