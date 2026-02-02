@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import { ThemeSwitcher } from '@/components/theme/theme-switcher';
 import { signOut } from '@/lib/auth-client';
 
 interface SidebarProps {
@@ -51,8 +52,8 @@ export function Sidebar({ user }: SidebarProps) {
   };
 
   return (
-    <aside className="flex h-screen w-64 flex-col border-r bg-sidebar">
-      <div className="flex h-14 items-center border-b px-4">
+    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r bg-sidebar">
+      <div className="flex h-16 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Wrench className="h-4 w-4" />
@@ -84,7 +85,9 @@ export function Sidebar({ user }: SidebarProps) {
 
       <Separator />
 
-      <div className="p-4">
+      <div className="p-4 space-y-3">
+        <ThemeSwitcher />
+        <Separator />
         <div className="flex items-center gap-3">
           <Avatar className="h-9 w-9">
             <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} />

@@ -40,12 +40,12 @@ export default async function DashboardLayout({
   await connection();
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       <Suspense fallback={<SidebarSkeleton />}>
         <SidebarWithAuth />
       </Suspense>
-      <main className="flex-1 overflow-auto">
-        <div className="container max-w-7xl py-8">
+      <main className="ml-64 flex-1 overflow-auto p-8">
+        <div className="mx-auto max-w-7xl">
           {children}
         </div>
       </main>
