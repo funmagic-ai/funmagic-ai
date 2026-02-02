@@ -1,0 +1,33 @@
+{
+  "name": "funmagic-ai",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --parallel dev:backend dev:worker dev:web dev:admin",
+    "dev:web": "bun --cwd apps/funmagic-web dev",
+    "dev:admin": "bun --cwd apps/funmagic-admin dev",
+    "dev:backend": "bun --cwd apps/funmagic-backend dev",
+    "dev:worker": "bun --cwd packages/worker dev",
+    "build": "bun run --filter '*' build",
+    "db:generate": "bun --cwd packages/database generate",
+    "db:migrate": "bun --cwd packages/database migrate",
+    "db:push": "bun --cwd packages/database push",
+    "db:studio": "bun --cwd packages/database studio",
+    "infra:up": "docker compose -f docker/docker-compose.infra.yml up -d",
+    "infra:down": "docker compose -f docker/docker-compose.infra.yml down",
+    "infra:logs": "docker compose -f docker/docker-compose.infra.yml logs -f",
+    "stack:up": "docker compose -f docker/docker-compose.yml up -d --build",
+    "stack:down": "docker compose -f docker/docker-compose.yml down",
+    "stack:logs": "docker compose -f docker/docker-compose.yml logs -f",
+    "stack:rebuild": "docker compose -f docker/docker-compose.yml up -d --build --force-recreate",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "bun run --filter '*' lint",
+    "api:generate": "bunx openapi-typescript http://localhost:8000/openapi.json -o packages/shared/src/api/types.ts"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.10.1"
+  }
+}

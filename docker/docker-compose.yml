@@ -1,0 +1,197 @@
+name: funmagic
+
+services:
+  # ===========================================
+  # Infrastructure
+  # ===========================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: funmagic-postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_USER: funmagic
+      POSTGRES_PASSWORD: funmagic_dev
+      POSTGRES_DB: funmagic
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U funmagic"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: funmagic-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: funmagic-minio
+    ports:
+      - "9001:9001"  # Console only exposed for debugging
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: funmagic
+      MINIO_ROOT_PASSWORD: funmagic_dev
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: funmagic-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 funmagic funmagic_dev;
+      mc mb myminio/funmagic-public --ignore-existing;
+      mc mb myminio/funmagic-private --ignore-existing;
+      mc mb myminio/funmagic-admin --ignore-existing;
+      mc anonymous set download myminio/funmagic-public;
+      exit 0;
+      "
+    networks:
+      - funmagic-network
+
+  # ===========================================
+  # Backend (Hono API)
+  # ===========================================
+  backend:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-backend/Dockerfile
+    container_name: funmagic-backend
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://funmagic:funmagic_dev@postgres:5432/funmagic
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: funmagic
+      S3_SECRET_KEY: funmagic_dev
+      S3_BUCKET_PUBLIC: funmagic-public
+      S3_BUCKET_PRIVATE: funmagic-private
+      S3_BUCKET_ADMIN: funmagic-admin
+      SECRET_KEY: docker-secret-key-change-in-production
+      PORT: 8000
+      BETTER_AUTH_URL: http://localhost:8000
+      BETTER_AUTH_SECRET: docker-auth-secret-change-in-production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  # ===========================================
+  # BullMQ Worker
+  # ===========================================
+  worker:
+    build:
+      context: ..
+      dockerfile: packages/worker/Dockerfile
+    container_name: funmagic-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://funmagic:funmagic_dev@postgres:5432/funmagic
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: http://minio:9000
+      S3_ACCESS_KEY: funmagic
+      S3_SECRET_KEY: funmagic_dev
+      S3_BUCKET_PUBLIC: funmagic-public
+      S3_BUCKET_PRIVATE: funmagic-private
+      S3_BUCKET_ADMIN: funmagic-admin
+      # VGGT configuration
+      VGGT_MAX_POLL_ATTEMPTS: "120"
+      VGGT_POLL_INTERVAL_MS: "5000"
+    networks:
+      - funmagic-network
+
+  # ===========================================
+  # Frontends (Next.js 16)
+  # ===========================================
+  web:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+    container_name: funmagic-web
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Browser fetches (client-side) - user's browser → host
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # SSR fetches (server-side) - container → container
+      API_URL_INTERNAL: http://backend:8000
+    networks:
+      - funmagic-network
+
+  admin:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+        NEXT_PUBLIC_APP_URL: http://localhost:3001
+    container_name: funmagic-admin
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Browser fetches (client-side) - user's browser → host
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_APP_URL: http://localhost:3001
+      # SSR fetches (server-side) - container → container
+      API_URL_INTERNAL: http://backend:8000
+    networks:
+      - funmagic-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  funmagic-network:
+    driver: bridge

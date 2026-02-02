@@ -1,0 +1,25 @@
+{
+  "name": "@funmagic/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema/index.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "push": "drizzle-kit push",
+    "studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "drizzle-kit": "^0.31.8",
+    "typescript": "^5.9.3"
+  }
+}

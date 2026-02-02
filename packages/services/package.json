@@ -1,0 +1,26 @@
+{
+  "name": "@funmagic/services",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./storage": "./src/storage.ts",
+    "./credit": "./src/credit.ts",
+    "./progress": "./src/progress.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.980.0",
+    "@aws-sdk/s3-request-presigner": "^3.980.0",
+    "@aws-sdk/cloudfront-signer": "^3.978.0",
+    "ioredis": "^5.9.2",
+    "drizzle-orm": "^0.45.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@funmagic/database": "workspace:*"
+  }
+}

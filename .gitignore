@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Bun
+bun.lockb
+
+# Build outputs
+dist/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Docker volumes (if local)
+docker/postgres/data/
+docker/redis/data/
+docker/minio/data/
+
+# Drizzle
+packages/database/drizzle/meta/
+
+# TypeScript
+*.tsbuildinfo

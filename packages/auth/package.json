@@ -1,0 +1,22 @@
+{
+  "name": "@funmagic/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server.ts",
+    "./client": "./src/client.ts",
+    "./permissions": "./src/permissions.ts"
+  },
+  "dependencies": {
+    "better-auth": "^1.4.18",
+    "@funmagic/database": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
