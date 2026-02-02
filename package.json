@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --parallel dev:backend dev:worker dev:web dev:admin",
+    "dev": "bun run --env-file=.env --parallel dev:backend dev:worker dev:web dev:admin",
     "dev:web": "bun --env-file=.env --cwd apps/funmagic-web dev",
     "dev:admin": "bun --env-file=.env --cwd apps/funmagic-admin dev",
     "dev:backend": "bun --env-file=.env --cwd apps/funmagic-backend dev",
