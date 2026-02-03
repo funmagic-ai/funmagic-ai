@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { db, tasks } from '@/lib/db';
-import { sql, desc } from 'drizzle-orm';
+import { sql, desc, eq, and, gt } from 'drizzle-orm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -137,7 +137,7 @@ async function QueueStats() {
 
 async function ActiveJobsTable() {
   const activeTasks = await db.query.tasks.findMany({
-    where: sql`${tasks.status} = 'processing'`,
+    where: eq(tasks.status, 'processing'),
     with: { user: true, tool: true },
     orderBy: desc(tasks.startedAt),
     limit: 10,
@@ -179,7 +179,7 @@ async function ActiveJobsTable() {
 
 async function QueuedJobsTable() {
   const queuedTasks = await db.query.tasks.findMany({
-    where: sql`${tasks.status} = 'queued'`,
+    where: eq(tasks.status, 'queued'),
     with: { user: true, tool: true },
     orderBy: tasks.queuedAt,
     limit: 10,
@@ -221,7 +221,7 @@ async function FailedJobsTable() {
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const failedTasks = await db.query.tasks.findMany({
-    where: sql`${tasks.status} = 'failed' AND ${tasks.completedAt} > ${oneDayAgo}`,
+    where: and(eq(tasks.status, 'failed'), gt(tasks.completedAt, oneDayAgo)),
     with: { user: true, tool: true, payload: true },
     orderBy: desc(tasks.completedAt),
     limit: 10,

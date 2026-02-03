@@ -2,6 +2,8 @@
 
 import { useCallback, useRef } from 'react'
 import { formatBytes } from '@better-upload/client/helpers'
+import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 
 interface ImagePickerProps {
   onFileSelect: (file: File | null) => void
@@ -88,7 +90,7 @@ export function ImagePicker({
 
   return (
     <div
-      className={`relative border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors ${
+      className={`relative border-2 border-dashed border-input rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
       } ${className || ''}`}
       onClick={!disabled ? handleClick : undefined}
@@ -112,19 +114,20 @@ export function ImagePicker({
             className="max-h-64 mx-auto rounded-lg object-contain"
           />
           {!disabled && (
-            <button
-              type="button"
+            <Button
+              variant="destructive"
+              size="icon-xs"
               onClick={handleClear}
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition-colors"
+              className="absolute top-2 right-2 rounded-full"
             >
-              &times;
-            </button>
+              <X className="w-4 h-4" />
+            </Button>
           )}
         </div>
       ) : (
         <div className="py-8">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-muted-foreground"
             stroke="currentColor"
             fill="none"
             viewBox="0 0 48 48"
@@ -136,10 +139,10 @@ export function ImagePicker({
               strokeLinejoin="round"
             />
           </svg>
-          <p className="mt-4 text-sm text-gray-600">
-            <span className="font-medium text-blue-600">Click to upload</span> or drag and drop
+          <p className="mt-4 text-sm text-muted-foreground">
+            <span className="font-medium text-primary">Click to upload</span> or drag and drop
           </p>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             PNG, JPG, GIF up to {formatBytes(maxSize)}
           </p>
         </div>

@@ -1,5 +1,7 @@
 # Claude Code Instructions
 
+**Do NOT modify src/components/ui/*.tsx - Apply styling overrides at usage time via className.**        
+
 ## Package Manager & Runtime
 
 **Always use Bun** as the package manager and runtime for this project.

@@ -39,8 +39,8 @@ export function ToolsPagination({
   const pages = generatePageNumbers(currentPage, totalPages)
 
   return (
-    <div className="flex items-center justify-between border-t border-gray-200 pt-6">
-      <div className="text-sm text-gray-600">
+    <div className="flex items-center justify-between border-t border-border pt-6">
+      <div className="text-sm text-muted-foreground">
         {t('showingResults', { total })}
       </div>
 
@@ -48,7 +48,7 @@ export function ToolsPagination({
         <button
           onClick={() => goToPage(currentPage - 1)}
           disabled={currentPage <= 1 || isPending}
-          className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg border border-input hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
@@ -57,7 +57,7 @@ export function ToolsPagination({
           {pages.map((page, index) => {
             if (page === '...') {
               return (
-                <span key={`ellipsis-${index}`} className="px-2 text-gray-400">
+                <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">
                   ...
                 </span>
               )
@@ -73,8 +73,8 @@ export function ToolsPagination({
                 disabled={isPending}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'hover:bg-gray-100 text-gray-700'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent text-foreground'
                 }`}
               >
                 {pageNum}
@@ -86,7 +86,7 @@ export function ToolsPagination({
         <button
           onClick={() => goToPage(currentPage + 1)}
           disabled={currentPage >= totalPages || isPending}
-          className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-2 rounded-lg border border-input hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ChevronRight className="w-5 h-5" />
         </button>

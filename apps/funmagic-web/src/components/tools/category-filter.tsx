@@ -87,23 +87,23 @@ export function CategoryFilter({
                 </span>
               )}
             </PopoverTrigger>
-            <PopoverContent className="w-56 p-2 bg-card">
+            <PopoverContent className="w-56 p-2 bg-card border-border/50">
               <div className="flex flex-col gap-1">
                 {categoryList.map(([key, label]) => {
                   const Icon = categoryIcons[key]
                   const isChecked = selectedCategories.includes(key)
 
                   return (
-                    <button
-                      type="button"
+                    <label
                       key={key}
-                      onClick={() => handleCategoryToggle(key)}
-                      className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent cursor-pointer transition-colors w-full text-left"
+                      className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors w-full text-left"
                     >
-                      <Checkbox checked={isChecked} tabIndex={-1} />
-                      {Icon && <Icon className="h-4 w-4 text-muted-foreground" />}
+                      <Checkbox
+                        checked={isChecked}
+                        onCheckedChange={() => handleCategoryToggle(key)}
+                      />
                       <span className="text-sm">{label}</span>
-                    </button>
+                    </label>
                   )
                 })}
               </div>

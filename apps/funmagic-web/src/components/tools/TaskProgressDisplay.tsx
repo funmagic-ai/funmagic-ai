@@ -23,15 +23,15 @@ export function TaskProgressDisplay({
   if (!progress) {
     return (
       <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6 space-y-4">
+    <div className="bg-card rounded-lg border p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-medium text-gray-900">
+        <h3 className="font-medium text-foreground">
           {isConnecting && 'Connecting...'}
           {isProcessing && (progress.currentStep || 'Processing...')}
           {isCompleted && 'Completed!'}

@@ -62,22 +62,22 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-white rounded-xl border shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Transaction History</h2>
-        <p className="text-gray-500 text-center py-8">No transactions yet</p>
+      <div className="bg-card rounded-xl border shadow-sm p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Transaction History</h2>
+        <p className="text-muted-foreground text-center py-8">No transactions yet</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
       <div className="p-6 border-b">
-        <h2 className="text-lg font-semibold text-gray-900">Transaction History</h2>
+        <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
       </div>
 
       <div className="divide-y">
         {transactions.map((transaction) => (
-          <div key={transaction.id} className="p-4 hover:bg-gray-50">
+          <div key={transaction.id} className="p-4 hover:bg-accent">
             <div className="flex items-center justify-between">
               <div>
                 <span
@@ -96,7 +96,7 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
                   {getTypeLabel(transaction.type)}
                 </span>
                 {transaction.description && (
-                  <p className="text-sm text-gray-600 mt-1">{transaction.description}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{transaction.description}</p>
                 )}
               </div>
               <div className="text-right">
@@ -104,7 +104,7 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
                   {transaction.amount > 0 ? '+' : ''}
                   {transaction.amount}
                 </p>
-                <p className="text-xs text-gray-500">{formatDate(transaction.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">{formatDate(transaction.createdAt)}</p>
               </div>
             </div>
           </div>
@@ -113,7 +113,7 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
 
       {pagination.total > pagination.limit && (
         <div className="p-4 border-t text-center">
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-muted-foreground">
             Showing {transactions.length} of {pagination.total} transactions
           </p>
         </div>

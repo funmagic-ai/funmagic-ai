@@ -122,7 +122,7 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
             e.stopPropagation()
             setShowMenu(!showMenu)
           }}
-          className="p-1 bg-white/80 rounded-full hover:bg-white transition-colors"
+          className="p-1 bg-card/80 rounded-full hover:bg-card transition-colors"
         >
           <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -135,12 +135,12 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
         </button>
 
         {showMenu && (
-          <div className="absolute top-8 right-0 bg-white border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
+          <div className="absolute top-8 right-0 bg-card border rounded-lg shadow-lg py-1 min-w-[120px] z-10">
             <button
               type="button"
               onClick={handleDownload}
               disabled={isDownloading}
-              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:opacity-50"
+              className="w-full px-3 py-2 text-left text-sm hover:bg-accent disabled:opacity-50"
             >
               {isDownloading ? 'Loading...' : 'Download'}
             </button>
@@ -148,7 +148,7 @@ export function AssetCard({ asset, onDelete, onClick }: AssetCardProps) {
               type="button"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
+              className="w-full px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
             >
               {isDeleting ? 'Deleting...' : 'Delete'}
             </button>

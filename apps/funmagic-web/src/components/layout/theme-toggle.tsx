@@ -50,7 +50,7 @@ export function ThemeToggle() {
 
   if (!mounted) {
     return (
-      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-background/60 border border-border/50">
         <div className="h-5 w-5 animate-pulse rounded bg-muted-foreground/20" />
       </div>
     )
@@ -63,7 +63,7 @@ export function ThemeToggle() {
   ]
 
   return (
-    <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
+    <div className="flex items-center gap-1 rounded-lg bg-background/60 border border-border/50 p-1">
       {options.map(({ value, icon: Icon, label }) => (
         <button
           key={value}

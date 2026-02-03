@@ -2,6 +2,9 @@
 
 import { useState, useCallback, type ReactNode } from 'react'
 import { signIn } from '@/lib/auth-client'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
 
 interface AuthDialogProps {
   trigger: ReactNode
@@ -59,21 +62,20 @@ export function AuthDialog({ trigger, onSuccess }: AuthDialogProps) {
             }}
           />
 
-          <div className="relative bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-            <button
-              type="button"
+          <div className="relative bg-card rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 setIsOpen(false)
                 resetForm()
               }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+              <X className="w-6 h-6" />
+            </Button>
 
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Sign In</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-6">Sign In</h2>
 
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">
@@ -83,56 +85,54 @@ export function AuthDialog({ trigger, onSuccess }: AuthDialogProps) {
 
             <form onSubmit={handleEmailPassword} className="space-y-4">
                 <div>
-                  <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="login-email" className="block text-sm font-medium text-foreground mb-1">
                     Email
                   </label>
-                  <input
+                  <Input
                     id="login-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="you@example.com"
                   />
                 </div>
                 <div>
-                  <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="login-password" className="block text-sm font-medium text-foreground mb-1">
                     Password
                   </label>
-                  <input
+                  <Input
                     id="login-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter your password"
                   />
                 </div>
-                <button
+                <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="w-full"
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
-                </button>
+                </Button>
               </form>
 
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
+                <div className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+                <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <button
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => handleOAuth('google')}
-                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -152,23 +152,23 @@ export function AuthDialog({ trigger, onSuccess }: AuthDialogProps) {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="text-sm text-gray-700">Google</span>
-              </button>
-              <button
+                <span className="text-sm">Google</span>
+              </Button>
+              <Button
+                variant="outline"
                 type="button"
                 onClick={() => handleOAuth('facebook')}
-                className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-5 h-5" fill="#1877F2" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
-                <span className="text-sm text-gray-700">Facebook</span>
-              </button>
+                <span className="text-sm">Facebook</span>
+              </Button>
             </div>
 
-            <p className="mt-6 text-center text-sm text-gray-500">
+            <p className="mt-6 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}
-              <a href="/register" className="text-blue-600 hover:underline">
+              <a href="/register" className="text-primary hover:underline">
                 Sign up
               </a>
             </p>

@@ -23,6 +23,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
 }
 
 /* ============================================
@@ -61,6 +63,10 @@
   /* Glass panel */
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(0, 0, 0, 0.05);
+
+  /* Popover */
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
 }
 
 /* ============================================
@@ -93,6 +99,10 @@
 
   --glass-bg: rgba(30, 27, 46, 0.7);
   --glass-border: rgba(255, 255, 255, 0.05);
+
+  /* Popover */
+  --popover: var(--card);
+  --popover-foreground: var(--card-foreground);
 }
 
 /* ============================================

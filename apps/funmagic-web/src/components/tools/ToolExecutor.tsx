@@ -43,8 +43,8 @@ export function ToolExecutor({ tool }: ToolExecutorProps) {
 
 function DefaultExecutor({ tool }: { tool: ToolDetail }) {
   return (
-    <div className="bg-white p-8 rounded-xl shadow-sm border">
-      <p className="text-gray-500 text-center py-12">
+    <div className="bg-card p-8 rounded-xl shadow-sm border">
+      <p className="text-muted-foreground text-center py-12">
         Tool interface for &quot;{tool.title}&quot; is coming soon...
       </p>
     </div>

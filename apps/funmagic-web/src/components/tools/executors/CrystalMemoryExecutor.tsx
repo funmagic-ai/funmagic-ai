@@ -158,11 +158,11 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <div className="bg-white p-8 rounded-xl shadow-sm border text-center">
+      <div className="bg-card p-8 rounded-xl shadow-sm border text-center">
         <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
         <a
           href="/login"
-          className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
         >
           Sign In
         </a>
@@ -171,7 +171,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
+    <div className="bg-card p-6 rounded-xl shadow-sm border space-y-6">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
@@ -234,7 +234,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
             type="button"
             onClick={handleGenerate}
             disabled={!upload.pendingFile || upload.isUploading}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {upload.isUploading
               ? 'Uploading...'

@@ -24,16 +24,16 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
           <AlertTriangle className="w-12 h-12 text-red-600" />
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+        <h1 className="text-2xl font-bold text-foreground mb-4">
           {t('title')}
         </h1>
 
-        <p className="text-gray-600 mb-8">
+        <p className="text-muted-foreground mb-8">
           {t('description')}
         </p>
 
         {error.digest && (
-          <p className="text-xs text-gray-400 mb-6">
+          <p className="text-xs text-muted-foreground mb-6">
             {t('errorCode')}: {error.digest}
           </p>
         )}
@@ -41,7 +41,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={reset}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-semibold hover:bg-primary/90 transition-colors"
           >
             <RefreshCw className="w-5 h-5" />
             {t('tryAgain')}
@@ -49,7 +49,7 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 
           <Link
             href="/"
-            className="inline-flex items-center justify-center gap-2 border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center justify-center gap-2 border border-input text-foreground px-6 py-3 rounded-lg font-semibold hover:bg-accent transition-colors"
           >
             <Home className="w-5 h-5" />
             {t('goHome')}

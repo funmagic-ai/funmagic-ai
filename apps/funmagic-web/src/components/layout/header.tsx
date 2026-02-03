@@ -43,20 +43,20 @@ export function Header() {
               <span className="sr-only">{t('menu')}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" sideOffset={8} className="bg-card">
-            <DropdownMenuItem asChild>
+          <DropdownMenuContent align="start" sideOffset={8} className="bg-card border-border/50">
+            <DropdownMenuItem asChild className="hover:bg-accent hover:text-accent-foreground">
               <Link href={`/${locale}`} className="flex items-center gap-2">
                 <Home className="h-4 w-4" />
                 {t('home')}
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem asChild className="hover:bg-accent hover:text-accent-foreground">
               <Link href={`/${locale}/tools`} className="flex items-center gap-2">
                 <Wrench className="h-4 w-4" />
                 {t('tools')}
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
+            <DropdownMenuItem asChild className="hover:bg-accent hover:text-accent-foreground">
               <Link href={`/${locale}/pricing`} className="flex items-center gap-2">
                 <CreditCard className="h-4 w-4" />
                 {t('pricing')}
@@ -113,22 +113,22 @@ export function Header() {
                 </svg>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="w-48 bg-card">
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-48 bg-card border-border/50">
+              <DropdownMenuItem asChild className="hover:bg-accent hover:text-accent-foreground">
                 <Link href={`/${locale}/profile`} className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
+                  <User className="h-4 w-4 hover:text-accent-foreground" />
                   {t('profile')}
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="hover:bg-accent hover:text-accent-foreground">
                 <Link href={`/${locale}/assets`} className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
+                  <FolderOpen className="h-4 w-4 hover:text-accent-foreground" />
                   {t('myAssets')}
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2">
-                <LogOut className="h-4 w-4" />
+              <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 hover:bg-accent hover:text-accent-foreground">
+                <LogOut className="h-4 w-4 hover:text-accent-foreground"  />
                 {t('signOut')}
               </DropdownMenuItem>
             </DropdownMenuContent>
