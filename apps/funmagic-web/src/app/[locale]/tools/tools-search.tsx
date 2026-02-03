@@ -4,6 +4,15 @@ import { useCallback, useState, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Search, X } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Category {
   id: string
@@ -77,8 +86,8 @@ export function ToolsSearch({ q, category, categories }: ToolsSearchProps) {
     <div className="mb-8">
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
             type="text"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
@@ -89,35 +98,40 @@ export function ToolsSearch({ q, category, categories }: ToolsSearchProps) {
             }}
             onBlur={() => handleSearch(searchValue)}
             placeholder={t('searchPlaceholder')}
-            className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="pl-10 pr-10"
           />
           {searchValue && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleClear}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 -translate-y-1/2"
             >
               <X className="w-5 h-5" />
-            </button>
+            </Button>
           )}
         </div>
 
-        <select
-          value={category ?? ''}
-          onChange={(e) => handleCategoryChange(e.target.value)}
-          className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white min-w-[160px]"
-        >
-          <option value="">{t('allCategories')}</option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.name}>
-              {cat.displayName}
-            </option>
-          ))}
-        </select>
+        <Select value={category ?? 'all'} onValueChange={(value) => handleCategoryChange(value === 'all' ? '' : value)}>
+          <SelectTrigger className="min-w-[160px]">
+            <SelectValue placeholder={t('allCategories')} />
+          </SelectTrigger>
+          <SelectContent className="border-border/50">
+            <SelectItem value="all">{t('filter')}</SelectItem>
+            {categories.map((cat) => (
+              <SelectItem key={cat.id} value={cat.name}>
+                {cat.displayName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {isPending && (
-        <div className="mt-4 text-sm text-gray-500">{t('searching')}</div>
-      )}
+      <div className="mt-4 h-5">
+        {isPending && (
+          <span className="text-sm text-muted-foreground">{t('searching')}</span>
+        )}
+      </div>
     </div>
   )
 }
