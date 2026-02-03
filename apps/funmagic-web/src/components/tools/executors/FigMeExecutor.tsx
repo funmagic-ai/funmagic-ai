@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useSession } from '@/lib/auth-client'
+import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
 import {
@@ -30,7 +30,7 @@ interface TaskOutput {
 }
 
 export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
-  const { data: session } = useSession()
+  const { session } = useSessionContext()
   const config = (tool.config || {}) as Partial<FigMeConfig>
 
   const [step, setStep] = useState<ExecutorStep>('select-style')

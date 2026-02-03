@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,7 +16,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Plus, Pencil } from 'lucide-react';
-import { createToolType, updateToolType } from '@/actions/tool-types';
+import { updateToolType } from '@/actions/tool-types';
 import { cn } from '@/lib/utils';
 
 interface ToolTypeFormProps {
@@ -37,14 +38,25 @@ export function ToolTypeForm({ mode, className, toolType }: ToolTypeFormProps) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  // For create mode, render a link button to the new page
+  if (mode === 'create') {
+    return (
+      <Button size="sm" className={cn(className)} asChild>
+        <Link href="/dashboard/tool-types/new">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Tool Type
+        </Link>
+      </Button>
+    );
+  }
+
+  // Edit mode uses dialog
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
     startTransition(async () => {
-      if (mode === 'create') {
-        await createToolType(formData);
-      } else if (toolType) {
+      if (toolType) {
         await updateToolType(toolType.id, formData);
       }
       setOpen(false);
@@ -54,26 +66,15 @@ export function ToolTypeForm({ mode, className, toolType }: ToolTypeFormProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {mode === 'create' ? (
-          <Button size="sm" className={cn(className)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Tool Type
-          </Button>
-        ) : (
-          <Button variant="ghost" size="icon">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        )}
+        <Button variant="ghost" size="icon">
+          <Pencil className="h-4 w-4" />
+        </Button>
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>{mode === 'create' ? 'Create Tool Type' : 'Edit Tool Type'}</DialogTitle>
-            <DialogDescription>
-              {mode === 'create'
-                ? 'Add a new tool category'
-                : 'Update tool type details'}
-            </DialogDescription>
+            <DialogTitle>Edit Tool Type</DialogTitle>
+            <DialogDescription>Update tool type details</DialogDescription>
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
@@ -163,7 +164,7 @@ export function ToolTypeForm({ mode, className, toolType }: ToolTypeFormProps) {
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? 'Saving...' : mode === 'create' ? 'Create' : 'Update'}
+              {isPending ? 'Saving...' : 'Update'}
             </Button>
           </DialogFooter>
         </form>

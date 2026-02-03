@@ -1,15 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { useSession, updateUser } from '@/lib/auth-client'
+import { useSessionContext } from '@/components/providers/session-provider'
+import { authClient } from '@/lib/auth-client'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import { Pencil, Check, X, Loader2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
 export function UserSettings() {
   const t = useTranslations('profile')
-  const { data: session, refetch } = useSession()
+  const router = useRouter()
+  const { session } = useSessionContext()
   const [isEditingName, setIsEditingName] = useState(false)
   const [name, setName] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -39,14 +42,14 @@ export function UserSettings() {
 
     startTransition(async () => {
       try {
-        const result = await updateUser({ name: name.trim() })
+        const result = await authClient.updateUser({ name: name.trim() })
 
         if (result.error) {
           setError(result.error.message || t('settings.updateError'))
           return
         }
 
-        await refetch()
+        router.refresh()
         setIsEditingName(false)
         setName('')
       } catch {

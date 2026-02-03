@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useLocale } from 'next-intl'
 import { Bell, Menu, Home, Wrench, CreditCard, User, LogOut, FolderOpen } from 'lucide-react'
-import { useSession, signOut } from '@/lib/auth-client'
+import { useSessionContext } from '@/components/providers/session-provider'
+import { authClient } from '@/lib/auth-client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -24,10 +25,10 @@ export function Header() {
   const t = useTranslations('common')
   const locale = useLocale()
   const router = useRouter()
-  const { data: session, isPending } = useSession()
+  const { session } = useSessionContext()
 
   const handleSignOut = async () => {
-    await signOut()
+    await authClient.signOut()
     router.push(`/${locale}`)
     router.refresh()
   }
@@ -99,9 +100,7 @@ export function Header() {
         )}
 
         {/* Auth buttons */}
-        {isPending ? (
-          <div className="h-9 w-20 animate-pulse rounded-md bg-muted" />
-        ) : session ? (
+        {session ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">

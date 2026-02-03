@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { Pencil, Plus } from 'lucide-react';
-import { ProviderForm } from '@/components/providers/provider-form';
 
 export default function ProvidersPage() {
   return (
@@ -23,7 +22,12 @@ export default function ProvidersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Providers</h1>
           <p className="text-muted-foreground">Manage AI service providers</p>
         </div>
-        <ProviderForm mode="create" />
+        <Button size="sm" asChild>
+          <Link href="/dashboard/providers/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Provider
+          </Link>
+        </Button>
       </div>
 
       <Suspense fallback={<TableSkeleton columns={6} rows={10} />}>
@@ -40,7 +44,12 @@ async function ProvidersTable() {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
         <p className="text-muted-foreground">No providers configured</p>
-        <ProviderForm mode="create" className="mt-4" />
+        <Button size="sm" className="mt-4" asChild>
+          <Link href="/dashboard/providers/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Provider
+          </Link>
+        </Button>
       </div>
     );
   }

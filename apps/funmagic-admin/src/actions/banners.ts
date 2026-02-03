@@ -4,36 +4,61 @@ import { db, banners } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 
-export async function createBanner(formData: FormData) {
-  const title = formData.get('title') as string;
-  const description = formData.get('description') as string;
-  const thumbnail = formData.get('thumbnail') as string;
-  const link = formData.get('link') as string;
-  const linkText = formData.get('linkText') as string;
-  const type = formData.get('type') as string;
-  const position = parseInt(formData.get('position') as string) || 0;
-  const badge = formData.get('badge') as string;
-  const badgeColor = formData.get('badgeColor') as string;
-  const startsAt = formData.get('startsAt') as string;
-  const endsAt = formData.get('endsAt') as string;
-  const isActive = formData.get('isActive') === 'on';
+interface FormState {
+  success: boolean;
+  message: string;
+  bannerId?: string;
+}
 
-  await db.insert(banners).values({
-    title,
-    description: description || null,
-    thumbnail,
-    link: link || null,
-    linkText: linkText || null,
-    type,
-    position,
-    badge: badge || null,
-    badgeColor: badgeColor || null,
-    startsAt: startsAt ? new Date(startsAt) : null,
-    endsAt: endsAt ? new Date(endsAt) : null,
-    isActive,
-  });
+export async function createBanner(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const thumbnail = formData.get('thumbnail') as string;
+    const link = formData.get('link') as string;
+    const linkText = formData.get('linkText') as string;
+    const type = formData.get('type') as string;
+    const position = parseInt(formData.get('position') as string) || 0;
+    const badge = formData.get('badge') as string;
+    const startsAt = formData.get('startsAt') as string;
+    const endsAt = formData.get('endsAt') as string;
+    const isActive = formData.get('isActive') === 'on';
 
-  revalidatePath('/dashboard/content');
+    if (!title || !thumbnail) {
+      return { success: false, message: 'Title and banner image are required' };
+    }
+
+    const [newBanner] = await db
+      .insert(banners)
+      .values({
+        title,
+        description: description || null,
+        thumbnail,
+        link: link || null,
+        linkText: linkText || null,
+        type,
+        position,
+        badge: badge || null,
+        startsAt: startsAt ? new Date(startsAt) : null,
+        endsAt: endsAt ? new Date(endsAt) : null,
+        isActive,
+      })
+      .returning({ id: banners.id });
+
+    revalidatePath('/dashboard/content');
+
+    return {
+      success: true,
+      message: 'Banner created successfully',
+      bannerId: newBanner.id,
+    };
+  } catch (error) {
+    console.error('Failed to create banner:', error);
+    return { success: false, message: 'Failed to create banner' };
+  }
 }
 
 export async function updateBanner(id: string, formData: FormData) {
@@ -45,7 +70,6 @@ export async function updateBanner(id: string, formData: FormData) {
   const type = formData.get('type') as string;
   const position = parseInt(formData.get('position') as string) || 0;
   const badge = formData.get('badge') as string;
-  const badgeColor = formData.get('badgeColor') as string;
   const startsAt = formData.get('startsAt') as string;
   const endsAt = formData.get('endsAt') as string;
   const isActive = formData.get('isActive') === 'on';
@@ -61,7 +85,6 @@ export async function updateBanner(id: string, formData: FormData) {
       type,
       position,
       badge: badge || null,
-      badgeColor: badgeColor || null,
       startsAt: startsAt ? new Date(startsAt) : null,
       endsAt: endsAt ? new Date(endsAt) : null,
       isActive,

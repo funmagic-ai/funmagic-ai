@@ -4,6 +4,7 @@ import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/i18n/routing'
 import { Header, Footer, HeaderSkeleton, FooterSkeleton } from '@/components/layout'
+import { SessionFetcher } from '@/components/providers/session-fetcher'
 
 interface LocaleLayoutProps {
   children: React.ReactNode
@@ -30,17 +31,27 @@ export default async function LocaleLayout({
 
   return (
     <NextIntlClientProvider messages={messages}>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-        <Suspense fallback={<HeaderSkeleton />}>
-          <Header />
-        </Suspense>
+      <Suspense fallback={
+        <div className="min-h-screen bg-background text-foreground flex flex-col">
+          <HeaderSkeleton />
+          <main className="flex-1" />
+          <FooterSkeleton />
+        </div>
+      }>
+        <SessionFetcher>
+          <div className="min-h-screen bg-background text-foreground flex flex-col">
+            <Suspense fallback={<HeaderSkeleton />}>
+              <Header />
+            </Suspense>
 
-        <main className="flex-1">{children}</main>
+            <main className="flex-1">{children}</main>
 
-        <Suspense fallback={<FooterSkeleton />}>
-          <Footer locale={locale} />
-        </Suspense>
-      </div>
+            <Suspense fallback={<FooterSkeleton />}>
+              <Footer locale={locale} />
+            </Suspense>
+          </div>
+        </SessionFetcher>
+      </Suspense>
     </NextIntlClientProvider>
   )
 }

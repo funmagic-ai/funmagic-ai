@@ -2,7 +2,7 @@
 
 import { useState, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
-import { useSession } from '@/lib/auth-client'
+import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
 import {
@@ -48,7 +48,7 @@ interface VGGTOutput {
 }
 
 export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
-  const { data: session } = useSession()
+  const { session } = useSessionContext()
   const config = (tool.config || {}) as Partial<CrystalMemoryConfig>
 
   const [step, setStep] = useState<ExecutorStep>('upload')

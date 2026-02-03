@@ -7,6 +7,49 @@ import { revalidatePath } from 'next/cache';
 interface FormState {
   success: boolean;
   message: string;
+  toolId?: string;
+}
+
+export async function createTool(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  try {
+    const slug = formData.get('slug') as string;
+    const title = formData.get('title') as string;
+    const shortDescription = formData.get('shortDescription') as string;
+    const description = formData.get('description') as string;
+    const toolTypeId = formData.get('toolTypeId') as string;
+    const thumbnail = formData.get('thumbnail') as string;
+    const isActive = formData.get('isActive') === 'on';
+    const isFeatured = formData.get('isFeatured') === 'on';
+
+    if (!slug || !title || !toolTypeId) {
+      return { success: false, message: 'Missing required fields (slug, title, toolTypeId)' };
+    }
+
+    const [newTool] = await db
+      .insert(tools)
+      .values({
+        slug,
+        title,
+        shortDescription: shortDescription || null,
+        description: description || null,
+        toolTypeId,
+        thumbnail: thumbnail || null,
+        isActive,
+        isFeatured,
+        config: {},
+      })
+      .returning({ id: tools.id });
+
+    revalidatePath('/dashboard/tools');
+
+    return { success: true, message: 'Tool created successfully', toolId: newTool.id };
+  } catch (error) {
+    console.error('Failed to create tool:', error);
+    return { success: false, message: 'Failed to create tool' };
+  }
 }
 
 export async function updateToolGeneral(

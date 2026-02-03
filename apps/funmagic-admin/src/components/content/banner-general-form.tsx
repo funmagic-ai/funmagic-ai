@@ -1,22 +1,15 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import Link from 'next/link';
+import { useActionState, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useUploadFiles } from '@better-upload/client';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -26,36 +19,28 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
-import { Plus, Pencil } from 'lucide-react';
-import { updateBanner } from '@/actions/banners';
-import { cn } from '@/lib/utils';
+import { createBanner } from '@/actions/banners';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 
-interface BannerFormProps {
-  mode: 'create' | 'edit';
-  className?: string;
-  banner?: {
-    id: string;
-    title: string;
-    description: string | null;
-    thumbnail: string;
-    link: string | null;
-    linkText: string | null;
-    linkTarget: string | null;
-    type: string;
-    position: number | null;
-    badge: string | null;
-    isActive: boolean;
-    startsAt: Date | null;
-    endsAt: Date | null;
-  };
-}
+export function BannerGeneralForm() {
+  const router = useRouter();
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [bannerType, setBannerType] = useState('main');
 
-export function BannerForm({ mode, className, banner }: BannerFormProps) {
-  const [open, setOpen] = useState(false);
-  const [thumbnailUrl, setThumbnailUrl] = useState(banner?.thumbnail ?? '');
-  const [bannerType, setBannerType] = useState(banner?.type ?? 'main');
-  const [isPending, startTransition] = useTransition();
+  const [state, formAction, isPending] = useActionState(
+    async (prevState: { success: boolean; message: string }, formData: FormData) => {
+      const result = await createBanner(prevState, formData);
+
+      if (result.success) {
+        toast.success(result.message || 'Banner created successfully');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        router.push('/dashboard/content');
+      }
+
+      return result;
+    },
+    { success: false, message: '' }
+  );
 
   const uploadControl = useUploadFiles({
     route: 'banners',
@@ -70,53 +55,25 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
     },
   });
 
-  // For create mode, render a link button to the new page
-  if (mode === 'create') {
-    return (
-      <Button size="sm" className={cn(className)} asChild>
-        <Link href="/dashboard/content/banners/new">
-          <Plus className="mr-2 h-4 w-4" />
-          Add Banner
-        </Link>
-      </Button>
-    );
-  }
-
-  // Edit mode uses dialog
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+  const handleSubmit = (formData: FormData) => {
     formData.set('thumbnail', thumbnailUrl);
-
-    startTransition(async () => {
-      if (banner) {
-        await updateBanner(banner.id, formData);
-      }
-      setOpen(false);
-    });
+    formAction(formData);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon">
-          <Pencil className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Edit Banner</DialogTitle>
-            <DialogDescription>Update banner details</DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto">
+    <form action={handleSubmit}>
+      <div className="mx-auto max-w-4xl grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
+            <CardDescription>Banner content and display settings</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid gap-2">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
                 name="title"
-                defaultValue={banner?.title}
                 placeholder="New Feature Available!"
                 required
               />
@@ -127,7 +84,6 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={banner?.description ?? ''}
                 placeholder="Check out our latest features..."
                 rows={2}
               />
@@ -157,14 +113,21 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
                 />
               )}
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Link Settings</CardTitle>
+            <CardDescription>Configure banner click behavior</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="link">Link URL</Label>
                 <Input
                   id="link"
                   name="link"
-                  defaultValue={banner?.link ?? ''}
                   placeholder="https://..."
                 />
               </div>
@@ -174,18 +137,25 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
                 <Input
                   id="linkText"
                   name="linkText"
-                  defaultValue={banner?.linkText ?? ''}
                   placeholder="Learn More"
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle>Display Settings</CardTitle>
+            <CardDescription>Type and badge configuration</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="type">Type</Label>
                 <Select
                   name="type"
-                  defaultValue={banner?.type ?? 'main'}
+                  defaultValue="main"
                   onValueChange={setBannerType}
                 >
                   <SelectTrigger>
@@ -199,27 +169,24 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="position">Position</Label>
+                <Label htmlFor="badge">Badge Text</Label>
                 <Input
-                  id="position"
-                  name="position"
-                  type="number"
-                  min="0"
-                  defaultValue={banner?.position ?? 0}
+                  id="badge"
+                  name="badge"
+                  placeholder="NEW"
+                  maxLength={20}
                 />
               </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div className="grid gap-2">
-              <Label htmlFor="badge">Badge Text</Label>
-              <Input
-                id="badge"
-                name="badge"
-                defaultValue={banner?.badge ?? ''}
-                placeholder="NEW"
-              />
-            </div>
-
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule</CardTitle>
+            <CardDescription>Control when the banner is displayed</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="startsAt">Starts At</Label>
@@ -227,11 +194,6 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
                   id="startsAt"
                   name="startsAt"
                   type="datetime-local"
-                  defaultValue={
-                    banner?.startsAt
-                      ? new Date(banner.startsAt).toISOString().slice(0, 16)
-                      : ''
-                  }
                 />
               </div>
 
@@ -241,9 +203,6 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
                   id="endsAt"
                   name="endsAt"
                   type="datetime-local"
-                  defaultValue={
-                    banner?.endsAt ? new Date(banner.endsAt).toISOString().slice(0, 16) : ''
-                  }
                 />
               </div>
             </div>
@@ -253,24 +212,21 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
                 <Label htmlFor="isActive">Active</Label>
                 <p className="text-sm text-muted-foreground">Show this banner</p>
               </div>
-              <Switch
-                id="isActive"
-                name="isActive"
-                defaultChecked={banner?.isActive ?? true}
-              />
+              <Switch id="isActive" name="isActive" defaultChecked />
             </div>
-          </div>
+          </CardContent>
+        </Card>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isPending || !thumbnailUrl}>
-              {isPending ? 'Saving...' : 'Update'}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+        {state.message && !state.success && (
+          <p className="text-destructive">{state.message}</p>
+        )}
+
+        <div className="flex justify-end">
+          <Button type="submit" disabled={isPending || !thumbnailUrl}>
+            {isPending ? 'Creating...' : 'Create Banner'}
+          </Button>
+        </div>
+      </div>
+    </form>
   );
 }

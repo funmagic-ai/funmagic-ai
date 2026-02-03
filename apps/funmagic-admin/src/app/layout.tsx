@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme/theme-provider';
 import { ThemeScript } from '@/components/theme/theme-script';
+import { Toaster } from '@/components/ui/sonner';
 import {
   DEFAULT_MODE,
   DEFAULT_THEME,
@@ -42,6 +43,7 @@ export default async function RootLayout({
       <body className={inter.className}>
         <ThemeProvider defaultTheme={defaultTheme} defaultMode={defaultMode}>
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

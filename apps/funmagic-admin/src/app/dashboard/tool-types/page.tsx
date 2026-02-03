@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { db, toolTypes } from '@/lib/db';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { ToolTypeForm } from '@/components/tool-types/tool-type-form';
+import { Plus } from 'lucide-react';
 import { ToolTypeActions } from '@/components/tool-types/tool-type-actions';
 
 export default function ToolTypesPage() {
@@ -22,7 +23,12 @@ export default function ToolTypesPage() {
           <h1 className="text-3xl font-bold tracking-tight">Tool Types</h1>
           <p className="text-muted-foreground">Manage tool categories</p>
         </div>
-        <ToolTypeForm mode="create" />
+        <Button size="sm" asChild>
+          <Link href="/dashboard/tool-types/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Tool Type
+          </Link>
+        </Button>
       </div>
 
       <Suspense fallback={<TableSkeleton columns={6} rows={10} />}>
@@ -41,7 +47,12 @@ async function ToolTypesTable() {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
         <p className="text-muted-foreground">No tool types configured</p>
-        <ToolTypeForm mode="create" className="mt-4" />
+        <Button size="sm" className="mt-4" asChild>
+          <Link href="/dashboard/tool-types/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Tool Type
+          </Link>
+        </Button>
       </div>
     );
   }

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { db, banners } from '@/lib/db';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { BannerForm } from '@/components/content/banner-form';
+import { Plus } from 'lucide-react';
 import { BannerActions } from '@/components/content/banner-actions';
 
 export default function ContentPage() {
@@ -22,7 +23,12 @@ export default function ContentPage() {
           <h1 className="text-3xl font-bold tracking-tight">Content</h1>
           <p className="text-muted-foreground">Manage banners and promotional content</p>
         </div>
-        <BannerForm mode="create" />
+        <Button size="sm" asChild>
+          <Link href="/dashboard/content/banners/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Banner
+          </Link>
+        </Button>
       </div>
 
       <Suspense fallback={<TableSkeleton columns={6} rows={10} />}>
@@ -41,7 +47,12 @@ async function BannersTable() {
     return (
       <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
         <p className="text-muted-foreground">No banners configured</p>
-        <BannerForm mode="create" className="mt-4" />
+        <Button size="sm" className="mt-4" asChild>
+          <Link href="/dashboard/content/banners/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Banner
+          </Link>
+        </Button>
       </div>
     );
   }

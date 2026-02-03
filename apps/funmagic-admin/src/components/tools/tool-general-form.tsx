@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUploadFiles } from '@better-upload/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
-import { updateToolGeneral } from '@/actions/tools';
+import { createTool, updateToolGeneral } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 
 interface Tool {
@@ -39,16 +40,20 @@ interface ToolType {
 }
 
 interface ToolGeneralFormProps {
-  tool: Tool;
+  tool?: Tool;
   toolTypes: ToolType[];
 }
 
 export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
-  const [state, action, isPending] = useActionState(updateToolGeneral, {
+  const router = useRouter();
+  const isCreateMode = !tool;
+  const serverAction = isCreateMode ? createTool : updateToolGeneral;
+
+  const [state, action, isPending] = useActionState(serverAction, {
     success: false,
     message: '',
   });
-  const [thumbnailUrl, setThumbnailUrl] = useState(tool.thumbnail ?? '');
+  const [thumbnailUrl, setThumbnailUrl] = useState(tool?.thumbnail ?? '');
   const formRef = useRef<HTMLFormElement>(null);
 
   const uploadControl = useUploadFiles({
@@ -66,8 +71,15 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
   // Sync thumbnail URL when tool prop changes (e.g., after save)
   useEffect(() => {
-    setThumbnailUrl(tool.thumbnail ?? '');
-  }, [tool.thumbnail]);
+    setThumbnailUrl(tool?.thumbnail ?? '');
+  }, [tool?.thumbnail]);
+
+  // Redirect after successful creation
+  useEffect(() => {
+    if (state.success && isCreateMode && state.toolId) {
+      router.push(`/dashboard/tools/${state.toolId}`);
+    }
+  }, [state.success, state.toolId, isCreateMode, router]);
 
   const handleSubmit = (formData: FormData) => {
     formData.set('thumbnail', thumbnailUrl);
@@ -76,9 +88,9 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
   return (
     <form ref={formRef} action={handleSubmit}>
-      <input type="hidden" name="id" value={tool.id} />
+      {tool && <input type="hidden" name="id" value={tool.id} />}
 
-      <div className="grid gap-6">
+      <div className="mx-auto max-w-4xl grid gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -90,7 +102,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Input
                 id="slug"
                 name="slug"
-                defaultValue={tool.slug}
+                defaultValue={tool?.slug ?? ''}
                 placeholder="my-tool"
               />
             </div>
@@ -100,7 +112,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Input
                 id="title"
                 name="title"
-                defaultValue={tool.title}
+                defaultValue={tool?.title ?? ''}
                 placeholder="My Tool"
               />
             </div>
@@ -110,7 +122,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Input
                 id="shortDescription"
                 name="shortDescription"
-                defaultValue={tool.shortDescription ?? ''}
+                defaultValue={tool?.shortDescription ?? ''}
                 placeholder="A brief description..."
               />
             </div>
@@ -120,7 +132,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={tool.description ?? ''}
+                defaultValue={tool?.description ?? ''}
                 placeholder="Detailed description..."
                 rows={4}
               />
@@ -128,7 +140,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
             <div className="grid gap-2">
               <Label htmlFor="toolTypeId">Tool Type</Label>
-              <Select name="toolTypeId" defaultValue={tool.toolTypeId}>
+              <Select name="toolTypeId" defaultValue={tool?.toolTypeId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a tool type" />
                 </SelectTrigger>
@@ -182,7 +194,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Switch
                 id="isActive"
                 name="isActive"
-                defaultChecked={tool.isActive}
+                defaultChecked={tool?.isActive ?? false}
               />
             </div>
 
@@ -194,7 +206,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
               <Switch
                 id="isFeatured"
                 name="isFeatured"
-                defaultChecked={tool.isFeatured}
+                defaultChecked={tool?.isFeatured ?? false}
               />
             </div>
           </CardContent>
@@ -208,7 +220,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
         <div className="flex justify-end">
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Saving...' : 'Save Changes'}
+            {isPending ? (isCreateMode ? 'Creating...' : 'Saving...') : (isCreateMode ? 'Create Tool' : 'Save Changes')}
           </Button>
         </div>
       </div>

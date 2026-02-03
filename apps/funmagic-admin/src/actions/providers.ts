@@ -9,26 +9,51 @@ interface FormState {
   message: string;
 }
 
-export async function createProvider(formData: FormData) {
-  const name = formData.get('name') as string;
-  const displayName = formData.get('displayName') as string;
-  const type = formData.get('type') as string;
-  const description = formData.get('description') as string;
-  const apiKey = formData.get('apiKey') as string;
-  const baseUrl = formData.get('baseUrl') as string;
-  const isActive = formData.get('isActive') === 'on';
+interface CreateFormState extends FormState {
+  providerId?: string;
+}
 
-  await db.insert(providers).values({
-    name,
-    displayName,
-    type,
-    description: description || null,
-    apiKey: apiKey || null,
-    baseUrl: baseUrl || null,
-    isActive,
-  });
+export async function createProvider(
+  prevState: CreateFormState,
+  formData: FormData
+): Promise<CreateFormState> {
+  try {
+    const name = formData.get('name') as string;
+    const displayName = formData.get('displayName') as string;
+    const type = formData.get('type') as string;
+    const description = formData.get('description') as string;
+    const apiKey = formData.get('apiKey') as string;
+    const baseUrl = formData.get('baseUrl') as string;
+    const isActive = formData.get('isActive') === 'on';
 
-  revalidatePath('/dashboard/providers');
+    if (!name || !displayName || !type) {
+      return { success: false, message: 'Name, display name, and type are required' };
+    }
+
+    const [newProvider] = await db
+      .insert(providers)
+      .values({
+        name,
+        displayName,
+        type,
+        description: description || null,
+        apiKey: apiKey || null,
+        baseUrl: baseUrl || null,
+        isActive,
+      })
+      .returning({ id: providers.id });
+
+    revalidatePath('/dashboard/providers');
+
+    return {
+      success: true,
+      message: 'Provider created successfully',
+      providerId: newProvider.id,
+    };
+  } catch (error) {
+    console.error('Failed to create provider:', error);
+    return { success: false, message: 'Failed to create provider' };
+  }
 }
 
 export async function updateProvider(
