@@ -31,7 +31,7 @@ const authConfig = {
 let _auth: ReturnType<typeof betterAuth<typeof authConfig>> | null = null
 
 function createAuth() {
-  const TRUSTED_ORIGINS = (process.env.TRUSTED_ORIGINS ?? 'http://localhost:3000,http://localhost:3001').split(',')
+  const TRUSTED_ORIGINS = process.env.TRUSTED_ORIGINS?.split(',')
   const redis = getRedis()
 
   return betterAuth({

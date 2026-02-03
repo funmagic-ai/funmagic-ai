@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState, useEffect, useRef } from 'react';
+import { useUploadFiles } from '@better-upload/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UploadDropzone } from '@/components/ui/upload-dropzone';
+import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
 import { updateToolGeneral } from '@/actions/tools';
+import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 
 interface Tool {
   id: string;
@@ -44,9 +48,34 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
     success: false,
     message: '',
   });
+  const [thumbnailUrl, setThumbnailUrl] = useState(tool.thumbnail ?? '');
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const uploadControl = useUploadFiles({
+    route: 'thumbnails',
+    api: '/api/admin/tools/thumbnails/upload',
+    onUploadComplete: ({ files }) => {
+      if (files.length > 0) {
+        const file = files[0];
+        const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
+        const imageUrl = s3BaseUrl ? `${s3BaseUrl}/${file.objectInfo.key}` : file.objectInfo.key;
+        setThumbnailUrl(imageUrl);
+      }
+    },
+  });
+
+  // Sync thumbnail URL when tool prop changes (e.g., after save)
+  useEffect(() => {
+    setThumbnailUrl(tool.thumbnail ?? '');
+  }, [tool.thumbnail]);
+
+  const handleSubmit = (formData: FormData) => {
+    formData.set('thumbnail', thumbnailUrl);
+    action(formData);
+  };
 
   return (
-    <form action={action}>
+    <form ref={formRef} action={handleSubmit}>
       <input type="hidden" name="id" value={tool.id} />
 
       <div className="grid gap-6">
@@ -114,13 +143,27 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="thumbnail">Thumbnail URL</Label>
-              <Input
-                id="thumbnail"
-                name="thumbnail"
-                defaultValue={tool.thumbnail ?? ''}
-                placeholder="https://..."
-              />
+              <Label>Thumbnail</Label>
+              <p className="text-muted-foreground text-xs">
+                Recommended: {RECOMMENDED_DIMENSIONS.THUMBNAIL.width}×{RECOMMENDED_DIMENSIONS.THUMBNAIL.height}px or larger ({IMAGE_RATIOS.THUMBNAIL.label})
+              </p>
+              {thumbnailUrl ? (
+                <AspectRatioPreview
+                  imageUrl={thumbnailUrl}
+                  ratioType="THUMBNAIL"
+                  onRemove={() => setThumbnailUrl('')}
+                />
+              ) : (
+                <UploadDropzone
+                  control={uploadControl}
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  description={{
+                    fileTypes: 'JPEG, PNG, WebP, GIF',
+                    maxFileSize: '5MB',
+                    maxFiles: 1,
+                  }}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

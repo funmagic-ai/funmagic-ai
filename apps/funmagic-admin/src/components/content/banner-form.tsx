@@ -24,9 +24,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
+import { Plus, Pencil } from 'lucide-react';
 import { createBanner, updateBanner } from '@/actions/banners';
 import { cn } from '@/lib/utils';
+import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 
 interface BannerFormProps {
   mode: 'create' | 'edit';
@@ -52,6 +54,7 @@ interface BannerFormProps {
 export function BannerForm({ mode, className, banner }: BannerFormProps) {
   const [open, setOpen] = useState(false);
   const [thumbnailUrl, setThumbnailUrl] = useState(banner?.thumbnail ?? '');
+  const [bannerType, setBannerType] = useState(banner?.type ?? 'main');
   const [isPending, startTransition] = useTransition();
 
   const uploadControl = useUploadFiles({
@@ -129,24 +132,17 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
             </div>
 
             <div className="grid gap-2">
-              <Label>Thumbnail</Label>
+              <Label>Banner Image</Label>
+              <p className="text-muted-foreground text-xs">
+                Recommended: {RECOMMENDED_DIMENSIONS.BANNER.width}×{RECOMMENDED_DIMENSIONS.BANNER.height}px or larger ({IMAGE_RATIOS.BANNER.label})
+              </p>
               {thumbnailUrl ? (
-                <div className="relative">
-                  <img
-                    src={thumbnailUrl}
-                    alt="Banner thumbnail"
-                    className="h-32 w-full rounded-md object-cover"
-                  />
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="icon"
-                    className="absolute right-2 top-2 h-6 w-6"
-                    onClick={() => setThumbnailUrl('')}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
+                <AspectRatioPreview
+                  imageUrl={thumbnailUrl}
+                  ratioType="BANNER"
+                  onRemove={() => setThumbnailUrl('')}
+                  showSideBannerNote={bannerType === 'side'}
+                />
               ) : (
                 <UploadDropzone
                   control={uploadControl}
@@ -185,7 +181,11 @@ export function BannerForm({ mode, className, banner }: BannerFormProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="type">Type</Label>
-                <Select name="type" defaultValue={banner?.type ?? 'main'}>
+                <Select
+                  name="type"
+                  defaultValue={banner?.type ?? 'main'}
+                  onValueChange={setBannerType}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
