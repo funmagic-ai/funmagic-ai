@@ -8,18 +8,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { createToolType } from '@/actions/tool-types';
+import { updateToolType } from '@/actions/tool-types';
 import type { FormState } from '@/lib/form-types';
 
-export function ToolTypeGeneralForm() {
+interface ToolType {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string | null;
+  isActive: boolean;
+}
+
+interface ToolTypeEditFormProps {
+  toolType: ToolType;
+}
+
+export function ToolTypeEditForm({ toolType }: ToolTypeEditFormProps) {
   const router = useRouter();
 
   const [state, formAction, isPending] = useActionState(
     async (prevState: FormState, formData: FormData) => {
-      const result = await createToolType(prevState, formData);
+      const result = await updateToolType(prevState, formData);
 
       if (result.success) {
-        toast.success(result.message || 'Tool type created successfully');
+        toast.success(result.message || 'Tool type updated successfully');
         await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/tool-types');
       }
@@ -31,11 +43,12 @@ export function ToolTypeGeneralForm() {
 
   return (
     <form action={formAction}>
+      <input type="hidden" name="id" value={toolType.id} />
       <div className="mx-auto max-w-4xl grid gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Core tool type details and identification</CardDescription>
+            <CardDescription>Tool type name and display settings</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
@@ -46,6 +59,7 @@ export function ToolTypeGeneralForm() {
                 <Input
                   id="name"
                   name="name"
+                  defaultValue={toolType.name}
                   placeholder="e.g., style-transform"
                   aria-invalid={!!state.errors?.name}
                 />
@@ -64,6 +78,7 @@ export function ToolTypeGeneralForm() {
                 <Input
                   id="displayName"
                   name="displayName"
+                  defaultValue={toolType.displayName}
                   placeholder="e.g., Style Transform"
                   aria-invalid={!!state.errors?.displayName}
                 />
@@ -83,6 +98,7 @@ export function ToolTypeGeneralForm() {
               <Input
                 id="description"
                 name="description"
+                defaultValue={toolType.description ?? ''}
                 placeholder="e.g., Transform images with AI styles"
               />
               <p className="text-muted-foreground text-xs">
@@ -95,9 +111,9 @@ export function ToolTypeGeneralForm() {
         <Card>
           <CardHeader>
             <CardTitle>Status</CardTitle>
-            <CardDescription>Control tool type availability</CardDescription>
+            <CardDescription>Control visibility</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4">
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="isActive">
@@ -105,7 +121,11 @@ export function ToolTypeGeneralForm() {
                 </Label>
                 <p className="text-sm text-muted-foreground">Show in tool creation</p>
               </div>
-              <Switch id="isActive" name="isActive" defaultChecked />
+              <Switch
+                id="isActive"
+                name="isActive"
+                defaultChecked={toolType.isActive}
+              />
             </div>
           </CardContent>
         </Card>
@@ -123,7 +143,7 @@ export function ToolTypeGeneralForm() {
             Cancel
           </Button>
           <Button type="submit" disabled={isPending}>
-            {isPending ? 'Creating...' : 'Create Tool Type'}
+            {isPending ? 'Saving...' : 'Update Tool Type'}
           </Button>
         </div>
       </div>
