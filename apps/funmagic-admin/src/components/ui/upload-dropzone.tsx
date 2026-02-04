@@ -5,7 +5,7 @@ import { useId } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 type UploadDropzoneProps = {
-  control: UploadHookControl<true>;
+  control?: UploadHookControl<true>;
   id?: string;
   accept?: string;
   metadata?: Record<string, unknown>;
@@ -19,26 +19,34 @@ type UploadDropzoneProps = {
   uploadOverride?: (
     ...args: Parameters<UploadHookControl<true>['upload']>
   ) => void;
-
-  // Add any additional props you need.
+  /** Callback for deferred upload mode - file is selected but not uploaded immediately */
+  onFileSelect?: (file: File) => void;
 };
 
 export function UploadDropzone({
-  control: { upload, isPending },
+  control,
   id: _id,
   accept,
   metadata,
   description,
   uploadOverride,
+  onFileSelect,
 }: UploadDropzoneProps) {
   const id = useId();
+
+  // Extract from control if provided (for immediate upload mode)
+  const upload = control?.upload;
+  const isPending = control?.isPending ?? false;
 
   const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
     onDrop: (files) => {
       if (files.length > 0 && !isPending) {
-        if (uploadOverride) {
+        // Deferred upload mode: just call onFileSelect callback
+        if (onFileSelect) {
+          onFileSelect(files[0]);
+        } else if (uploadOverride) {
           uploadOverride(files, { metadata });
-        } else {
+        } else if (upload) {
           upload(files, { metadata });
         }
       }

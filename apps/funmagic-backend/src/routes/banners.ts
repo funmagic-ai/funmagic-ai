@@ -71,7 +71,32 @@ const listActiveBannersRoute = createRoute({
   },
 });
 
+// Schema for admin list (includes all fields)
+const AdminBannerSchema = BannerSchema.extend({
+  isActive: z.boolean(),
+  startsAt: z.string().nullable(),
+  endsAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+}).openapi('AdminBanner');
+
+const AdminBannersListSchema = z.object({
+  banners: z.array(AdminBannerSchema),
+}).openapi('AdminBannersList');
+
 // Admin routes
+const listAllBannersRoute = createRoute({
+  method: 'get',
+  path: '/',
+  tags: ['Admin - Banners'],
+  responses: {
+    200: {
+      content: { 'application/json': { schema: AdminBannersListSchema } },
+      description: 'List of all banners (admin)',
+    },
+  },
+});
+
 const getBannerRoute = createRoute({
   method: 'get',
   path: '/{id}',
@@ -197,8 +222,42 @@ export const bannersPublicRoutes = new OpenAPIHono()
     });
   });
 
+// Helper to format banner for admin responses
+function formatBannerAdmin(b: typeof banners.$inferSelect) {
+  return {
+    id: b.id,
+    title: b.title,
+    description: b.description,
+    thumbnail: b.thumbnail,
+    link: b.link,
+    linkText: b.linkText,
+    linkTarget: b.linkTarget,
+    type: b.type,
+    position: b.position,
+    badge: b.badge,
+    badgeColor: b.badgeColor,
+    isActive: b.isActive,
+    startsAt: b.startsAt?.toISOString() ?? null,
+    endsAt: b.endsAt?.toISOString() ?? null,
+    createdAt: b.createdAt.toISOString(),
+    updatedAt: b.updatedAt.toISOString(),
+  };
+}
+
 // Admin routes - Full CRUD
 export const bannersAdminRoutes = new OpenAPIHono()
+  .openapi(listAllBannersRoute, async (c) => {
+    const allBanners = await db.query.banners.findMany({
+      orderBy: [
+        asc(sql`CASE WHEN ${banners.type} = 'main' THEN 0 ELSE 1 END`),
+        asc(banners.position),
+      ],
+    });
+
+    return c.json({
+      banners: allBanners.map(formatBannerAdmin),
+    }, 200);
+  })
   .openapi(getBannerRoute, async (c) => {
     const { id } = c.req.valid('param');
 
@@ -211,24 +270,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     }
 
     return c.json({
-      banner: {
-        id: banner.id,
-        title: banner.title,
-        description: banner.description,
-        thumbnail: banner.thumbnail,
-        link: banner.link,
-        linkText: banner.linkText,
-        linkTarget: banner.linkTarget,
-        type: banner.type,
-        position: banner.position,
-        badge: banner.badge,
-        badgeColor: banner.badgeColor,
-        isActive: banner.isActive,
-        startsAt: banner.startsAt?.toISOString() ?? null,
-        endsAt: banner.endsAt?.toISOString() ?? null,
-        createdAt: banner.createdAt.toISOString(),
-        updatedAt: banner.updatedAt.toISOString(),
-      },
+      banner: formatBannerAdmin(banner),
     }, 200);
   })
   .openapi(createBannerRoute, async (c) => {
@@ -251,24 +293,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     }).returning();
 
     return c.json({
-      banner: {
-        id: banner.id,
-        title: banner.title,
-        description: banner.description,
-        thumbnail: banner.thumbnail,
-        link: banner.link,
-        linkText: banner.linkText,
-        linkTarget: banner.linkTarget,
-        type: banner.type,
-        position: banner.position,
-        badge: banner.badge,
-        badgeColor: banner.badgeColor,
-        isActive: banner.isActive,
-        startsAt: banner.startsAt?.toISOString() ?? null,
-        endsAt: banner.endsAt?.toISOString() ?? null,
-        createdAt: banner.createdAt.toISOString(),
-        updatedAt: banner.updatedAt.toISOString(),
-      },
+      banner: formatBannerAdmin(banner),
     }, 201);
   })
   .openapi(updateBannerRoute, async (c) => {
@@ -305,24 +330,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
       .returning();
 
     return c.json({
-      banner: {
-        id: banner.id,
-        title: banner.title,
-        description: banner.description,
-        thumbnail: banner.thumbnail,
-        link: banner.link,
-        linkText: banner.linkText,
-        linkTarget: banner.linkTarget,
-        type: banner.type,
-        position: banner.position,
-        badge: banner.badge,
-        badgeColor: banner.badgeColor,
-        isActive: banner.isActive,
-        startsAt: banner.startsAt?.toISOString() ?? null,
-        endsAt: banner.endsAt?.toISOString() ?? null,
-        createdAt: banner.createdAt.toISOString(),
-        updatedAt: banner.updatedAt.toISOString(),
-      },
+      banner: formatBannerAdmin(banner),
     }, 200);
   })
   .openapi(deleteBannerRoute, async (c) => {

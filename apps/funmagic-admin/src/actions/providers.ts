@@ -1,13 +1,11 @@
 'use server';
 
-import { db, providers } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
+import { api } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
-
-interface FormState {
-  success: boolean;
-  message: string;
-}
+import { ProviderInputSchema } from '@funmagic/shared/schemas';
+import { parseFormData } from '@/lib/validate';
+import type { FormState } from '@/lib/form-types';
 
 interface CreateFormState extends FormState {
   providerId?: string;
@@ -17,38 +15,47 @@ export async function createProvider(
   prevState: CreateFormState,
   formData: FormData
 ): Promise<CreateFormState> {
-  try {
-    const name = formData.get('name') as string;
-    const displayName = formData.get('displayName') as string;
-    const type = formData.get('type') as string;
-    const description = formData.get('description') as string;
-    const apiKey = formData.get('apiKey') as string;
-    const baseUrl = formData.get('baseUrl') as string;
-    const isActive = formData.get('isActive') === 'on';
+  const parsed = parseFormData(ProviderInputSchema, formData);
+  if (!parsed.success) return parsed.state;
 
-    if (!name || !displayName || !type) {
-      return { success: false, message: 'Name, display name, and type are required' };
+  try {
+    // Parse config JSON string if provided
+    let config: unknown = undefined;
+    const configStr = parsed.data.config as string | undefined;
+    if (configStr) {
+      try {
+        config = JSON.parse(configStr);
+      } catch {
+        return { success: false, message: 'Invalid configuration JSON' };
+      }
     }
 
-    const [newProvider] = await db
-      .insert(providers)
-      .values({
-        name,
-        displayName,
-        type,
-        description: description || null,
-        apiKey: apiKey || null,
-        baseUrl: baseUrl || null,
-        isActive,
-      })
-      .returning({ id: providers.id });
+    const cookieHeader = (await cookies()).toString();
+    const { data, error } = await api.POST('/api/admin/providers', {
+      body: {
+        name: parsed.data.name,
+        displayName: parsed.data.displayName,
+        description: parsed.data.description || undefined,
+        appId: parsed.data.appId || undefined,
+        apiKey: parsed.data.apiKey || undefined,
+        apiSecret: parsed.data.apiSecret || undefined,
+        baseUrl: parsed.data.baseUrl || undefined,
+        config,
+        isActive: parsed.data.isActive,
+      },
+      headers: { cookie: cookieHeader },
+    });
+
+    if (error || !data) {
+      return { success: false, message: error?.error ?? 'Failed to create provider' };
+    }
 
     revalidatePath('/dashboard/providers');
 
     return {
       success: true,
       message: 'Provider created successfully',
-      providerId: newProvider.id,
+      providerId: data.provider.id,
     };
   } catch (error) {
     console.error('Failed to create provider:', error);
@@ -62,19 +69,32 @@ export async function updateProvider(
 ): Promise<FormState> {
   try {
     const id = formData.get('id') as string;
+    if (!id) return { success: false, message: 'Missing provider ID' };
+
     const name = formData.get('name') as string;
     const displayName = formData.get('displayName') as string;
-    const type = formData.get('type') as string;
     const description = formData.get('description') as string;
+    const appId = formData.get('appId') as string;
     const apiKey = formData.get('apiKey') as string;
     const apiSecret = formData.get('apiSecret') as string;
     const webhookSecret = formData.get('webhookSecret') as string;
     const baseUrl = formData.get('baseUrl') as string;
     const healthCheckUrl = formData.get('healthCheckUrl') as string;
     const configStr = formData.get('config') as string;
-    const isActive = formData.get('isActive') === 'on';
 
-    let config: unknown = null;
+    // Basic validation for required fields
+    if (!name || !displayName) {
+      return {
+        success: false,
+        message: 'Please fix the errors below',
+        errors: {
+          ...(name ? {} : { name: ['Name is required'] }),
+          ...(displayName ? {} : { displayName: ['Display name is required'] }),
+        },
+      };
+    }
+
+    let config: unknown = undefined;
     if (configStr) {
       try {
         config = JSON.parse(configStr);
@@ -83,28 +103,30 @@ export async function updateProvider(
       }
     }
 
-    const updateData: Record<string, unknown> = {
+    const body: Record<string, unknown> = {
       name,
       displayName,
-      type,
-      description: description || null,
-      baseUrl: baseUrl || null,
-      healthCheckUrl: healthCheckUrl || null,
+      description: description || undefined,
+      baseUrl: baseUrl || undefined,
+      healthCheckUrl: healthCheckUrl || undefined,
       config,
-      isActive,
     };
 
-    if (apiKey) {
-      updateData.apiKey = apiKey;
-    }
-    if (apiSecret) {
-      updateData.apiSecret = apiSecret;
-    }
-    if (webhookSecret) {
-      updateData.webhookSecret = webhookSecret;
-    }
+    if (appId) body.appId = appId;
+    if (apiKey) body.apiKey = apiKey;
+    if (apiSecret) body.apiSecret = apiSecret;
+    if (webhookSecret) body.webhookSecret = webhookSecret;
 
-    await db.update(providers).set(updateData).where(eq(providers.id, id));
+    const cookieHeader = (await cookies()).toString();
+    const { data, error } = await api.PUT('/api/admin/providers/{id}', {
+      params: { path: { id } },
+      body: body as never,
+      headers: { cookie: cookieHeader },
+    });
+
+    if (error || !data) {
+      return { success: false, message: error?.error ?? 'Failed to update provider' };
+    }
 
     revalidatePath('/dashboard/providers');
     revalidatePath(`/dashboard/providers/${id}`);
@@ -117,6 +139,31 @@ export async function updateProvider(
 }
 
 export async function deleteProvider(id: string) {
-  await db.delete(providers).where(eq(providers.id, id));
+  const cookieHeader = (await cookies()).toString();
+  const { error } = await api.DELETE('/api/admin/providers/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error) {
+    throw new Error(error.error ?? 'Failed to delete provider');
+  }
+
   revalidatePath('/dashboard/providers');
+}
+
+export async function toggleProviderActive(id: string, isActive: boolean) {
+  const cookieHeader = (await cookies()).toString();
+  const { error } = await api.PUT('/api/admin/providers/{id}', {
+    params: { path: { id } },
+    body: { isActive },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error) {
+    throw new Error(error.error ?? 'Failed to toggle provider status');
+  }
+
+  revalidatePath('/dashboard/providers');
+  revalidatePath(`/dashboard/providers/${id}`);
 }

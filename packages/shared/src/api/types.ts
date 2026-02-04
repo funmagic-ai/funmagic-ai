@@ -819,6 +819,64 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/banners": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of all banners (admin) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminBannersList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateBanner"];
+                };
+            };
+            responses: {
+                /** @description Banner created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BannerDetail"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/banners/{id}": {
         parameters: {
             query?: never;
@@ -924,45 +982,6 @@ export interface paths {
                 };
             };
         };
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/banners": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["CreateBanner"];
-                };
-            };
-            responses: {
-                /** @description Banner created */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["BannerDetail"];
-                    };
-                };
-            };
-        };
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1648,6 +1667,366 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of all credit packages */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackagesList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateCreditPackage"];
+                };
+            };
+            responses: {
+                /** @description Credit package created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageDetail"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/packages/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Credit package details */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageDetail"];
+                    };
+                };
+                /** @description Credit package not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageError"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateCreditPackage"];
+                };
+            };
+            responses: {
+                /** @description Credit package updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageDetail"];
+                    };
+                };
+                /** @description Credit package not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Credit package deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteCreditPackageSuccess"];
+                    };
+                };
+                /** @description Credit package not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["CreditPackageError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    limit?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of all users with credits */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUsersList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description User details with credits, transactions, and tasks */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserFullDetail"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/users/{id}/role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateUserRole"];
+                };
+            };
+            responses: {
+                /** @description User role updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserDetail"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserError"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/users/{id}/credits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["AdjustUserCredits"];
+                };
+            };
+            responses: {
+                /** @description User credits adjusted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserDetail"];
+                    };
+                };
+                /** @description Invalid credit adjustment */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserError"];
+                    };
+                };
+                /** @description User not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminUserError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1861,6 +2240,16 @@ export interface components {
         DeleteAssetSuccess: {
             success: boolean;
         };
+        AdminBannersList: {
+            banners: components["schemas"]["AdminBanner"][];
+        };
+        AdminBanner: components["schemas"]["Banner"] & {
+            isActive: boolean;
+            startsAt: string | null;
+            endsAt: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
         BannerDetail: {
             banner: components["schemas"]["Banner"] & {
                 isActive: boolean;
@@ -2000,10 +2389,7 @@ export interface components {
             name: string;
             displayName: string;
             description: string | null;
-            icon: string | null;
-            color: string | null;
             isActive: boolean;
-            sortOrder: number;
             createdAt: string;
             updatedAt: string;
         };
@@ -2017,19 +2403,13 @@ export interface components {
             name: string;
             displayName: string;
             description?: string;
-            icon?: string;
-            color?: string;
             isActive?: boolean;
-            sortOrder?: number;
         };
         UpdateToolType: {
             name?: string;
             displayName?: string;
             description?: string;
-            icon?: string;
-            color?: string;
             isActive?: boolean;
-            sortOrder?: number;
         };
         DeleteToolTypeSuccess: {
             success: boolean;
@@ -2043,7 +2423,6 @@ export interface components {
             name: string;
             displayName: string;
             description: string | null;
-            type: string;
             baseUrl: string | null;
             config?: unknown;
             isActive: boolean;
@@ -2066,8 +2445,6 @@ export interface components {
             name: string;
             displayName: string;
             description?: string;
-            /** @enum {string} */
-            type: "openai" | "anthropic" | "replicate" | "stability" | "fal" | "huggingface" | "custom";
             apiKey?: string;
             apiSecret?: string;
             /** Format: uri */
@@ -2082,8 +2459,6 @@ export interface components {
             name?: string;
             displayName?: string;
             description?: string;
-            /** @enum {string} */
-            type?: "openai" | "anthropic" | "replicate" | "stability" | "fal" | "huggingface" | "custom";
             apiKey?: string;
             apiSecret?: string;
             /** Format: uri */
@@ -2101,6 +2476,117 @@ export interface components {
             isHealthy: boolean;
             message: string;
             checkedAt: string;
+        };
+        CreditPackagesList: {
+            packages: components["schemas"]["CreditPackage"][];
+        };
+        CreditPackage: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description: string | null;
+            credits: number;
+            bonusCredits: number;
+            price: string;
+            currency: string;
+            isPopular: boolean;
+            isActive: boolean;
+            sortOrder: number;
+            createdAt: string;
+            updatedAt: string;
+        };
+        CreditPackageDetail: {
+            package: components["schemas"]["CreditPackage"];
+        };
+        CreditPackageError: {
+            error: string;
+        };
+        CreateCreditPackage: {
+            name: string;
+            description?: string;
+            credits: number;
+            bonusCredits?: number;
+            price: number;
+            currency?: string;
+            isPopular?: boolean;
+            isActive?: boolean;
+            sortOrder?: number;
+        };
+        UpdateCreditPackage: {
+            name?: string;
+            description?: string;
+            credits?: number;
+            bonusCredits?: number;
+            price?: number;
+            currency?: string;
+            isPopular?: boolean;
+            isActive?: boolean;
+            sortOrder?: number;
+        };
+        DeleteCreditPackageSuccess: {
+            success: boolean;
+        };
+        AdminUsersList: {
+            users: components["schemas"]["AdminUserWithCredits"][];
+        };
+        AdminUserWithCredits: components["schemas"]["AdminUser"] & {
+            credits: {
+                balance: number;
+                lifetimePurchased: number;
+                lifetimeUsed: number;
+            } | null;
+        };
+        AdminUser: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            emailVerified: boolean;
+            name: string | null;
+            image: string | null;
+            role: string;
+            createdAt: string;
+            updatedAt: string;
+        };
+        AdminUserFullDetail: {
+            user: components["schemas"]["AdminUserWithCredits"];
+            recentTransactions: components["schemas"]["AdminTransaction"][];
+            recentTasks: components["schemas"]["AdminTask"][];
+        };
+        AdminTransaction: {
+            /** Format: uuid */
+            id: string;
+            type: string;
+            amount: number;
+            balanceAfter: number;
+            description: string | null;
+            createdAt: string;
+        };
+        AdminTask: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            creditsCost: number;
+            createdAt: string;
+            tool: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+            } | null;
+        };
+        AdminUserError: {
+            error: string;
+        };
+        AdminUserDetail: {
+            user: components["schemas"]["AdminUserWithCredits"];
+        };
+        UpdateUserRole: {
+            /** @enum {string} */
+            role: "user" | "admin" | "super_admin";
+        };
+        AdjustUserCredits: {
+            amount: number;
+            description: string;
         };
     };
     responses: never;

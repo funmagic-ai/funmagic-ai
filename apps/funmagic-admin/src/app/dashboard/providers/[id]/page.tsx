@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { db, providers } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
@@ -37,15 +37,17 @@ export default async function ProviderDetailPage({ params }: ProviderDetailPageP
 }
 
 async function ProviderDetailContent({ id }: { id: string }) {
-  const provider = await db.query.providers.findFirst({
-    where: eq(providers.id, id),
+  const cookieHeader = (await cookies()).toString();
+  const { data } = await api.GET('/api/admin/providers/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
   });
 
-  if (!provider) {
+  if (!data?.provider) {
     notFound();
   }
 
-  return <ProviderEditForm provider={provider} />;
+  return <ProviderEditForm provider={data.provider} />;
 }
 
 function ProviderDetailSkeleton() {

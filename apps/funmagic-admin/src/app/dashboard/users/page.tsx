@@ -1,7 +1,6 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, users, credits } from '@/lib/db';
-import { desc, eq } from 'drizzle-orm';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -15,6 +14,23 @@ import {
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { Eye } from 'lucide-react';
+
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+interface UserWithCredits {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  name: string | null;
+  image: string | null;
+  role: string;
+  createdAt: string;
+  credits: {
+    balance: number;
+    lifetimePurchased: number;
+    lifetimeUsed: number;
+  } | null;
+}
 
 export default function UsersPage() {
   return (
@@ -32,13 +48,14 @@ export default function UsersPage() {
 }
 
 async function UserTableData() {
-  const allUsers = await db.query.users.findMany({
-    orderBy: desc(users.createdAt),
-    limit: 100,
+  // TODO: After regenerating API types with `bun run api:generate`, use:
+  // const { data } = await api.GET('/api/admin/users');
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/users`, {
+    headers: { cookie: cookieHeader },
   });
-
-  const userCredits = await db.query.credits.findMany();
-  const creditsMap = new Map(userCredits.map((c) => [c.userId, c]));
+  const data = (await res.json()) as { users: UserWithCredits[] };
+  const allUsers = data?.users ?? [];
 
   if (allUsers.length === 0) {
     return (
@@ -68,41 +85,38 @@ async function UserTableData() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {allUsers.map((user) => {
-            const userCredit = creditsMap.get(user.id);
-            return (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.image ?? undefined} />
-                      <AvatarFallback>
-                        {(user.name ?? user.email).slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="font-medium">{user.name ?? 'No name'}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{user.email}</TableCell>
-                <TableCell>
-                  <Badge variant={roleColors[user.role] ?? 'secondary'}>{user.role}</Badge>
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {(userCredit?.balance ?? 0).toLocaleString()}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" asChild>
-                    <Link href={`/dashboard/users/${user.id}`}>
-                      <Eye className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                </TableCell>
-              </TableRow>
-            );
-          })}
+          {allUsers.map((user) => (
+            <TableRow key={user.id}>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user.image ?? undefined} />
+                    <AvatarFallback>
+                      {(user.name ?? user.email).slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium">{user.name ?? 'No name'}</span>
+                </div>
+              </TableCell>
+              <TableCell className="text-muted-foreground">{user.email}</TableCell>
+              <TableCell>
+                <Badge variant={roleColors[user.role] ?? 'secondary'}>{user.role}</Badge>
+              </TableCell>
+              <TableCell className="text-right font-medium">
+                {(user.credits?.balance ?? 0).toLocaleString()}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {new Date(user.createdAt).toLocaleDateString()}
+              </TableCell>
+              <TableCell>
+                <Button variant="ghost" size="icon" asChild>
+                  <Link href={`/dashboard/users/${user.id}`}>
+                    <Eye className="h-4 w-4" />
+                  </Link>
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

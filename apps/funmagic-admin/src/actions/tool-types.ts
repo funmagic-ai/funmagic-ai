@@ -1,51 +1,59 @@
 'use server';
 
-import { db, toolTypes } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
+import { api } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
+import { ToolTypeInputSchema } from '@funmagic/shared/schemas';
+import { parseFormData } from '@/lib/validate';
+import type { FormState } from '@/lib/form-types';
 
-interface FormState {
-  success: boolean;
-  message: string;
+interface CreateFormState extends FormState {
   toolTypeId?: string;
 }
 
+export async function getToolTypeById(id: string) {
+  const cookieHeader = (await cookies()).toString();
+  const { data, error } = await api.GET('/api/admin/tool-types/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.toolType;
+}
+
 export async function createToolType(
-  prevState: FormState,
+  prevState: CreateFormState,
   formData: FormData
-): Promise<FormState> {
+): Promise<CreateFormState> {
+  const parsed = parseFormData(ToolTypeInputSchema, formData);
+  if (!parsed.success) return parsed.state;
+
   try {
-    const name = formData.get('name') as string;
-    const displayName = formData.get('displayName') as string;
-    const description = formData.get('description') as string;
-    const icon = formData.get('icon') as string;
-    const color = formData.get('color') as string;
-    const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
-    const isActive = formData.get('isActive') === 'on';
+    const cookieHeader = (await cookies()).toString();
+    const { data, error } = await api.POST('/api/admin/tool-types', {
+      body: {
+        name: parsed.data.name,
+        displayName: parsed.data.displayName,
+        description: parsed.data.description || undefined,
+        isActive: parsed.data.isActive,
+      },
+      headers: { cookie: cookieHeader },
+    });
 
-    if (!name || !displayName) {
-      return { success: false, message: 'Name and display name are required' };
+    if (error || !data) {
+      return { success: false, message: error?.error ?? 'Failed to create tool type' };
     }
-
-    const [newToolType] = await db
-      .insert(toolTypes)
-      .values({
-        name,
-        displayName,
-        description: description || null,
-        icon: icon || null,
-        color: color || null,
-        sortOrder,
-        isActive,
-      })
-      .returning({ id: toolTypes.id });
 
     revalidatePath('/dashboard/tool-types');
 
     return {
       success: true,
       message: 'Tool type created successfully',
-      toolTypeId: newToolType.id,
+      toolTypeId: data.toolType.id,
     };
   } catch (error) {
     console.error('Failed to create tool type:', error);
@@ -53,32 +61,52 @@ export async function createToolType(
   }
 }
 
-export async function updateToolType(id: string, formData: FormData) {
-  const name = formData.get('name') as string;
-  const displayName = formData.get('displayName') as string;
-  const description = formData.get('description') as string;
-  const icon = formData.get('icon') as string;
-  const color = formData.get('color') as string;
-  const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
-  const isActive = formData.get('isActive') === 'on';
+export async function updateToolType(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const id = formData.get('id') as string;
+  if (!id) return { success: false, message: 'Missing tool type ID' };
 
-  await db
-    .update(toolTypes)
-    .set({
-      name,
-      displayName,
-      description: description || null,
-      icon: icon || null,
-      color: color || null,
-      sortOrder,
-      isActive,
-    })
-    .where(eq(toolTypes.id, id));
+  const parsed = parseFormData(ToolTypeInputSchema, formData);
+  if (!parsed.success) return parsed.state;
 
-  revalidatePath('/dashboard/tool-types');
+  try {
+    const cookieHeader = (await cookies()).toString();
+    const { data, error } = await api.PUT('/api/admin/tool-types/{id}', {
+      params: { path: { id } },
+      body: {
+        name: parsed.data.name,
+        displayName: parsed.data.displayName,
+        description: parsed.data.description || undefined,
+        isActive: parsed.data.isActive,
+      },
+      headers: { cookie: cookieHeader },
+    });
+
+    if (error || !data) {
+      return { success: false, message: error?.error ?? 'Failed to update tool type' };
+    }
+
+    revalidatePath('/dashboard/tool-types');
+
+    return { success: true, message: 'Tool type updated successfully' };
+  } catch (error) {
+    console.error('Failed to update tool type:', error);
+    return { success: false, message: 'Failed to update tool type' };
+  }
 }
 
 export async function deleteToolType(id: string) {
-  await db.delete(toolTypes).where(eq(toolTypes.id, id));
+  const cookieHeader = (await cookies()).toString();
+  const { error } = await api.DELETE('/api/admin/tool-types/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error) {
+    throw new Error(error.error ?? 'Failed to delete tool type');
+  }
+
   revalidatePath('/dashboard/tool-types');
 }

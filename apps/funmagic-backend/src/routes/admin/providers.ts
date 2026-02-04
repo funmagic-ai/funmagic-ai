@@ -19,7 +19,6 @@ const ProviderSchema = z.object({
   name: z.string(),
   displayName: z.string(),
   description: z.string().nullable(),
-  type: z.string(),
   baseUrl: z.string().nullable(),
   config: z.any().nullable(),
   isActive: z.boolean(),
@@ -42,7 +41,6 @@ const CreateProviderSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
-  type: z.enum(['openai', 'anthropic', 'replicate', 'stability', 'fal', 'huggingface', 'custom']),
   apiKey: z.string().optional(),
   apiSecret: z.string().optional(),
   baseUrl: z.string().url().optional(),
@@ -188,7 +186,6 @@ function formatProvider(p: typeof providers.$inferSelect) {
     name: p.name,
     displayName: p.displayName,
     description: p.description,
-    type: p.type,
     baseUrl: p.baseUrl,
     config: p.config,
     isActive: p.isActive,
@@ -317,7 +314,6 @@ export const providersRoutes = new OpenAPIHono()
       name: data.name,
       displayName: data.displayName,
       description: data.description,
-      type: data.type,
       apiKey: encryptCredential(data.apiKey),
       apiSecret: encryptCredential(data.apiSecret),
       baseUrl: data.baseUrl,
@@ -347,7 +343,6 @@ export const providersRoutes = new OpenAPIHono()
     if (data.name !== undefined) updateData.name = data.name;
     if (data.displayName !== undefined) updateData.displayName = data.displayName;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.type !== undefined) updateData.type = data.type;
     if (data.baseUrl !== undefined) updateData.baseUrl = data.baseUrl;
     if (data.config !== undefined) updateData.config = data.config;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;

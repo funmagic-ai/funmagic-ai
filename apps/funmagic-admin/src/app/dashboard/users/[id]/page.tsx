@@ -1,8 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { db, users, credits, creditTransactions, tasks } from '@/lib/db';
-import { eq, desc } from 'drizzle-orm';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +19,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, CreditCard, ListTodo, User } from 'lucide-react';
 import { UserRoleSelect } from '@/components/users/user-role-select';
 import { UserCreditAdjust } from '@/components/users/user-credit-adjust';
+
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+interface UserWithCredits {
+  id: string;
+  email: string;
+  emailVerified: boolean;
+  name: string | null;
+  image: string | null;
+  role: string;
+  createdAt: string;
+  updatedAt: string;
+  credits: {
+    balance: number;
+    lifetimePurchased: number;
+    lifetimeUsed: number;
+  } | null;
+}
+
+interface Transaction {
+  id: string;
+  type: string;
+  amount: number;
+  balanceAfter: number;
+  description: string | null;
+  createdAt: string;
+}
+
+interface Task {
+  id: string;
+  status: string;
+  creditsCost: number;
+  createdAt: string;
+  tool: { id: string; title: string } | null;
+}
 
 interface UserDetailPageProps {
   params: Promise<{ id: string }>;
@@ -50,30 +84,24 @@ export default async function UserDetailPage({ params }: UserDetailPageProps) {
 }
 
 async function UserDetailContent({ id }: { id: string }) {
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, id),
+  // TODO: After regenerating API types with `bun run api:generate`, use:
+  // const { data } = await api.GET('/api/admin/users/{id}', { params: { path: { id } } });
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/users/${id}`, {
+    headers: { cookie: cookieHeader },
   });
 
-  if (!user) {
+  if (!res.ok) {
     notFound();
   }
 
-  const userCredit = await db.query.credits.findFirst({
-    where: eq(credits.userId, id),
-  });
+  const data = (await res.json()) as {
+    user: UserWithCredits;
+    recentTransactions: Transaction[];
+    recentTasks: Task[];
+  };
 
-  const recentTransactions = await db.query.creditTransactions.findMany({
-    where: eq(creditTransactions.userId, id),
-    orderBy: desc(creditTransactions.createdAt),
-    limit: 10,
-  });
-
-  const recentTasks = await db.query.tasks.findMany({
-    where: eq(tasks.userId, id),
-    with: { tool: true },
-    orderBy: desc(tasks.createdAt),
-    limit: 10,
-  });
+  const { user, recentTransactions, recentTasks } = data;
 
   const roleColors: Record<string, 'default' | 'secondary' | 'destructive'> = {
     user: 'secondary',
@@ -152,7 +180,7 @@ async function UserDetailContent({ id }: { id: string }) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-3xl font-bold">{(userCredit?.balance ?? 0).toLocaleString()}</p>
+              <p className="text-3xl font-bold">{(user.credits?.balance ?? 0).toLocaleString()}</p>
               <p className="text-sm text-muted-foreground">Current balance</p>
             </div>
 
@@ -160,12 +188,12 @@ async function UserDetailContent({ id }: { id: string }) {
               <div>
                 <p className="text-muted-foreground">Purchased</p>
                 <p className="font-medium">
-                  {(userCredit?.lifetimePurchased ?? 0).toLocaleString()}
+                  {(user.credits?.lifetimePurchased ?? 0).toLocaleString()}
                 </p>
               </div>
               <div>
                 <p className="text-muted-foreground">Used</p>
-                <p className="font-medium">{(userCredit?.lifetimeUsed ?? 0).toLocaleString()}</p>
+                <p className="font-medium">{(user.credits?.lifetimeUsed ?? 0).toLocaleString()}</p>
               </div>
             </div>
 

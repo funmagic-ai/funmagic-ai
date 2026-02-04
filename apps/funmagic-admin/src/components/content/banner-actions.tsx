@@ -1,26 +1,14 @@
 'use client';
 
 import { useTransition } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { deleteBanner } from '@/actions/banners';
-import { BannerForm } from './banner-form';
 
 interface Banner {
   id: string;
   title: string;
-  description: string | null;
-  thumbnail: string;
-  link: string | null;
-  linkText: string | null;
-  linkTarget: string | null;
-  type: string;
-  position: number | null;
-  badge: string | null;
-  badgeColor: string | null;
-  isActive: boolean;
-  startsAt: Date | null;
-  endsAt: Date | null;
 }
 
 interface BannerActionsProps {
@@ -40,7 +28,11 @@ export function BannerActions({ banner }: BannerActionsProps) {
 
   return (
     <div className="flex items-center gap-1">
-      <BannerForm mode="edit" banner={banner} />
+      <Button variant="ghost" size="icon" asChild>
+        <Link href={`/dashboard/content/banners/${banner.id}/edit`}>
+          <Pencil className="h-4 w-4" />
+        </Link>
+      </Button>
       <Button
         variant="ghost"
         size="icon"

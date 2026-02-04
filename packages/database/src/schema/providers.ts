@@ -5,9 +5,9 @@ export const providers = pgTable('providers', {
   name: text('name').notNull().unique(),
   displayName: text('display_name').notNull(),
   description: text('description'),
-  type: text('type').notNull(), // 'openai' | 'anthropic' | 'replicate' | etc
-  apiKey: text('api_key'), // Encrypted
-  apiSecret: text('api_secret'), // Encrypted
+  appId: text('app_id'), // Application ID (for providers like Tencent Cloud)
+  apiKey: text('api_key'), // Encrypted - Primary authentication key or SecretId
+  apiSecret: text('api_secret'), // Encrypted - Secondary key or SecretKey
   baseUrl: text('base_url'),
   webhookSecret: text('webhook_secret'),
   config: jsonb('config'),

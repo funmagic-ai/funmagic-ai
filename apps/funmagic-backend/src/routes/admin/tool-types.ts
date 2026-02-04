@@ -8,10 +8,7 @@ const ToolTypeSchema = z.object({
   name: z.string(),
   displayName: z.string(),
   description: z.string().nullable(),
-  icon: z.string().nullable(),
-  color: z.string().nullable(),
   isActive: z.boolean(),
-  sortOrder: z.number(),
   createdAt: z.string(),
   updatedAt: z.string(),
 }).openapi('ToolType');
@@ -24,10 +21,7 @@ const CreateToolTypeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
-  icon: z.string().optional(),
-  color: z.string().optional(),
   isActive: z.boolean().optional(),
-  sortOrder: z.number().optional(),
 }).openapi('CreateToolType');
 
 const UpdateToolTypeSchema = CreateToolTypeSchema.partial().openapi('UpdateToolType');
@@ -141,10 +135,7 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
     name: t.name,
     displayName: t.displayName,
     description: t.description,
-    icon: t.icon,
-    color: t.color,
     isActive: t.isActive,
-    sortOrder: t.sortOrder,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
   };
@@ -153,7 +144,7 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
 export const toolTypesRoutes = new OpenAPIHono()
   .openapi(listToolTypesRoute, async (c) => {
     const allToolTypes = await db.query.toolTypes.findMany({
-      orderBy: asc(toolTypes.sortOrder),
+      orderBy: asc(toolTypes.createdAt),
     });
 
     return c.json({
@@ -191,10 +182,7 @@ export const toolTypesRoutes = new OpenAPIHono()
       name: data.name,
       displayName: data.displayName,
       description: data.description,
-      icon: data.icon,
-      color: data.color,
       isActive: data.isActive ?? true,
-      sortOrder: data.sortOrder ?? 0,
     }).returning();
 
     return c.json({
@@ -217,10 +205,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     if (data.name !== undefined) updateData.name = data.name;
     if (data.displayName !== undefined) updateData.displayName = data.displayName;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.icon !== undefined) updateData.icon = data.icon;
-    if (data.color !== undefined) updateData.color = data.color;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
-    if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 
     const [toolType] = await db.update(toolTypes)
       .set(updateData)

@@ -6,10 +6,7 @@ export const toolTypes = pgTable('tool_types', {
   name: text('name').notNull().unique(),
   displayName: text('display_name').notNull(),
   description: text('description'),
-  icon: text('icon'),
-  color: text('color'),
   isActive: boolean('is_active').notNull().default(true),
-  sortOrder: integer('sort_order').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
 });

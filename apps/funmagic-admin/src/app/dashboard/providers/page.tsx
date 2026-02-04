@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, providers } from '@/lib/db';
+import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +13,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
+import { ProviderActiveSwitch } from '@/components/providers/provider-active-switch';
 import { Pencil, Plus } from 'lucide-react';
 
 export default function ProvidersPage() {
@@ -38,7 +40,11 @@ export default function ProvidersPage() {
 }
 
 async function ProvidersTable() {
-  const allProviders = await db.query.providers.findMany();
+  const cookieHeader = (await cookies()).toString();
+  const { data } = await api.GET('/api/admin/providers', {
+    headers: { cookie: cookieHeader },
+  });
+  const allProviders = data?.providers ?? [];
 
   if (allProviders.length === 0) {
     return (
@@ -61,7 +67,6 @@ async function ProvidersTable() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Display Name</TableHead>
-            <TableHead>Type</TableHead>
             <TableHead>Health</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
@@ -73,17 +78,15 @@ async function ProvidersTable() {
               <TableCell className="font-medium">{provider.name}</TableCell>
               <TableCell>{provider.displayName}</TableCell>
               <TableCell>
-                <Badge variant="outline">{provider.type}</Badge>
-              </TableCell>
-              <TableCell>
-                <Badge variant={provider.isHealthy ? 'default' : 'destructive'}>
-                  {provider.isHealthy ? 'Healthy' : 'Unhealthy'}
+                <Badge variant={!provider.healthCheckUrl ? 'secondary' : provider.isHealthy ? 'default' : 'destructive'}>
+                  {!provider.healthCheckUrl ? 'No Health Check' : provider.isHealthy ? 'Healthy' : 'Unhealthy'}
                 </Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={provider.isActive ? 'default' : 'secondary'}>
-                  {provider.isActive ? 'Active' : 'Inactive'}
-                </Badge>
+                <ProviderActiveSwitch
+                  providerId={provider.id}
+                  isActive={provider.isActive}
+                />
               </TableCell>
               <TableCell>
                 <Button variant="ghost" size="icon" asChild>

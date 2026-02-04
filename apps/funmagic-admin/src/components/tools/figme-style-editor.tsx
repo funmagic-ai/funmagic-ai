@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { Plus, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { getS3PublicUrl } from '@/lib/s3-url';
 
 interface StyleReference {
   id: string;
@@ -114,7 +115,7 @@ export function FigmeStyleEditor({ styles, maxStyles, onChange }: FigmeStyleEdit
                     {style.imageUrl ? (
                       <div className="relative">
                         <img
-                          src={style.imageUrl}
+                          src={getS3PublicUrl(style.imageUrl)}
                           alt={style.name}
                           className="h-32 w-full rounded-md object-cover"
                         />

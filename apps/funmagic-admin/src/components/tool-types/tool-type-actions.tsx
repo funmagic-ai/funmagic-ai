@@ -1,26 +1,14 @@
 'use client';
 
 import { useTransition } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { deleteToolType } from '@/actions/tool-types';
-import { ToolTypeForm } from './tool-type-form';
 
 interface ToolType {
   id: string;
   name: string;
-  displayName: string;
-  description: string | null;
-  icon: string | null;
-  color: string | null;
-  sortOrder: number;
-  isActive: boolean;
 }
 
 interface ToolTypeActionsProps {
@@ -40,7 +28,11 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
 
   return (
     <div className="flex items-center gap-1">
-      <ToolTypeForm mode="edit" toolType={toolType} />
+      <Button variant="ghost" size="icon" asChild>
+        <Link href={`/dashboard/tool-types/${toolType.id}/edit`}>
+          <Pencil className="h-4 w-4" />
+        </Link>
+      </Button>
       <Button
         variant="ghost"
         size="icon"

@@ -57,6 +57,8 @@ export function getImageDimensions(file: File): Promise<ImageDimensions> {
 
 /**
  * Get image dimensions from a URL
+ * Note: For blob URLs (local file previews), crossOrigin is not needed.
+ * For S3 URLs, we skip crossOrigin to avoid CORS issues since we only need dimensions.
  */
 export function getImageDimensionsFromUrl(url: string): Promise<ImageDimensions> {
   return new Promise((resolve, reject) => {
@@ -70,7 +72,6 @@ export function getImageDimensionsFromUrl(url: string): Promise<ImageDimensions>
       reject(new Error('Failed to load image from URL'));
     };
 
-    img.crossOrigin = 'anonymous';
     img.src = url;
   });
 }

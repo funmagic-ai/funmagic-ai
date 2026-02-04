@@ -1,6 +1,9 @@
 import { Suspense } from 'react';
-import { db, creditPackages, creditTransactions, credits } from '@/lib/db';
+import { cookies } from 'next/headers';
+import Link from 'next/link';
+import { db, creditTransactions, credits } from '@/lib/db';
 import { desc, eq, sum, count } from 'drizzle-orm';
+import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,8 +17,8 @@ import {
 } from '@/components/ui/table';
 import { StatsSkeleton } from '@/components/shared/stats-skeleton';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { DollarSign, CreditCard, TrendingUp, Users } from 'lucide-react';
-import { PackageForm } from '@/components/billing/package-form';
+import { DollarSign, CreditCard, TrendingUp, Users, Plus } from 'lucide-react';
+import { PackageActions } from '@/components/billing/package-actions';
 
 export default function BillingPage() {
   return (
@@ -37,11 +40,16 @@ export default function BillingPage() {
                 <CardTitle>Credit Packages</CardTitle>
                 <CardDescription>Available credit packages for purchase</CardDescription>
               </div>
-              <PackageForm mode="create" />
+              <Button size="sm" asChild>
+                <Link href="/dashboard/billing/packages/new">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Package
+                </Link>
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
-            <Suspense fallback={<TableSkeleton columns={5} rows={5} />}>
+            <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
               <PackagesTable />
             </Suspense>
           </CardContent>
@@ -127,10 +135,27 @@ async function BillingStats() {
   );
 }
 
+interface CreditPackage {
+  id: string;
+  name: string;
+  credits: number;
+  bonusCredits: number;
+  price: string;
+  currency: string;
+  isPopular: boolean;
+  isActive: boolean;
+}
+
 async function PackagesTable() {
-  const packages = await db.query.creditPackages.findMany({
-    orderBy: creditPackages.sortOrder,
+  // TODO: After regenerating API types with `bun run api:generate`, remove this fetch call
+  // and use: const { data } = await api.GET('/api/admin/packages');
+  const cookieHeader = (await cookies()).toString();
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const res = await fetch(`${baseUrl}/api/admin/packages`, {
+    headers: { cookie: cookieHeader },
   });
+  const data = (await res.json()) as { packages: CreditPackage[] };
+  const packages = data?.packages ?? [];
 
   if (packages.length === 0) {
     return <p className="text-sm text-muted-foreground">No packages configured</p>;
@@ -145,6 +170,7 @@ async function PackagesTable() {
           <TableHead className="text-right">Bonus</TableHead>
           <TableHead className="text-right">Price</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead className="w-[100px]">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -169,6 +195,9 @@ async function PackagesTable() {
               <Badge variant={pkg.isActive ? 'default' : 'secondary'}>
                 {pkg.isActive ? 'Active' : 'Inactive'}
               </Badge>
+            </TableCell>
+            <TableCell>
+              <PackageActions pkg={pkg} />
             </TableCell>
           </TableRow>
         ))}

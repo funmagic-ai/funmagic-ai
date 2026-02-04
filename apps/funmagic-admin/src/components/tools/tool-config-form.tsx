@@ -23,18 +23,18 @@ interface Tool {
   slug: string;
   title: string;
   toolTypeId: string;
-  config: unknown;
+  config?: unknown;
   toolType?: {
+    id: string;
     name: string;
     displayName: string;
-  } | null;
+  };
 }
 
 interface Provider {
   id: string;
   name: string;
   displayName: string;
-  type: string;
 }
 
 interface ToolConfigFormProps {
@@ -109,8 +109,8 @@ function FigmeConfigForm({ tool, providers }: { tool: Tool; providers: Provider[
     message: '',
   });
 
-  const imageGenProviders = providers.filter((p) => p.type === 'openai' || p.type === 'replicate');
-  const threeDProviders = providers.filter((p) => p.type === 'tripo' || p.type === 'replicate');
+  const imageGenProviders = providers.filter((p) => p.name.includes('openai') || p.name.includes('replicate'));
+  const threeDProviders = providers.filter((p) => p.name.includes('tripo') || p.name.includes('replicate'));
 
   const updateStep = (index: number, field: keyof FigmeStep, value: string | number) => {
     const newSteps = [...config.steps];
@@ -249,7 +249,7 @@ function BgRemoveConfigForm({ tool, providers }: { tool: Tool; providers: Provid
     message: '',
   });
 
-  const bgRemoveProviders = providers.filter((p) => p.type === 'fal' || p.type === 'replicate');
+  const bgRemoveProviders = providers.filter((p) => p.name.includes('fal') || p.name.includes('replicate'));
 
   const updateStep = (field: keyof BgRemoveStep, value: string | number) => {
     const newSteps = [...config.steps];

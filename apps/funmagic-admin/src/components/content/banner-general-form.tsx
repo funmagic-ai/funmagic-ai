@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { startTransition, useActionState, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { useUploadFiles } from '@better-upload/client';
@@ -21,14 +21,33 @@ import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
 import { createBanner } from '@/actions/banners';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
+import type { FormState } from '@/lib/form-types';
 
 export function BannerGeneralForm() {
   const router = useRouter();
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
   const [bannerType, setBannerType] = useState('main');
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Create local preview URL when file is selected
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setPreviewUrl('');
+  }, [file]);
+
+  // Upload hook for deferred upload on submit
+  const { upload: uploadToS3 } = useUploadFiles({
+    route: 'banners',
+    api: '/api/admin/content/banners/upload',
+  });
 
   const [state, formAction, isPending] = useActionState(
-    async (prevState: { success: boolean; message: string }, formData: FormData) => {
+    async (prevState: FormState, formData: FormData) => {
       const result = await createBanner(prevState, formData);
 
       if (result.success) {
@@ -39,25 +58,42 @@ export function BannerGeneralForm() {
 
       return result;
     },
-    { success: false, message: '' }
+    { success: false, message: '', errors: {} as Record<string, string[]> }
   );
 
-  const uploadControl = useUploadFiles({
-    route: 'banners',
-    api: '/api/admin/content/banners/upload',
-    onUploadComplete: ({ files }) => {
-      if (files.length > 0) {
-        const file = files[0];
-        const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
-        const imageUrl = s3BaseUrl ? `${s3BaseUrl}/${file.objectInfo.key}` : file.objectInfo.key;
-        setThumbnailUrl(imageUrl);
-      }
-    },
-  });
+  const handleSubmit = async (formData: FormData) => {
+    if (!file) return;
 
-  const handleSubmit = (formData: FormData) => {
-    formData.set('thumbnail', thumbnailUrl);
-    formAction(formData);
+    try {
+      setIsUploading(true);
+      // Upload file to S3 first
+      const uploadResult = await uploadToS3([file]);
+      if (uploadResult.files.length > 0) {
+        const uploadedFile = uploadResult.files[0];
+        const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
+        const imageUrl = s3BaseUrl
+          ? `${s3BaseUrl}/${uploadedFile.objectInfo.key}`
+          : uploadedFile.objectInfo.key;
+        formData.set('thumbnail', imageUrl);
+      }
+    } catch {
+      toast.error('Failed to upload image');
+      setIsUploading(false);
+      return;
+    }
+
+    setIsUploading(false);
+    startTransition(() => {
+      formAction(formData);
+    });
+  };
+
+  const handleFileSelect = (selectedFile: File) => {
+    setFile(selectedFile);
+  };
+
+  const handleRemoveFile = () => {
+    setFile(null);
   };
 
   return (
@@ -70,40 +106,55 @@ export function BannerGeneralForm() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="title"
                 name="title"
-                placeholder="New Feature Available!"
-                required
+                placeholder="e.g., New Feature Available!"
+                aria-invalid={!!state.errors?.title}
               />
+              {state.errors?.title && (
+                <p className="text-destructive text-xs">{state.errors.title[0]}</p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Display title for the banner
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">
+                Description <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Check out our latest features..."
+                placeholder="e.g., Check out our latest features..."
                 rows={2}
               />
+              <p className="text-muted-foreground text-xs">
+                Brief description shown on the banner
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label>Banner Image</Label>
+              <Label>
+                Banner Image <span className="text-destructive">*</span>
+              </Label>
               <p className="text-muted-foreground text-xs">
                 Recommended: {RECOMMENDED_DIMENSIONS.BANNER.width}×{RECOMMENDED_DIMENSIONS.BANNER.height}px or larger ({IMAGE_RATIOS.BANNER.label})
               </p>
-              {thumbnailUrl ? (
+              {previewUrl ? (
                 <AspectRatioPreview
-                  imageUrl={thumbnailUrl}
+                  imageUrl={previewUrl}
                   ratioType="BANNER"
-                  onRemove={() => setThumbnailUrl('')}
+                  onRemove={handleRemoveFile}
                   showSideBannerNote={bannerType === 'side'}
                 />
               ) : (
                 <UploadDropzone
-                  control={uploadControl}
+                  onFileSelect={handleFileSelect}
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   description={{
                     fileTypes: 'JPEG, PNG, WebP, GIF',
@@ -111,6 +162,9 @@ export function BannerGeneralForm() {
                     maxFiles: 1,
                   }}
                 />
+              )}
+              {state.errors?.thumbnail && (
+                <p className="text-destructive text-xs">{state.errors.thumbnail[0]}</p>
               )}
             </div>
           </CardContent>
@@ -124,21 +178,35 @@ export function BannerGeneralForm() {
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="link">Link URL</Label>
+                <Label htmlFor="link">
+                  Link URL <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="link"
                   name="link"
-                  placeholder="https://..."
+                  placeholder="e.g., https://example.com/promo"
+                  aria-invalid={!!state.errors?.link}
                 />
+                {state.errors?.link && (
+                  <p className="text-destructive text-xs">{state.errors.link[0]}</p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  Where users go when clicking the banner
+                </p>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="linkText">Link Text</Label>
+                <Label htmlFor="linkText">
+                  Link Text <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="linkText"
                   name="linkText"
-                  placeholder="Learn More"
+                  placeholder="e.g., Learn More"
                 />
+                <p className="text-muted-foreground text-xs">
+                  Call-to-action button text
+                </p>
               </div>
             </div>
           </CardContent>
@@ -152,7 +220,9 @@ export function BannerGeneralForm() {
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="type">Type</Label>
+                <Label htmlFor="type">
+                  Type <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Select
                   name="type"
                   defaultValue="main"
@@ -166,16 +236,28 @@ export function BannerGeneralForm() {
                     <SelectItem value="side">Side</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-muted-foreground text-xs">
+                  Main banners are larger; side banners appear in secondary areas
+                </p>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="badge">Badge Text</Label>
+                <Label htmlFor="badge">
+                  Badge Text <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="badge"
                   name="badge"
-                  placeholder="NEW"
+                  placeholder="e.g., NEW"
                   maxLength={20}
+                  aria-invalid={!!state.errors?.badge}
                 />
+                {state.errors?.badge && (
+                  <p className="text-destructive text-xs">{state.errors.badge[0]}</p>
+                )}
+                <p className="text-muted-foreground text-xs">
+                  Short label shown on the banner (max 20 chars)
+                </p>
               </div>
             </div>
           </CardContent>
@@ -189,27 +271,39 @@ export function BannerGeneralForm() {
           <CardContent className="grid gap-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="startsAt">Starts At</Label>
+                <Label htmlFor="startsAt">
+                  Starts At <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="startsAt"
                   name="startsAt"
                   type="datetime-local"
                 />
+                <p className="text-muted-foreground text-xs">
+                  When the banner becomes visible
+                </p>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="endsAt">Ends At</Label>
+                <Label htmlFor="endsAt">
+                  Ends At <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input
                   id="endsAt"
                   name="endsAt"
                   type="datetime-local"
                 />
+                <p className="text-muted-foreground text-xs">
+                  When the banner is automatically hidden
+                </p>
               </div>
             </div>
 
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="isActive">Active</Label>
+                <Label htmlFor="isActive">
+                  Active <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <p className="text-sm text-muted-foreground">Show this banner</p>
               </div>
               <Switch id="isActive" name="isActive" defaultChecked />
@@ -217,13 +311,20 @@ export function BannerGeneralForm() {
           </CardContent>
         </Card>
 
-        {state.message && !state.success && (
+        {state.message && !state.success && !state.errors && (
           <p className="text-destructive">{state.message}</p>
         )}
 
-        <div className="flex justify-end">
-          <Button type="submit" disabled={isPending || !thumbnailUrl}>
-            {isPending ? 'Creating...' : 'Create Banner'}
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/dashboard/content')}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isPending || isUploading || !file}>
+            {isUploading ? 'Uploading...' : isPending ? 'Creating...' : 'Create Banner'}
           </Button>
         </div>
       </div>

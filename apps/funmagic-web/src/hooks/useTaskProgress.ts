@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL
 const SSE_HEARTBEAT_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_SSE_HEARTBEAT_TIMEOUT_MS ?? '35000', 10)
 const SSE_MAX_RECONNECT_ATTEMPTS = parseInt(process.env.NEXT_PUBLIC_SSE_MAX_RECONNECT_ATTEMPTS ?? '3', 10)
 

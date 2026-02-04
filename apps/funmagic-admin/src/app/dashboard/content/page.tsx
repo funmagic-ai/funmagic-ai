@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, banners } from '@/lib/db';
+import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,10 +39,33 @@ export default function ContentPage() {
   );
 }
 
+interface AdminBanner {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnail: string;
+  link: string | null;
+  linkText: string | null;
+  linkTarget: string | null;
+  type: string;
+  position: number | null;
+  badge: string | null;
+  badgeColor: string | null;
+  isActive: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
 async function BannersTable() {
-  const allBanners = await db.query.banners.findMany({
-    orderBy: banners.position,
+  // TODO: After regenerating API types with `bun run api:generate`, use:
+  // const { data } = await api.GET('/api/admin/banners');
+  const cookieHeader = (await cookies()).toString();
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+  const res = await fetch(`${baseUrl}/api/admin/banners`, {
+    headers: { cookie: cookieHeader },
   });
+  const data = (await res.json()) as { banners: AdminBanner[] };
+  const allBanners = data?.banners ?? [];
 
   if (allBanners.length === 0) {
     return (

@@ -1,62 +1,146 @@
 'use server';
 
-import { db, creditPackages } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
+import { CreditPackageInputSchema } from '@funmagic/shared/schemas';
+import { parseFormData } from '@/lib/validate';
+import type { FormState } from '@/lib/form-types';
 
-export async function createPackage(formData: FormData) {
-  const name = formData.get('name') as string;
-  const description = formData.get('description') as string;
-  const credits = parseInt(formData.get('credits') as string);
-  const bonusCredits = parseInt(formData.get('bonusCredits') as string) || 0;
-  const price = formData.get('price') as string;
-  const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
-  const isPopular = formData.get('isPopular') === 'on';
-  const isActive = formData.get('isActive') === 'on';
-
-  await db.insert(creditPackages).values({
-    name,
-    description: description || null,
-    credits,
-    bonusCredits,
-    price,
-    currency: 'USD',
-    sortOrder,
-    isPopular,
-    isActive,
-  });
-
-  revalidatePath('/dashboard/billing');
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!baseUrl) {
+  throw new Error('NEXT_PUBLIC_API_URL environment variable is required');
 }
 
-export async function updatePackage(id: string, formData: FormData) {
-  const name = formData.get('name') as string;
-  const description = formData.get('description') as string;
-  const credits = parseInt(formData.get('credits') as string);
-  const bonusCredits = parseInt(formData.get('bonusCredits') as string) || 0;
-  const price = formData.get('price') as string;
-  const sortOrder = parseInt(formData.get('sortOrder') as string) || 0;
-  const isPopular = formData.get('isPopular') === 'on';
-  const isActive = formData.get('isActive') === 'on';
+interface CreateFormState extends FormState {
+  packageId?: string;
+}
 
-  await db
-    .update(creditPackages)
-    .set({
-      name,
-      description: description || null,
-      credits,
-      bonusCredits,
-      price,
-      sortOrder,
-      isPopular,
-      isActive,
-    })
-    .where(eq(creditPackages.id, id));
+interface CreditPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  credits: number;
+  bonusCredits: number;
+  price: string;
+  currency: string;
+  isPopular: boolean;
+  isActive: boolean;
+  sortOrder: number;
+}
 
-  revalidatePath('/dashboard/billing');
+// TODO: After regenerating API types with `bun run api:generate`, replace these
+// fetch calls with the typed api.GET/POST/PUT/DELETE calls
+
+export async function getPackageById(id: string) {
+  try {
+    const cookieHeader = (await cookies()).toString();
+    const res = await fetch(`${baseUrl}/api/admin/packages/${id}`, {
+      headers: { cookie: cookieHeader },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { package: CreditPackage };
+    return data.package;
+  } catch {
+    return null;
+  }
+}
+
+export async function createPackage(
+  prevState: CreateFormState,
+  formData: FormData
+): Promise<CreateFormState> {
+  const parsed = parseFormData(CreditPackageInputSchema, formData);
+  if (!parsed.success) return parsed.state;
+
+  try {
+    const cookieHeader = (await cookies()).toString();
+    const res = await fetch(`${baseUrl}/api/admin/packages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+      body: JSON.stringify({
+        name: parsed.data.name,
+        description: parsed.data.description || undefined,
+        credits: parsed.data.credits,
+        bonusCredits: parsed.data.bonusCredits,
+        price: parsed.data.price,
+        sortOrder: parsed.data.sortOrder,
+        isPopular: parsed.data.isPopular,
+        isActive: parsed.data.isActive,
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to create package' }));
+      return { success: false, message: error.error ?? 'Failed to create package' };
+    }
+
+    const data = (await res.json()) as { package: CreditPackage };
+
+    revalidatePath('/dashboard/billing');
+
+    return {
+      success: true,
+      message: 'Package created successfully',
+      packageId: data.package.id,
+    };
+  } catch (error) {
+    console.error('Failed to create package:', error);
+    return { success: false, message: 'Failed to create package' };
+  }
+}
+
+export async function updatePackage(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const id = formData.get('id') as string;
+  if (!id) return { success: false, message: 'Missing package ID' };
+
+  const parsed = parseFormData(CreditPackageInputSchema, formData);
+  if (!parsed.success) return parsed.state;
+
+  try {
+    const cookieHeader = (await cookies()).toString();
+    const res = await fetch(`${baseUrl}/api/admin/packages/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+      body: JSON.stringify({
+        name: parsed.data.name,
+        description: parsed.data.description || undefined,
+        credits: parsed.data.credits,
+        bonusCredits: parsed.data.bonusCredits,
+        price: parsed.data.price,
+        sortOrder: parsed.data.sortOrder,
+        isPopular: parsed.data.isPopular,
+        isActive: parsed.data.isActive,
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ error: 'Failed to update package' }));
+      return { success: false, message: error.error ?? 'Failed to update package' };
+    }
+
+    revalidatePath('/dashboard/billing');
+
+    return { success: true, message: 'Package updated successfully' };
+  } catch (error) {
+    console.error('Failed to update package:', error);
+    return { success: false, message: 'Failed to update package' };
+  }
 }
 
 export async function deletePackage(id: string) {
-  await db.delete(creditPackages).where(eq(creditPackages.id, id));
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/packages/${id}`, {
+    method: 'DELETE',
+    headers: { cookie: cookieHeader },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to delete package' }));
+    throw new Error(error.error ?? 'Failed to delete package');
+  }
+
   revalidatePath('/dashboard/billing');
 }

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, toolTypes } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
@@ -30,9 +30,11 @@ export default function NewToolPage() {
 }
 
 async function NewToolContent() {
-  const allToolTypes = await db.query.toolTypes.findMany({
-    where: eq(toolTypes.isActive, true),
+  const cookieHeader = (await cookies()).toString();
+  const { data } = await api.GET('/api/admin/tool-types', {
+    headers: { cookie: cookieHeader },
   });
+  const allToolTypes = (data?.toolTypes ?? []).filter((t) => t.isActive);
 
   return <ToolGeneralForm toolTypes={allToolTypes} />;
 }

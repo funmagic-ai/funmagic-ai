@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, toolTypes } from '@/lib/db';
+import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -31,7 +32,7 @@ export default function ToolTypesPage() {
         </Button>
       </div>
 
-      <Suspense fallback={<TableSkeleton columns={6} rows={10} />}>
+      <Suspense fallback={<TableSkeleton columns={4} rows={10} />}>
         <ToolTypesTable />
       </Suspense>
     </div>
@@ -39,9 +40,11 @@ export default function ToolTypesPage() {
 }
 
 async function ToolTypesTable() {
-  const allToolTypes = await db.query.toolTypes.findMany({
-    orderBy: toolTypes.sortOrder,
+  const cookieHeader = (await cookies()).toString();
+  const { data } = await api.GET('/api/admin/tool-types', {
+    headers: { cookie: cookieHeader },
   });
+  const allToolTypes = data?.toolTypes ?? [];
 
   if (allToolTypes.length === 0) {
     return (
@@ -64,9 +67,6 @@ async function ToolTypesTable() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Display Name</TableHead>
-            <TableHead>Icon</TableHead>
-            <TableHead>Color</TableHead>
-            <TableHead>Order</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -76,21 +76,6 @@ async function ToolTypesTable() {
             <TableRow key={type.id}>
               <TableCell className="font-medium">{type.name}</TableCell>
               <TableCell>{type.displayName}</TableCell>
-              <TableCell className="text-muted-foreground">{type.icon ?? '-'}</TableCell>
-              <TableCell>
-                {type.color ? (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-4 w-4 rounded-full border"
-                      style={{ backgroundColor: type.color }}
-                    />
-                    <span className="text-sm text-muted-foreground">{type.color}</span>
-                  </div>
-                ) : (
-                  '-'
-                )}
-              </TableCell>
-              <TableCell>{type.sortOrder}</TableCell>
               <TableCell>
                 <Badge variant={type.isActive ? 'default' : 'secondary'}>
                   {type.isActive ? 'Active' : 'Inactive'}

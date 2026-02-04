@@ -1,8 +1,8 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { db, tools, toolTypes, providers } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { api } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,22 +39,20 @@ export default async function ToolDetailPage({ params }: ToolDetailPageProps) {
 }
 
 async function ToolDetailContent({ id }: { id: string }) {
-  const tool = await db.query.tools.findFirst({
-    where: eq(tools.id, id),
-    with: { toolType: true },
-  });
+  const cookieHeader = (await cookies()).toString();
+  const [toolRes, toolTypesRes, providersRes] = await Promise.all([
+    api.GET('/api/admin/tools/{id}', { params: { path: { id } }, headers: { cookie: cookieHeader } }),
+    api.GET('/api/admin/tool-types', { headers: { cookie: cookieHeader } }),
+    api.GET('/api/admin/providers', { headers: { cookie: cookieHeader } }),
+  ]);
 
+  const tool = toolRes.data?.tool;
   if (!tool) {
     notFound();
   }
 
-  const allToolTypes = await db.query.toolTypes.findMany({
-    where: eq(toolTypes.isActive, true),
-  });
-
-  const allProviders = await db.query.providers.findMany({
-    where: eq(providers.isActive, true),
-  });
+  const allToolTypes = (toolTypesRes.data?.toolTypes ?? []).filter((t) => t.isActive);
+  const allProviders = (providersRes.data?.providers ?? []).filter((p) => p.isActive);
 
   return (
     <Tabs defaultValue="general" className="space-y-6">

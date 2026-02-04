@@ -1,11 +1,28 @@
 'use server';
 
-import { db, users, credits, creditTransactions } from '@/lib/db';
-import { eq } from 'drizzle-orm';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
+const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+if (!baseUrl) {
+  throw new Error('NEXT_PUBLIC_API_URL environment variable is required');
+}
+
+// TODO: After regenerating API types with `bun run api:generate`, replace these
+// fetch calls with the typed api.PATCH/POST calls
+
 export async function updateUserRole(userId: string, newRole: string) {
-  await db.update(users).set({ role: newRole }).where(eq(users.id, userId));
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+    body: JSON.stringify({ role: newRole }),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to update role' }));
+    throw new Error(error.error ?? 'Failed to update role');
+  }
 
   revalidatePath('/dashboard/users');
   revalidatePath(`/dashboard/users/${userId}`);
@@ -16,44 +33,17 @@ export async function adjustUserCredits(
   amount: number,
   description: string
 ) {
-  const userCredit = await db.query.credits.findFirst({
-    where: eq(credits.userId, userId),
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/users/${userId}/credits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', cookie: cookieHeader },
+    body: JSON.stringify({ amount, description }),
   });
 
-  const currentBalance = userCredit?.balance ?? 0;
-  const newBalance = currentBalance + amount;
-
-  if (newBalance < 0) {
-    throw new Error('Insufficient credits');
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to adjust credits' }));
+    throw new Error(error.error ?? 'Failed to adjust credits');
   }
-
-  if (userCredit) {
-    await db
-      .update(credits)
-      .set({
-        balance: newBalance,
-        lifetimePurchased:
-          amount > 0
-            ? (userCredit.lifetimePurchased ?? 0) + amount
-            : userCredit.lifetimePurchased,
-      })
-      .where(eq(credits.userId, userId));
-  } else {
-    await db.insert(credits).values({
-      userId,
-      balance: newBalance,
-      lifetimePurchased: amount > 0 ? amount : 0,
-    });
-  }
-
-  await db.insert(creditTransactions).values({
-    userId,
-    type: amount > 0 ? 'bonus' : 'admin_debit',
-    amount,
-    balanceAfter: newBalance,
-    description,
-    referenceType: 'admin',
-  });
 
   revalidatePath('/dashboard/users');
   revalidatePath(`/dashboard/users/${userId}`);

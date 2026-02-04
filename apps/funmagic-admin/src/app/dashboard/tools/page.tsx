@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
+import { cookies } from 'next/headers';
 import Link from 'next/link';
-import { db, tools } from '@/lib/db';
-import { desc } from 'drizzle-orm';
+import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,10 +39,12 @@ export default function ToolsPage() {
 }
 
 async function ToolTableData() {
-  const allTools = await db.query.tools.findMany({
-    with: { toolType: true },
-    orderBy: desc(tools.createdAt),
+  const cookieHeader = (await cookies()).toString();
+  const { data } = await api.GET('/api/admin/tools', {
+    params: { query: { includeInactive: 'true' } },
+    headers: { cookie: cookieHeader },
   });
+  const allTools = data?.tools ?? [];
 
   if (allTools.length === 0) {
     return (

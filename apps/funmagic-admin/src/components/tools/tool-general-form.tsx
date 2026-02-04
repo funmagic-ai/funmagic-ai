@@ -20,6 +20,8 @@ import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
 import { createTool, updateToolGeneral } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
+import { getS3PublicUrl } from '@/lib/s3-url';
+import type { FormState } from '@/lib/form-types';
 
 interface Tool {
   id: string;
@@ -49,11 +51,14 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
   const isCreateMode = !tool;
   const serverAction = isCreateMode ? createTool : updateToolGeneral;
 
-  const [state, action, isPending] = useActionState(serverAction, {
+  type ToolFormState = FormState & { toolId?: string };
+  const [state, action, isPending] = useActionState<ToolFormState, FormData>(serverAction, {
     success: false,
     message: '',
+    errors: {},
+    toolId: undefined,
   });
-  const [thumbnailUrl, setThumbnailUrl] = useState(tool?.thumbnail ?? '');
+  const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool?.thumbnail ?? ''));
   const formRef = useRef<HTMLFormElement>(null);
 
   const uploadControl = useUploadFiles({
@@ -71,7 +76,7 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
   // Sync thumbnail URL when tool prop changes (e.g., after save)
   useEffect(() => {
-    setThumbnailUrl(tool?.thumbnail ?? '');
+    setThumbnailUrl(getS3PublicUrl(tool?.thumbnail ?? ''));
   }, [tool?.thumbnail]);
 
   // Redirect after successful creation
@@ -98,50 +103,85 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="slug">Slug</Label>
+              <Label htmlFor="slug">
+                Slug <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="slug"
                 name="slug"
                 defaultValue={tool?.slug ?? ''}
-                placeholder="my-tool"
+                placeholder="e.g., my-tool-name"
+                aria-invalid={!!state.errors?.slug}
               />
+              {state.errors?.slug && (
+                <p className="text-destructive text-xs">{state.errors.slug[0]}</p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                URL-friendly identifier. Only lowercase letters, numbers, and hyphens.
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="title"
                 name="title"
                 defaultValue={tool?.title ?? ''}
-                placeholder="My Tool"
+                placeholder="e.g., My Tool"
+                aria-invalid={!!state.errors?.title}
               />
+              {state.errors?.title && (
+                <p className="text-destructive text-xs">{state.errors.title[0]}</p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Display name for the tool
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="shortDescription">Short Description</Label>
+              <Label htmlFor="shortDescription">
+                Short Description <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Input
                 id="shortDescription"
                 name="shortDescription"
                 defaultValue={tool?.shortDescription ?? ''}
-                placeholder="A brief description..."
+                placeholder="e.g., A brief description..."
+                maxLength={100}
+                aria-invalid={!!state.errors?.shortDescription}
               />
+              {state.errors?.shortDescription && (
+                <p className="text-destructive text-xs">{state.errors.shortDescription[0]}</p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Brief tagline shown in listings (max 100 chars)
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="description">Full Description</Label>
+              <Label htmlFor="description">
+                Full Description <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <Textarea
                 id="description"
                 name="description"
                 defaultValue={tool?.description ?? ''}
-                placeholder="Detailed description..."
+                placeholder="e.g., Detailed description..."
                 rows={4}
               />
+              <p className="text-muted-foreground text-xs">
+                Detailed description shown on tool page
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="toolTypeId">Tool Type</Label>
+              <Label htmlFor="toolTypeId">
+                Tool Type <span className="text-destructive">*</span>
+              </Label>
               <Select name="toolTypeId" defaultValue={tool?.toolTypeId}>
-                <SelectTrigger>
+                <SelectTrigger aria-invalid={!!state.errors?.toolTypeId}>
                   <SelectValue placeholder="Select a tool type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -152,10 +192,18 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
                   ))}
                 </SelectContent>
               </Select>
+              {state.errors?.toolTypeId && (
+                <p className="text-destructive text-xs">{state.errors.toolTypeId[0]}</p>
+              )}
+              <p className="text-muted-foreground text-xs">
+                Category for organizing the tool
+              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label>Thumbnail</Label>
+              <Label>
+                Thumbnail <span className="text-muted-foreground text-xs">(optional)</span>
+              </Label>
               <p className="text-muted-foreground text-xs">
                 Recommended: {RECOMMENDED_DIMENSIONS.THUMBNAIL.width}×{RECOMMENDED_DIMENSIONS.THUMBNAIL.height}px or larger ({IMAGE_RATIOS.THUMBNAIL.label})
               </p>
@@ -188,7 +236,9 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
           <CardContent className="grid gap-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="isActive">Active</Label>
+                <Label htmlFor="isActive">
+                  Active <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <p className="text-sm text-muted-foreground">Tool is visible to users</p>
               </div>
               <Switch
@@ -200,7 +250,9 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
 
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="isFeatured">Featured</Label>
+                <Label htmlFor="isFeatured">
+                  Featured <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <p className="text-sm text-muted-foreground">Highlight on homepage</p>
               </div>
               <Switch
@@ -212,13 +264,18 @@ export function ToolGeneralForm({ tool, toolTypes }: ToolGeneralFormProps) {
           </CardContent>
         </Card>
 
-        {state.message && (
-          <p className={state.success ? 'text-green-600' : 'text-destructive'}>
-            {state.message}
-          </p>
+        {state.message && !state.success && !state.errors && (
+          <p className="text-destructive">{state.message}</p>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push('/dashboard/tools')}
+          >
+            Cancel
+          </Button>
           <Button type="submit" disabled={isPending}>
             {isPending ? (isCreateMode ? 'Creating...' : 'Saving...') : (isCreateMode ? 'Create Tool' : 'Save Changes')}
           </Button>
