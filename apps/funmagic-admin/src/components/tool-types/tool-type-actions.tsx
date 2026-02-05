@@ -2,8 +2,9 @@
 
 import { useTransition } from 'react';
 import Link from 'next/link';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2 } from 'lucide-react';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { deleteToolType } from '@/actions/tool-types';
 
 interface ToolType {
@@ -19,10 +20,12 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = () => {
-    if (!confirm('Are you sure you want to delete this tool type?')) return;
-
     startTransition(async () => {
-      await deleteToolType(toolType.id);
+      try {
+        await deleteToolType(toolType.id);
+      } catch (error) {
+        console.error('Failed to delete tool type:', error);
+      }
     });
   };
 
@@ -33,15 +36,12 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
           <Pencil className="h-4 w-4" />
         </Link>
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleDelete}
-        disabled={isPending}
-        className="text-destructive hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <DeleteConfirmDialog
+        title="Delete tool type?"
+        description={`Are you sure you want to delete "${toolType.name}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        isPending={isPending}
+      />
     </div>
   );
 }

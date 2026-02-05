@@ -5,26 +5,22 @@ import Link from 'next/link';
 import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
-import { deleteBanner } from '@/actions/banners';
+import { deleteTool } from '@/actions/tools';
 
-interface Banner {
-  id: string;
-  title: string;
+interface ToolActionsProps {
+  toolId: string;
+  toolName?: string;
 }
 
-interface BannerActionsProps {
-  banner: Banner;
-}
-
-export function BannerActions({ banner }: BannerActionsProps) {
+export function ToolActions({ toolId, toolName }: ToolActionsProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = () => {
     startTransition(async () => {
       try {
-        await deleteBanner(banner.id);
+        await deleteTool(toolId);
       } catch (error) {
-        console.error('Failed to delete banner:', error);
+        console.error('Failed to delete tool:', error);
       }
     });
   };
@@ -32,13 +28,13 @@ export function BannerActions({ banner }: BannerActionsProps) {
   return (
     <div className="flex items-center gap-1">
       <Button variant="ghost" size="icon" asChild>
-        <Link href={`/dashboard/content/banners/${banner.id}/edit`}>
+        <Link href={`/dashboard/tools/${toolId}`}>
           <Pencil className="h-4 w-4" />
         </Link>
       </Button>
       <DeleteConfirmDialog
-        title="Delete banner?"
-        description={`Are you sure you want to delete "${banner.title}"? This action cannot be undone.`}
+        title="Delete tool?"
+        description={`Are you sure you want to delete${toolName ? ` "${toolName}"` : ' this tool'}? This action cannot be undone.`}
         onConfirm={handleDelete}
         isPending={isPending}
       />

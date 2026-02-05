@@ -182,6 +182,7 @@ export const bannersPublicRoutes = new OpenAPIHono()
 
     const conditions = [
       eq(banners.isActive, true),
+      isNull(banners.deletedAt),
       // Scheduling: either no dates set, or current time is within range
       or(
         and(isNull(banners.startsAt), isNull(banners.endsAt)),
@@ -248,6 +249,7 @@ function formatBannerAdmin(b: typeof banners.$inferSelect) {
 export const bannersAdminRoutes = new OpenAPIHono()
   .openapi(listAllBannersRoute, async (c) => {
     const allBanners = await db.query.banners.findMany({
+      where: isNull(banners.deletedAt),
       orderBy: [
         asc(sql`CASE WHEN ${banners.type} = 'main' THEN 0 ELSE 1 END`),
         asc(banners.position),
@@ -262,7 +264,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const banner = await db.query.banners.findFirst({
-      where: eq(banners.id, id),
+      where: and(eq(banners.id, id), isNull(banners.deletedAt)),
     });
 
     if (!banner) {
@@ -302,7 +304,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
 
     // Check if banner exists
     const existing = await db.query.banners.findFirst({
-      where: eq(banners.id, id),
+      where: and(eq(banners.id, id), isNull(banners.deletedAt)),
     });
 
     if (!existing) {
@@ -338,14 +340,17 @@ export const bannersAdminRoutes = new OpenAPIHono()
 
     // Check if banner exists
     const existing = await db.query.banners.findFirst({
-      where: eq(banners.id, id),
+      where: and(eq(banners.id, id), isNull(banners.deletedAt)),
     });
 
     if (!existing) {
       return c.json({ error: 'Banner not found' }, 404);
     }
 
-    await db.delete(banners).where(eq(banners.id, id));
+    // Soft delete by setting deletedAt timestamp
+    await db.update(banners)
+      .set({ deletedAt: new Date() })
+      .where(eq(banners.id, id));
 
     return c.json({ success: true }, 200);
   });

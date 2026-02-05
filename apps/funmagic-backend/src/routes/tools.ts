@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tools, toolTypes } from '@funmagic/database';
-import { eq, and, ilike, or, sql, count } from 'drizzle-orm';
+import { eq, and, ilike, or, sql, count, isNull } from 'drizzle-orm';
 import { ToolsListSchema, ToolDetailSchema, ErrorSchema } from '../schemas';
 
 const listToolsRoute = createRoute({
@@ -48,8 +48,8 @@ export const toolsRoutes = new OpenAPIHono()
       const { q, category, page, limit } = c.req.valid('query');
       const offset = (page - 1) * limit;
 
-      // Build where conditions
-      const conditions = [eq(tools.isActive, true)];
+      // Build where conditions - only show active, non-deleted tools
+      const conditions = [eq(tools.isActive, true), isNull(tools.deletedAt)];
 
       if (q) {
         conditions.push(
@@ -125,7 +125,7 @@ export const toolsRoutes = new OpenAPIHono()
     const { slug } = c.req.valid('param');
 
     const tool = await db.query.tools.findFirst({
-      where: eq(tools.slug, slug),
+      where: and(eq(tools.slug, slug), isNull(tools.deletedAt)),
       with: {
         toolType: true,
       },

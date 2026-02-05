@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, creditPackages } from '@funmagic/database';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, isNull, and } from 'drizzle-orm';
 
 // Schemas
 const PackageSchema = z.object({
@@ -155,6 +155,7 @@ function formatPackage(p: typeof creditPackages.$inferSelect) {
 export const packagesRoutes = new OpenAPIHono()
   .openapi(listPackagesRoute, async (c) => {
     const allPackages = await db.query.creditPackages.findMany({
+      where: isNull(creditPackages.deletedAt),
       orderBy: asc(creditPackages.sortOrder),
     });
 
@@ -166,7 +167,7 @@ export const packagesRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const pkg = await db.query.creditPackages.findFirst({
-      where: eq(creditPackages.id, id),
+      where: and(eq(creditPackages.id, id), isNull(creditPackages.deletedAt)),
     });
 
     if (!pkg) {
@@ -201,7 +202,7 @@ export const packagesRoutes = new OpenAPIHono()
     const data = c.req.valid('json');
 
     const existing = await db.query.creditPackages.findFirst({
-      where: eq(creditPackages.id, id),
+      where: and(eq(creditPackages.id, id), isNull(creditPackages.deletedAt)),
     });
 
     if (!existing) {
@@ -232,14 +233,17 @@ export const packagesRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.creditPackages.findFirst({
-      where: eq(creditPackages.id, id),
+      where: and(eq(creditPackages.id, id), isNull(creditPackages.deletedAt)),
     });
 
     if (!existing) {
       return c.json({ error: 'Credit package not found' }, 404);
     }
 
-    await db.delete(creditPackages).where(eq(creditPackages.id, id));
+    // Soft delete by setting deletedAt timestamp
+    await db.update(creditPackages)
+      .set({ deletedAt: new Date() })
+      .where(eq(creditPackages.id, id));
 
     return c.json({ success: true }, 200);
   });

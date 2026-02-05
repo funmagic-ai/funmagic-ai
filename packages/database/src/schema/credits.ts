@@ -43,6 +43,7 @@ export const creditPackages = pgTable('credit_packages', {
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'), // Soft delete
 });
 
 // Relations

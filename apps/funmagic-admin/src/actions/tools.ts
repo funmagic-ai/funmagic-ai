@@ -213,3 +213,17 @@ export async function toggleToolStatus(id: string, field: 'isActive' | 'isFeatur
 
   revalidatePath('/dashboard/tools');
 }
+
+export async function deleteTool(id: string) {
+  const cookieHeader = (await cookies()).toString();
+  const { error } = await api.DELETE('/api/admin/tools/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error) {
+    throw new Error(error.error ?? 'Failed to delete tool');
+  }
+
+  revalidatePath('/dashboard/tools');
+}

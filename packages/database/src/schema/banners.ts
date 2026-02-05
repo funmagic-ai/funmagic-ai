@@ -17,4 +17,5 @@ export const banners = pgTable('banners', {
   endsAt: timestamp('ends_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'), // Soft delete
 });

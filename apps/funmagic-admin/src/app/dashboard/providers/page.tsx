@@ -14,7 +14,8 @@ import {
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { ProviderActiveSwitch } from '@/components/providers/provider-active-switch';
-import { Pencil, Plus } from 'lucide-react';
+import { ProviderActions } from '@/components/providers/provider-actions';
+import { Plus } from 'lucide-react';
 
 export default function ProvidersPage() {
   return (
@@ -89,11 +90,7 @@ async function ProvidersTable() {
                 />
               </TableCell>
               <TableCell>
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href={`/dashboard/providers/${provider.id}`}>
-                    <Pencil className="h-4 w-4" />
-                  </Link>
-                </Button>
+                <ProviderActions providerId={provider.id} providerName={provider.displayName} />
               </TableCell>
             </TableRow>
           ))}

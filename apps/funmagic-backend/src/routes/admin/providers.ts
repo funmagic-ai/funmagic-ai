@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, providers } from '@funmagic/database';
-import { eq } from 'drizzle-orm';
+import { eq, isNull, and } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
 
 // Environment variables
@@ -276,6 +276,7 @@ export function decryptCredential(encrypted: string | null): string | null {
 export const providersRoutes = new OpenAPIHono()
   .openapi(listProvidersRoute, async (c) => {
     const allProviders = await db.query.providers.findMany({
+      where: isNull(providers.deletedAt),
       orderBy: (providers, { asc }) => [asc(providers.displayName)],
     });
 
@@ -287,7 +288,7 @@ export const providersRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const provider = await db.query.providers.findFirst({
-      where: eq(providers.id, id),
+      where: and(eq(providers.id, id), isNull(providers.deletedAt)),
     });
 
     if (!provider) {
@@ -301,9 +302,9 @@ export const providersRoutes = new OpenAPIHono()
   .openapi(createProviderRoute, async (c) => {
     const data = c.req.valid('json');
 
-    // Check if name already exists
+    // Check if name already exists (among non-deleted providers)
     const existing = await db.query.providers.findFirst({
-      where: eq(providers.name, data.name),
+      where: and(eq(providers.name, data.name), isNull(providers.deletedAt)),
     });
 
     if (existing) {
@@ -332,7 +333,7 @@ export const providersRoutes = new OpenAPIHono()
     const data = c.req.valid('json');
 
     const existing = await db.query.providers.findFirst({
-      where: eq(providers.id, id),
+      where: and(eq(providers.id, id), isNull(providers.deletedAt)),
     });
 
     if (!existing) {
@@ -366,16 +367,16 @@ export const providersRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.providers.findFirst({
-      where: eq(providers.id, id),
+      where: and(eq(providers.id, id), isNull(providers.deletedAt)),
     });
 
     if (!existing) {
       return c.json({ error: 'Provider not found' }, 404);
     }
 
-    // Soft delete by setting isActive to false
+    // Soft delete by setting deletedAt timestamp
     await db.update(providers)
-      .set({ isActive: false })
+      .set({ deletedAt: new Date() })
       .where(eq(providers.id, id));
 
     return c.json({ success: true }, 200);
@@ -384,7 +385,7 @@ export const providersRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const provider = await db.query.providers.findFirst({
-      where: eq(providers.id, id),
+      where: and(eq(providers.id, id), isNull(providers.deletedAt)),
     });
 
     if (!provider) {

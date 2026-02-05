@@ -2,8 +2,9 @@
 
 import { useTransition } from 'react';
 import Link from 'next/link';
+import { Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Pencil, Trash2 } from 'lucide-react';
+import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { deletePackage } from '@/actions/billing';
 
 interface CreditPackage {
@@ -19,10 +20,12 @@ export function PackageActions({ pkg }: PackageActionsProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleDelete = () => {
-    if (!confirm('Are you sure you want to delete this package?')) return;
-
     startTransition(async () => {
-      await deletePackage(pkg.id);
+      try {
+        await deletePackage(pkg.id);
+      } catch (error) {
+        console.error('Failed to delete package:', error);
+      }
     });
   };
 
@@ -33,15 +36,12 @@ export function PackageActions({ pkg }: PackageActionsProps) {
           <Pencil className="h-4 w-4" />
         </Link>
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleDelete}
-        disabled={isPending}
-        className="text-destructive hover:text-destructive"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <DeleteConfirmDialog
+        title="Delete package?"
+        description={`Are you sure you want to delete "${pkg.name}"? This action cannot be undone.`}
+        onConfirm={handleDelete}
+        isPending={isPending}
+      />
     </div>
   );
 }

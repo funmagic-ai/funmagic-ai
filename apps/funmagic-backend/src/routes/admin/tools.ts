@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tools, toolTypes } from '@funmagic/database';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, isNull, and } from 'drizzle-orm';
 
 // Schemas
 const ToolAdminSchema = z.object({
@@ -220,6 +220,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const { includeInactive } = c.req.valid('query');
 
     const allTools = await db.query.tools.findMany({
+      where: isNull(tools.deletedAt),
       with: { toolType: true },
       orderBy: asc(tools.title),
     });
@@ -236,7 +237,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const tool = await db.query.tools.findFirst({
-      where: eq(tools.id, id),
+      where: and(eq(tools.id, id), isNull(tools.deletedAt)),
       with: { toolType: true },
     });
 
@@ -251,9 +252,9 @@ export const toolsAdminRoutes = new OpenAPIHono()
   .openapi(createToolRoute, async (c) => {
     const data = c.req.valid('json');
 
-    // Check if slug already exists
+    // Check if slug already exists (among non-deleted tools)
     const existing = await db.query.tools.findFirst({
-      where: eq(tools.slug, data.slug),
+      where: and(eq(tools.slug, data.slug), isNull(tools.deletedAt)),
     });
 
     if (existing) {
@@ -295,7 +296,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const data = c.req.valid('json');
 
     const existing = await db.query.tools.findFirst({
-      where: eq(tools.id, id),
+      where: and(eq(tools.id, id), isNull(tools.deletedAt)),
     });
 
     if (!existing) {
@@ -330,16 +331,16 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.tools.findFirst({
-      where: eq(tools.id, id),
+      where: and(eq(tools.id, id), isNull(tools.deletedAt)),
     });
 
     if (!existing) {
       return c.json({ error: 'Tool not found' }, 404);
     }
 
-    // Soft delete by setting isActive to false
+    // Soft delete by setting deletedAt timestamp
     await db.update(tools)
-      .set({ isActive: false })
+      .set({ deletedAt: new Date() })
       .where(eq(tools.id, id));
 
     return c.json({ success: true }, 200);
@@ -348,7 +349,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.tools.findFirst({
-      where: eq(tools.id, id),
+      where: and(eq(tools.id, id), isNull(tools.deletedAt)),
     });
 
     if (!existing) {
@@ -366,7 +367,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.tools.findFirst({
-      where: eq(tools.id, id),
+      where: and(eq(tools.id, id), isNull(tools.deletedAt)),
     });
 
     if (!existing) {

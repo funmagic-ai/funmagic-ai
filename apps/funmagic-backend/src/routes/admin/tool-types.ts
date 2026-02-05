@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, toolTypes } from '@funmagic/database';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, isNull, and } from 'drizzle-orm';
 
 // Schemas
 const ToolTypeSchema = z.object({
@@ -144,6 +144,7 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
 export const toolTypesRoutes = new OpenAPIHono()
   .openapi(listToolTypesRoute, async (c) => {
     const allToolTypes = await db.query.toolTypes.findMany({
+      where: isNull(toolTypes.deletedAt),
       orderBy: asc(toolTypes.createdAt),
     });
 
@@ -155,7 +156,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const toolType = await db.query.toolTypes.findFirst({
-      where: eq(toolTypes.id, id),
+      where: and(eq(toolTypes.id, id), isNull(toolTypes.deletedAt)),
     });
 
     if (!toolType) {
@@ -169,9 +170,9 @@ export const toolTypesRoutes = new OpenAPIHono()
   .openapi(createToolTypeRoute, async (c) => {
     const data = c.req.valid('json');
 
-    // Check if name already exists
+    // Check if name already exists (among non-deleted tool types)
     const existing = await db.query.toolTypes.findFirst({
-      where: eq(toolTypes.name, data.name),
+      where: and(eq(toolTypes.name, data.name), isNull(toolTypes.deletedAt)),
     });
 
     if (existing) {
@@ -194,7 +195,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     const data = c.req.valid('json');
 
     const existing = await db.query.toolTypes.findFirst({
-      where: eq(toolTypes.id, id),
+      where: and(eq(toolTypes.id, id), isNull(toolTypes.deletedAt)),
     });
 
     if (!existing) {
@@ -220,14 +221,17 @@ export const toolTypesRoutes = new OpenAPIHono()
     const { id } = c.req.valid('param');
 
     const existing = await db.query.toolTypes.findFirst({
-      where: eq(toolTypes.id, id),
+      where: and(eq(toolTypes.id, id), isNull(toolTypes.deletedAt)),
     });
 
     if (!existing) {
       return c.json({ error: 'Tool type not found' }, 404);
     }
 
-    await db.delete(toolTypes).where(eq(toolTypes.id, id));
+    // Soft delete by setting deletedAt timestamp
+    await db.update(toolTypes)
+      .set({ deletedAt: new Date() })
+      .where(eq(toolTypes.id, id));
 
     return c.json({ success: true }, 200);
   });

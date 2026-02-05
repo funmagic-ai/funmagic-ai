@@ -9,6 +9,7 @@ export const toolTypes = pgTable('tool_types', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'), // Soft delete
 });
 
 export const tools = pgTable('tools', {
@@ -25,6 +26,7 @@ export const tools = pgTable('tools', {
   usageCount: integer('usage_count').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: timestamp('deleted_at'), // Soft delete
 });
 
 // Relations
