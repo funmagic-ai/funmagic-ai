@@ -70,6 +70,43 @@ interface StepConfigWithOptions extends StepConfig {
     imageGenSize?: string;
     [key: string]: unknown;
   };
+  // New nested provider structure (from admin UI)
+  provider?: {
+    name: string;
+    model: string;
+    providerOptions?: Record<string, unknown>;
+    customProviderOptions?: Record<string, unknown>;
+  };
+}
+
+/**
+ * Helper to get merged provider options from step config.
+ * Merges providerOptions (defaults/overrides) + customProviderOptions (admin-added).
+ * Supports both old flat structure and new nested provider structure.
+ */
+function getMergedProviderOptions(step: StepConfigWithOptions): Record<string, unknown> {
+  // New nested structure
+  if (step.provider) {
+    return {
+      ...(step.provider.providerOptions ?? {}),
+      ...(step.provider.customProviderOptions ?? {}),
+    };
+  }
+  // Old flat structure
+  return step.providerOptions ?? {};
+}
+
+/**
+ * Helper to get model from step config.
+ * Supports both old flat structure and new nested provider structure.
+ */
+function getProviderModel(step: StepConfigWithOptions, defaultModel: string): string {
+  // New nested structure
+  if (step.provider?.model) {
+    return step.provider.model;
+  }
+  // Old flat structure
+  return step.providerModel ?? defaultModel;
 }
 
 interface FigmeConfig extends ToolConfig {
@@ -205,9 +242,10 @@ async function executeImageGenStep(params: {
   // Initialize OpenAI SDK
   const openai = new OpenAI({ apiKey });
 
-  // Get image size from step.providerOptions or default
-  const configuredSize = step.providerOptions?.imageGenSize || '1024x1024';
-  const model = step.providerModel || 'gpt-image-1';
+  // Get merged provider options (providerOptions + customProviderOptions)
+  const mergedOptions = getMergedProviderOptions(step);
+  const configuredSize = (mergedOptions.imageGenSize as string) || '1024x1024';
+  const model = getProviderModel(step, 'gpt-image-1');
 
   let resultImageUrl: string;
 
@@ -335,7 +373,7 @@ async function execute3DGenStep(params: {
   const client = new Magi3DClient(provider);
 
   // Get model version from step config or default
-  const modelVersion = step.providerModel || 'v2.0-20240919';
+  const modelVersion = getProviderModel(step, 'v2.0-20240919');
 
   await progress.updateProgress(15, 'Creating 3D generation task');
 

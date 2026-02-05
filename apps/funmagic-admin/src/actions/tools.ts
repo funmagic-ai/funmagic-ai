@@ -18,6 +18,17 @@ export async function createTool(
   const parsed = parseFormData(ToolInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
+  // Parse config from formData if provided
+  let config: Record<string, unknown> = {};
+  const configStr = formData.get('config') as string;
+  if (configStr) {
+    try {
+      config = JSON.parse(configStr);
+    } catch {
+      return { success: false, message: 'Invalid configuration JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const { data, error } = await api.POST('/api/admin/tools', {
@@ -30,7 +41,7 @@ export async function createTool(
         thumbnail: parsed.data.thumbnail || undefined,
         isActive: parsed.data.isActive,
         isFeatured: parsed.data.isFeatured,
-        config: {},
+        config,
       },
       headers: { cookie: cookieHeader },
     });
@@ -126,6 +137,62 @@ export async function updateToolConfig(
   } catch (error) {
     console.error('Failed to update tool config:', error);
     return { success: false, message: 'Failed to save configuration' };
+  }
+}
+
+/**
+ * Unified update action that saves both general info and config together
+ */
+export async function updateTool(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const id = formData.get('id') as string;
+  if (!id) return { success: false, message: 'Missing tool ID' };
+
+  const parsed = parseFormData(ToolInputSchema, formData);
+  if (!parsed.success) return parsed.state;
+
+  // Parse config from formData
+  let config: Record<string, unknown> | undefined;
+  const configStr = formData.get('config') as string;
+  if (configStr) {
+    try {
+      config = JSON.parse(configStr);
+    } catch {
+      return { success: false, message: 'Invalid configuration JSON' };
+    }
+  }
+
+  try {
+    const cookieHeader = (await cookies()).toString();
+    const { data, error } = await api.PUT('/api/admin/tools/{id}', {
+      params: { path: { id } },
+      body: {
+        slug: parsed.data.slug,
+        title: parsed.data.title,
+        shortDescription: parsed.data.shortDescription || undefined,
+        description: parsed.data.description || undefined,
+        toolTypeId: parsed.data.toolTypeId,
+        thumbnail: parsed.data.thumbnail || undefined,
+        isActive: parsed.data.isActive,
+        isFeatured: parsed.data.isFeatured,
+        config,
+      },
+      headers: { cookie: cookieHeader },
+    });
+
+    if (error || !data) {
+      return { success: false, message: error?.error ?? 'Failed to update tool' };
+    }
+
+    revalidatePath('/dashboard/tools');
+    revalidatePath(`/dashboard/tools/${id}`);
+
+    return { success: true, message: 'Tool updated successfully' };
+  } catch (error) {
+    console.error('Failed to update tool:', error);
+    return { success: false, message: 'Failed to update tool' };
   }
 }
 

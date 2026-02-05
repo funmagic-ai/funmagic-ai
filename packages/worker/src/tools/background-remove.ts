@@ -28,8 +28,32 @@ interface BackgroundRemoveInput {
   assetId?: string;   // User's uploaded asset ID
 }
 
+interface StepConfigWithProvider extends StepConfig {
+  providerModel?: string;
+  // New nested provider structure (from admin UI)
+  provider?: {
+    name: string;
+    model: string;
+    providerOptions?: Record<string, unknown>;
+    customProviderOptions?: Record<string, unknown>;
+  };
+}
+
 interface BackgroundRemoveConfig extends ToolConfig {
-  steps: StepConfig[];
+  steps: StepConfigWithProvider[];
+}
+
+/**
+ * Helper to get model from step config.
+ * Supports both old flat structure and new nested provider structure.
+ */
+function getProviderModel(step: StepConfigWithProvider, defaultModel: string): string {
+  // New nested structure
+  if (step.provider?.model) {
+    return step.provider.model;
+  }
+  // Old flat structure
+  return step.providerModel ?? defaultModel;
 }
 
 interface FalResult {
@@ -100,7 +124,7 @@ export const backgroundRemoveWorker: ToolWorker = {
       fal.config({ credentials: credentials.apiKey });
 
       // Get model from step config or default
-      const modelId = (step as { providerModel?: string }).providerModel || 'fal-ai/bria-rmbg';
+      const modelId = getProviderModel(step, 'fal-ai/bria-rmbg');
 
       // Use fal.subscribe for async operation with progress updates
       const result = await fal.subscribe(modelId, {

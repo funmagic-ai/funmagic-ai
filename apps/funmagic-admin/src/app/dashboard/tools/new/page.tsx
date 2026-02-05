@@ -31,12 +31,27 @@ export default function NewToolPage() {
 
 async function NewToolContent() {
   const cookieHeader = (await cookies()).toString();
-  const { data } = await api.GET('/api/admin/tool-types', {
-    headers: { cookie: cookieHeader },
-  });
-  const allToolTypes = (data?.toolTypes ?? []).filter((t) => t.isActive);
+  const [toolTypesRes, providersRes, toolsRes] = await Promise.all([
+    api.GET('/api/admin/tool-types', { headers: { cookie: cookieHeader } }),
+    api.GET('/api/admin/providers', { headers: { cookie: cookieHeader } }),
+    api.GET('/api/admin/tools', {
+      params: { query: { includeInactive: 'true' } },
+      headers: { cookie: cookieHeader },
+    }),
+  ]);
 
-  return <ToolGeneralForm toolTypes={allToolTypes} />;
+  const allToolTypes = (toolTypesRes.data?.toolTypes ?? []).filter((t) => t.isActive);
+  // Pass all providers to show inactive status labels
+  const allProviders = providersRes.data?.providers ?? [];
+  const usedSlugs = (toolsRes.data?.tools ?? []).map((t) => t.slug);
+
+  return (
+    <ToolGeneralForm
+      toolTypes={allToolTypes}
+      providers={allProviders}
+      usedSlugs={usedSlugs}
+    />
+  );
 }
 
 function NewToolSkeleton() {

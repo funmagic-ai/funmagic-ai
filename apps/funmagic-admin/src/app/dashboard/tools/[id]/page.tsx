@@ -3,12 +3,10 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
-import { ToolGeneralForm } from '@/components/tools/tool-general-form';
-import { ToolConfigForm } from '@/components/tools/tool-config-form';
+import { ToolEditForm } from '@/components/tools/tool-edit-form';
 
 interface ToolDetailPageProps {
   params: Promise<{ id: string }>;
@@ -52,23 +50,15 @@ async function ToolDetailContent({ id }: { id: string }) {
   }
 
   const allToolTypes = (toolTypesRes.data?.toolTypes ?? []).filter((t) => t.isActive);
-  const allProviders = (providersRes.data?.providers ?? []).filter((p) => p.isActive);
+  // Pass all providers to show inactive status labels
+  const allProviders = providersRes.data?.providers ?? [];
 
   return (
-    <Tabs defaultValue="general" className="space-y-6">
-      <TabsList>
-        <TabsTrigger value="general">General</TabsTrigger>
-        <TabsTrigger value="configuration">Configuration</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="general" className="space-y-6">
-        <ToolGeneralForm tool={tool} toolTypes={allToolTypes} />
-      </TabsContent>
-
-      <TabsContent value="configuration" className="space-y-6">
-        <ToolConfigForm tool={tool} providers={allProviders} />
-      </TabsContent>
-    </Tabs>
+    <ToolEditForm
+      tool={tool}
+      toolTypes={allToolTypes}
+      providers={allProviders}
+    />
   );
 }
 

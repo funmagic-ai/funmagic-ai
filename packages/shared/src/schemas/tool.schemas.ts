@@ -21,7 +21,7 @@ export const ToolInputSchema = z.object({
   description: z.string().optional(),
   toolTypeId: z.string().min(1, 'Tool type is required'),
   thumbnail: z.string().optional(),
-  isActive: z.boolean().default(false),
+  isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
 })
 

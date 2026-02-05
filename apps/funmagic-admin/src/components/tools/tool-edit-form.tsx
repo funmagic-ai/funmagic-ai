@@ -17,11 +17,11 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
-import { createTool } from '@/actions/tools';
+import { updateTool } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
-import { getAllToolDefinitions, getToolDefinition, type SavedToolConfig, type StepConfig } from '@funmagic/shared';
+import { getToolDefinition, type SavedToolConfig, type StepConfig, type StepProvider } from '@funmagic/shared';
 import { ConfigFieldsSection } from './config-fields-section';
 import { getPendingFile, removePendingFile, isPendingUrl, clearPendingFiles } from './field-renderers';
 import type { Provider } from './field-renderers';
@@ -36,6 +36,7 @@ interface Tool {
   toolTypeId: string;
   isActive: boolean;
   isFeatured: boolean;
+  config?: unknown;
 }
 
 interface ToolType {
@@ -44,78 +45,71 @@ interface ToolType {
   displayName: string;
 }
 
-interface ToolGeneralFormProps {
-  tool?: Tool;
+interface ToolEditFormProps {
+  tool: Tool;
   toolTypes: ToolType[];
-  providers?: Provider[];
-  /** Slugs already in use - these definitions will be disabled in the dropdown */
-  usedSlugs?: string[];
+  providers: Provider[];
 }
 
-type ToolFormState = FormState & { toolId?: string };
-
 /**
- * Tool creation form with unified Basic Info and Configuration in a single form.
- * For edit mode, use ToolEditForm instead.
+ * Unified tool edit form that shows both Basic Information and Tool Configuration
+ * with a single submit button (matching provider form pattern).
  */
-export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [] }: ToolGeneralFormProps) {
+export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) {
   const router = useRouter();
-  const isCreateMode = !tool;
-  const toolDefinitions = getAllToolDefinitions();
+  const definition = getToolDefinition(tool.slug);
   const [isPending, startTransition] = useTransition();
   const [isUploading, setIsUploading] = useState(false);
-  const [formState, setFormState] = useState<ToolFormState>({
+  const [formState, setFormState] = useState<FormState>({
     success: false,
     message: '',
     errors: {},
-    toolId: undefined,
   });
 
-  // Track selected slug for create mode to show config fields
-  const [selectedSlug, setSelectedSlug] = useState<string | undefined>(tool?.slug);
+  // Thumbnail state
+  const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool.thumbnail ?? ''));
 
-  // Get definition based on selected slug
-  const definition = selectedSlug ? getToolDefinition(selectedSlug) : null;
-
-  // Build initial config from definition
-  const buildInitialConfig = (slug: string | undefined): SavedToolConfig => {
-    if (!slug) return { steps: [] };
-    const def = getToolDefinition(slug);
-    if (!def) return { steps: [] };
-
-    return {
-      steps: def.steps.map((stepDef) => {
-        const stepConfig: StepConfig = {
-          id: stepDef.id,
-          // Copy definition metadata
-          name: stepDef.name,
-          description: stepDef.description,
-          // Copy provider info
-          provider: {
-            name: stepDef.provider.name,
-            model: stepDef.provider.model,
-            providerOptions: stepDef.provider.providerOptions ?? {},
+  // Config state
+  const existingConfig = (tool.config as SavedToolConfig) || { steps: [] };
+  const buildInitialSteps = (): StepConfig[] => {
+    if (!definition) return [];
+    return definition.steps.map((stepDef) => {
+      const existingStep = existingConfig.steps?.find((s) => s.id === stepDef.id);
+      const stepConfig: StepConfig = {
+        id: stepDef.id,
+        // Copy definition metadata (always use definition as source of truth)
+        name: stepDef.name,
+        description: stepDef.description,
+        // Copy provider info from definition, merge with existing providerOptions
+        // Preserve admin model override and customProviderOptions
+        provider: {
+          name: stepDef.provider.name,
+          model: existingStep?.provider?.model ?? stepDef.provider.model,
+          providerOptions: {
+            ...(stepDef.provider.providerOptions ?? {}),
+            ...(existingStep?.provider?.providerOptions ?? {}),
           },
-        };
-        // Apply field defaults
-        for (const [fieldName, fieldDef] of Object.entries(stepDef.fields)) {
-          if ('default' in fieldDef) {
-            stepConfig[fieldName] = fieldDef.default;
-          }
+          customProviderOptions: existingStep?.provider?.customProviderOptions ?? {},
+        },
+      };
+
+      // Apply field values (prefer existing, fallback to defaults)
+      for (const [fieldName, fieldDef] of Object.entries(stepDef.fields)) {
+        if (existingStep && fieldName in existingStep) {
+          stepConfig[fieldName] = existingStep[fieldName];
+        } else if ('default' in fieldDef) {
+          stepConfig[fieldName] = fieldDef.default;
         }
-        return stepConfig;
-      }),
-    };
+      }
+
+      return stepConfig;
+    });
   };
 
-  const [config, setConfig] = useState<SavedToolConfig>(() => buildInitialConfig(selectedSlug));
-  const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool?.thumbnail ?? ''));
-
-  // Update config when slug changes
-  const handleSlugChange = (slug: string) => {
-    setSelectedSlug(slug);
-    setConfig(buildInitialConfig(slug));
-  };
+  const [config, setConfig] = useState<SavedToolConfig>({
+    ...existingConfig,
+    steps: buildInitialSteps(),
+  });
 
   // Upload control for config files (style references, etc.)
   const configUploadControl = useUploadFiles({
@@ -136,19 +130,10 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
     },
   });
 
-  // Sync thumbnail URL when tool prop changes (e.g., after save)
+  // Sync thumbnail URL when tool prop changes
   useEffect(() => {
-    setThumbnailUrl(getS3PublicUrl(tool?.thumbnail ?? ''));
-  }, [tool?.thumbnail]);
-
-  // Redirect after successful creation
-  useEffect(() => {
-    if (formState.success && formState.toolId) {
-      toast.success('Tool created successfully');
-      clearPendingFiles();
-      router.push(`/dashboard/tools/${formState.toolId}`);
-    }
-  }, [formState.success, formState.toolId, router]);
+    setThumbnailUrl(getS3PublicUrl(tool.thumbnail ?? ''));
+  }, [tool.thumbnail]);
 
   // Upload a single pending file
   const uploadSingleFile = async (file: File): Promise<string> => {
@@ -221,12 +206,16 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
       // Now submit the form
       formData.set('thumbnail', thumbnailUrl);
-      if (processedConfig.steps.length > 0) {
-        formData.set('config', JSON.stringify(processedConfig));
-      }
+      formData.set('config', JSON.stringify(processedConfig));
 
       startTransition(async () => {
-        const result = await createTool(formState, formData);
+        const result = await updateTool(formState, formData);
+
+        if (result.success) {
+          toast.success(result.message || 'Tool updated successfully');
+          clearPendingFiles();
+        }
+
         setFormState(result);
       });
     } catch (error) {
@@ -241,8 +230,11 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
   return (
     <form onSubmit={handleSubmit}>
+      <input type="hidden" name="id" value={tool.id} />
+      <input type="hidden" name="slug" value={tool.slug} />
 
       <div className="mx-auto max-w-4xl grid gap-6">
+        {/* Basic Information Section */}
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -253,7 +245,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               <Label htmlFor="toolTypeId">
                 Tool Type <span className="text-destructive">*</span>
               </Label>
-              <Select name="toolTypeId" defaultValue={tool?.toolTypeId}>
+              <Select name="toolTypeId" defaultValue={tool.toolTypeId}>
                 <SelectTrigger aria-invalid={!!formState.errors?.toolTypeId}>
                   <SelectValue placeholder="Select a tool type" />
                 </SelectTrigger>
@@ -268,44 +260,15 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               {formState.errors?.toolTypeId && (
                 <p className="text-destructive text-xs">{formState.errors.toolTypeId[0]}</p>
               )}
-              <p className="text-muted-foreground text-xs">
-                Type for organizing the tool
-              </p>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="slug">
-                Tool Definition <span className="text-destructive">*</span>
-              </Label>
-              {/* Hidden input since we're using controlled Select */}
-              <input type="hidden" name="slug" value={selectedSlug ?? ''} />
-              <Select
-                value={selectedSlug}
-                onValueChange={isCreateMode ? handleSlugChange : undefined}
-                disabled={!isCreateMode}
-              >
-                <SelectTrigger aria-invalid={!!formState.errors?.slug}>
-                  <SelectValue placeholder="Select a tool definition" />
-                </SelectTrigger>
-                <SelectContent>
-                  {toolDefinitions.map((def) => {
-                    const isUsed = usedSlugs.includes(def.name);
-                    return (
-                      <SelectItem key={def.name} value={def.name} disabled={isUsed}>
-                        {def.displayName || def.name}
-                        {isUsed && ' (already exists)'}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {formState.errors?.slug && (
-                <p className="text-destructive text-xs">{formState.errors.slug[0]}</p>
-              )}
+              <Label>Tool Definition</Label>
+              <p className="text-sm text-muted-foreground border rounded-md px-3 py-2 bg-muted/50">
+                {definition?.displayName || tool.slug}
+              </p>
               <p className="text-muted-foreground text-xs">
-                {isCreateMode
-                  ? 'Select the tool definition (determines config schema)'
-                  : 'Tool definition cannot be changed after creation'}
+                Tool definition cannot be changed after creation
               </p>
             </div>
 
@@ -316,7 +279,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               <Textarea
                 id="title"
                 name="title"
-                defaultValue={tool?.title ?? ''}
+                defaultValue={tool.title}
                 placeholder="e.g., My Tool"
                 rows={1}
                 aria-invalid={!!formState.errors?.title}
@@ -324,9 +287,6 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               {formState.errors?.title && (
                 <p className="text-destructive text-xs">{formState.errors.title[0]}</p>
               )}
-              <p className="text-muted-foreground text-xs">
-                Display name for the tool
-              </p>
             </div>
 
             <div className="grid gap-2">
@@ -336,14 +296,10 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               <Textarea
                 id="shortDescription"
                 name="shortDescription"
-                defaultValue={tool?.shortDescription ?? ''}
+                defaultValue={tool.shortDescription ?? ''}
                 placeholder="e.g., A brief description..."
                 rows={2}
-                aria-invalid={!!formState.errors?.shortDescription}
               />
-              {formState.errors?.shortDescription && (
-                <p className="text-destructive text-xs">{formState.errors.shortDescription[0]}</p>
-              )}
               <p className="text-muted-foreground text-xs">
                 Brief tagline shown in listings (max 100 chars)
               </p>
@@ -356,13 +312,10 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={tool?.description ?? ''}
+                defaultValue={tool.description ?? ''}
                 placeholder="e.g., Detailed description..."
                 rows={4}
               />
-              <p className="text-muted-foreground text-xs">
-                Detailed description shown on tool page
-              </p>
             </div>
 
             <div className="grid gap-2">
@@ -393,7 +346,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
           </CardContent>
         </Card>
 
-        {/* Show config fields when a definition is selected */}
+        {/* Tool Configuration Section */}
         {definition && (
           <Card>
             <CardHeader>
@@ -417,6 +370,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
           <p className="text-destructive">{formState.message}</p>
         )}
 
+        {/* Bottom buttons matching provider form pattern */}
         <div className="flex justify-end gap-2">
           <Button
             type="button"
@@ -426,7 +380,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
             Cancel
           </Button>
           <Button type="submit" disabled={isBusy}>
-            {isUploading ? 'Uploading...' : isPending ? 'Creating...' : 'Create Tool'}
+            {isUploading ? 'Uploading...' : isPending ? 'Saving...' : 'Save Changes'}
           </Button>
         </div>
       </div>

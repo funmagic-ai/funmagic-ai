@@ -56,6 +56,26 @@ interface VGGTOptions {
 
 interface StepConfigWithModel extends StepConfig {
   providerModel?: string;
+  // New nested provider structure (from admin UI)
+  provider?: {
+    name: string;
+    model: string;
+    providerOptions?: Record<string, unknown>;
+    customProviderOptions?: Record<string, unknown>;
+  };
+}
+
+/**
+ * Helper to get model from step config.
+ * Supports both old flat structure and new nested provider structure.
+ */
+function getProviderModel(step: StepConfigWithModel, defaultModel: string): string {
+  // New nested structure
+  if (step.provider?.model) {
+    return step.provider.model;
+  }
+  // Old flat structure
+  return step.providerModel ?? defaultModel;
 }
 
 interface CrystalMemoryConfig extends ToolConfig {
@@ -192,7 +212,7 @@ async function executeBackgroundRemoveStep(params: {
   fal.config({ credentials: apiKey });
 
   // Get model from step config or default
-  const modelId = stepConfig.providerModel || 'fal-ai/bria-rmbg';
+  const modelId = getProviderModel(stepConfig, 'fal-ai/bria-rmbg');
 
   // Use fal.subscribe for async operation with progress updates
   const result = await fal.subscribe(modelId, {
@@ -277,7 +297,7 @@ async function executeVGGTStep(params: {
   const replicate = new Replicate({ auth: apiKey });
 
   // Get model from step config or default
-  const modelId = stepConfig.providerModel || 'vufinder/vggt-1b:770898f053ca56571e8a49d71f27fc695b6d203e0691baa30d8fbb6954599f2b';
+  const modelId = getProviderModel(stepConfig, 'vufinder/vggt-1b:770898f053ca56571e8a49d71f27fc695b6d203e0691baa30d8fbb6954599f2b');
 
   await progress.updateProgress(10, 'Calling VGGT API');
 

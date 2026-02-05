@@ -14,6 +14,8 @@ import {
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { Pencil, Plus } from 'lucide-react';
+import { ToolActiveToggle } from '@/components/tools/tool-active-toggle';
+import { ToolFeaturedToggle } from '@/components/tools/tool-featured-toggle';
 
 export default function ToolsPage() {
   return (
@@ -31,7 +33,7 @@ export default function ToolsPage() {
         </Button>
       </div>
 
-      <Suspense fallback={<TableSkeleton columns={6} rows={10} />}>
+      <Suspense fallback={<TableSkeleton columns={7} rows={10} />}>
         <ToolTableData />
       </Suspense>
     </div>
@@ -65,7 +67,8 @@ async function ToolTableData() {
             <TableHead>Title</TableHead>
             <TableHead>Slug</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead>Active</TableHead>
+            <TableHead>Featured</TableHead>
             <TableHead className="text-right">Usage</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -79,14 +82,10 @@ async function ToolTableData() {
                 <Badge variant="outline">{tool.toolType?.displayName ?? 'Unknown'}</Badge>
               </TableCell>
               <TableCell>
-                <div className="flex gap-1">
-                  {tool.isActive ? (
-                    <Badge variant="default">Active</Badge>
-                  ) : (
-                    <Badge variant="secondary">Inactive</Badge>
-                  )}
-                  {tool.isFeatured && <Badge variant="outline">Featured</Badge>}
-                </div>
+                <ToolActiveToggle toolId={tool.id} isActive={tool.isActive} />
+              </TableCell>
+              <TableCell>
+                <ToolFeaturedToggle toolId={tool.id} isFeatured={tool.isFeatured} />
               </TableCell>
               <TableCell className="text-right">{tool.usageCount.toLocaleString()}</TableCell>
               <TableCell>
