@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Download, RefreshCw } from 'lucide-react'
 
 interface BeforeAfterComparisonProps {
   beforeUrl: string
@@ -45,7 +47,7 @@ export function BeforeAfterComparison({
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
               <svg
-                className="w-4 h-4 text-gray-600"
+                className="w-4 h-4 text-muted-foreground"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -81,21 +83,21 @@ export function BeforeAfterComparison({
       </div>
 
       <div className="flex gap-3">
-        <button
-          type="button"
+        <Button
           onClick={onDownload}
-          className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="flex-1"
         >
+          <Download className="w-4 h-4 mr-2" />
           Download Result
-        </button>
+        </Button>
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={onReset}
-          className="bg-muted text-foreground px-6 py-3 rounded-lg font-medium hover:bg-accent transition-colors"
         >
+          <RefreshCw className="w-4 h-4 mr-2" />
           Remove Another
-        </button>
+        </Button>
       </div>
     </div>
   )

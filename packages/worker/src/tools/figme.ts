@@ -4,7 +4,7 @@ import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
 import { decryptCredentials } from '../lib/credentials';
-import { uploadFromUrl } from '../lib/storage';
+import { uploadFromUrl, getDownloadUrl } from '../lib/storage';
 import { createProgressTracker } from '../lib/progress';
 
 /**
@@ -49,7 +49,8 @@ import { createProgressTracker } from '../lib/progress';
 interface FigmeInput {
   // Step 1 (Image Generation)
   styleReferenceId?: string;  // Required for step 1 - user must select a style
-  imageUrl?: string;  // User uploaded image URL
+  imageUrl?: string;  // User uploaded image URL (direct URL)
+  imageStorageKey?: string;  // User uploaded image storage key (S3 key)
   assetId?: string;   // User uploaded asset ID
 
   // Step 2 (3D Generation) - only when stepId is '3d-gen'
@@ -222,7 +223,11 @@ async function executeImageGenStep(params: {
 }): Promise<StepResult> {
   const { taskId, userId, step, config, input, apiKey, progress } = params;
 
-  const sourceImageUrl = input.imageUrl;
+  // Get image URL - either directly provided or from storage key
+  let sourceImageUrl = input.imageUrl;
+  if (!sourceImageUrl && input.imageStorageKey) {
+    sourceImageUrl = await getDownloadUrl(input.imageStorageKey);
+  }
 
   // Get prompt from style reference (admin-defined)
   if (!input.styleReferenceId) {

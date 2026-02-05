@@ -11,7 +11,7 @@ export const figmeDefinition: ToolDefinition = {
 
   steps: [
     {
-      id: 'style-transform',
+      id: 'image-gen',
       name: 'Style Transform',
       description: 'Transform the input image into a selected style',
 

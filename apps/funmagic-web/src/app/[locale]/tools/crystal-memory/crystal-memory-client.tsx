@@ -6,16 +6,17 @@ import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
 import {
-  createCrystalMemoryBgRemoveAction,
-  createCrystalMemoryVGGTAction,
-} from '@/app/actions/tools'
+  createBgRemoveTaskAction,
+  createVGGTTaskAction,
+} from './actions'
 import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
+import { Button } from '@/components/ui/button'
 import type { ToolDetail, CrystalMemoryConfig } from '@/lib/types/tool-configs'
 
 // Dynamically import PointCloudViewer to avoid SSR issues with Three.js
 const PointCloudViewer = dynamic(
-  () => import('./crystal-memory/PointCloudViewer').then((mod) => mod.PointCloudViewer),
+  () => import('./point-cloud-viewer').then((mod) => mod.PointCloudViewer),
   {
     ssr: false,
     loading: () => (
@@ -47,7 +48,7 @@ interface VGGTOutput {
   conf: number[]
 }
 
-export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
+export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
   const config = (tool.config || {}) as Partial<CrystalMemoryConfig>
 
@@ -74,8 +75,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
       setBgRemovedPreview(bgOutput.bgRemovedImageUrl)
 
       // Automatically start VGGT step
-      const vggtResult = await createCrystalMemoryVGGTAction({
-        toolSlug: tool.slug,
+      const vggtResult = await createVGGTTaskAction({
         parentTaskId: bgRemoveTaskId!,
         sourceAssetId: bgOutput.assetId,
         bgRemovedImageUrl: bgOutput.bgRemovedImageUrl,
@@ -129,8 +129,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
       return
     }
 
-    const taskResult = await createCrystalMemoryBgRemoveAction({
-      toolSlug: tool.slug,
+    const taskResult = await createBgRemoveTaskAction({
       imageStorageKey: storageKey,
     })
 
@@ -141,7 +140,7 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
 
     setBgRemoveTaskId(taskResult.taskId)
     setStep('removing-bg')
-  }, [upload, tool.slug])
+  }, [upload])
 
   const handleReset = useCallback(() => {
     if (originalPreview) {
@@ -230,16 +229,16 @@ export function CrystalMemoryExecutor({ tool }: { tool: ToolDetail }) {
             disabled={upload.isUploading}
           />
 
-          <button
-            type="button"
+          <Button
             onClick={handleGenerate}
             disabled={!upload.pendingFile || upload.isUploading}
-            className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full"
+            size="lg"
           >
             {upload.isUploading
               ? 'Uploading...'
               : `Create 3D Point Cloud (${totalCost} credits)`}
-          </button>
+          </Button>
 
           <p className="text-xs text-muted-foreground text-center">
             Cost breakdown: {bgRemoveCost} credits (background removal) + {vggtCost} credits (3D generation)

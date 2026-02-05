@@ -4,6 +4,8 @@ import { useMemo, useRef, useState, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
+import { Button } from '@/components/ui/button'
+import { Download, RefreshCw } from 'lucide-react'
 
 interface PointCloudData {
   txt: string
@@ -156,7 +158,7 @@ export function PointCloudViewer({
 
   return (
     <div className="space-y-4">
-      <div className="bg-gray-900 rounded-lg overflow-hidden" style={{ height: '500px' }}>
+      <div className="bg-zinc-900 rounded-lg overflow-hidden" style={{ height: '500px' }}>
         <Canvas>
           <CameraController />
           <PerspectiveCamera makeDefault position={[0, 5, 20]} fov={50} />
@@ -186,9 +188,9 @@ export function PointCloudViewer({
       </div>
 
       {/* Controls */}
-      <div className="bg-gray-100 rounded-lg p-4 space-y-4">
+      <div className="bg-muted rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Points: {pointCount.toLocaleString()}</span>
+          <span className="text-muted-foreground">Points: {pointCount.toLocaleString()}</span>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -196,14 +198,14 @@ export function PointCloudViewer({
               onChange={(e) => setAutoRotate(e.target.checked)}
               className="rounded"
             />
-            <span className="text-gray-700">Auto-rotate</span>
+            <span className="text-foreground">Auto-rotate</span>
           </label>
         </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-600">Point Size</label>
-            <span className="text-sm text-gray-500">{pointSize.toFixed(2)}</span>
+            <label className="text-sm text-muted-foreground">Point Size</label>
+            <span className="text-sm text-muted-foreground">{pointSize.toFixed(2)}</span>
           </div>
           <input
             type="range"
@@ -219,8 +221,8 @@ export function PointCloudViewer({
         {hasConfidence && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-sm text-gray-600">Confidence Threshold</label>
-              <span className="text-sm text-gray-500">{(confThreshold * 100).toFixed(0)}%</span>
+              <label className="text-sm text-muted-foreground">Confidence Threshold</label>
+              <span className="text-sm text-muted-foreground">{(confThreshold * 100).toFixed(0)}%</span>
             </div>
             <input
               type="range"
@@ -237,22 +239,22 @@ export function PointCloudViewer({
 
       {/* Actions */}
       <div className="flex gap-3">
-        <button
-          type="button"
+        <Button
           onClick={onDownload || handleDownloadPLY}
-          className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="flex-1"
         >
+          <Download className="w-4 h-4 mr-2" />
           Download PLY
-        </button>
+        </Button>
 
         {onReset && (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
             onClick={onReset}
-            className="bg-muted text-foreground px-6 py-3 rounded-lg font-medium hover:bg-accent transition-colors"
           >
+            <RefreshCw className="w-4 h-4 mr-2" />
             Create New
-          </button>
+          </Button>
         )}
       </div>
     </div>

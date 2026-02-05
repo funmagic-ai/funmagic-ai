@@ -1,17 +1,15 @@
 import { Suspense } from 'react'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { setRequestLocale } from 'next-intl/server'
 import { getToolBySlug } from '@/lib/queries/tools'
+import { BackgroundRemoveClient } from './background-remove-client'
 import type { ToolDetail } from '@/lib/types/tool-configs'
 import type { SupportedLocale } from '@funmagic/shared'
 
-interface ToolPageProps {
-  params: Promise<{ locale: string; slug: string }>
+interface PageProps {
+  params: Promise<{ locale: string }>
 }
-
-// Tools that have been migrated to colocated routes
-const MIGRATED_TOOLS = ['figme', 'background-remove', 'crystal-memory'] as const
 
 function ToolPageSkeleton() {
   return (
@@ -23,18 +21,16 @@ function ToolPageSkeleton() {
   )
 }
 
-async function ToolContent({ params }: { params: Promise<{ locale: string; slug: string }> }) {
+async function BackgroundRemoveContent({ params }: { params: Promise<{ locale: string }> }) {
+  // Defer to runtime to avoid build-time locale issues
   await connection()
-  const { locale, slug } = await params
+
+  const { locale } = await params
   setRequestLocale(locale)
 
-  // Redirect to colocated route if this tool has been migrated
-  if (MIGRATED_TOOLS.includes(slug as typeof MIGRATED_TOOLS[number])) {
-    redirect(`/${locale}/tools/${slug}`)
-  }
+  const tool = await getToolBySlug('background-remove', locale as SupportedLocale)
 
-  const tool = await getToolBySlug(slug, locale as SupportedLocale)
-
+  // Check if tool exists and is active (configured in admin)
   if (!tool || !tool.isActive) {
     notFound()
   }
@@ -58,25 +54,15 @@ async function ToolContent({ params }: { params: Promise<{ locale: string; slug:
       {tool.description && (
         <p className="text-muted-foreground mb-8">{tool.description}</p>
       )}
-      <DefaultToolExecutor tool={toolDetail} />
+      <BackgroundRemoveClient tool={toolDetail} />
     </div>
   )
 }
 
-function DefaultToolExecutor({ tool }: { tool: ToolDetail }) {
-  return (
-    <div className="bg-card p-8 rounded-xl shadow-sm border">
-      <p className="text-muted-foreground text-center py-12">
-        Tool interface for &quot;{tool.title}&quot; is coming soon...
-      </p>
-    </div>
-  )
-}
-
-export default async function ToolPage({ params }: ToolPageProps) {
+export default async function BackgroundRemovePage({ params }: PageProps) {
   return (
     <Suspense fallback={<ToolPageSkeleton />}>
-      <ToolContent params={params} />
+      <BackgroundRemoveContent params={params} />
     </Suspense>
   )
 }

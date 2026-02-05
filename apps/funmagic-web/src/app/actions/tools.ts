@@ -78,7 +78,7 @@ export async function createFigMe3DTaskAction(input: {
       parentTaskId: input.parentTaskId,
       input: {
         sourceAssetId: input.sourceAssetId,
-        imageUrl: input.sourceImageUrl,
+        sourceImageUrl: input.sourceImageUrl,
       },
     },
     headers: { cookie: (await cookies()).toString() },
@@ -113,6 +113,7 @@ export async function createBackgroundRemoveTaskAction(input: {
   const { data, error } = await api.POST('/api/tasks', {
     body: {
       toolSlug: input.toolSlug,
+      stepId: 'remove-bg',
       input: {
         imageStorageKey: input.imageStorageKey,
       },

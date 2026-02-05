@@ -4,10 +4,10 @@ import { useState, useCallback } from 'react'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
-import { createBackgroundRemoveTaskAction } from '@/app/actions/tools'
+import { createTaskAction } from './actions'
 import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
-import { BeforeAfterComparison } from './background-remove/BeforeAfterComparison'
+import { BeforeAfterComparison } from './before-after-comparison'
 import { Button } from '@/components/ui/button'
 import { X } from 'lucide-react'
 import type { ToolDetail, BackgroundRemoveConfig } from '@/lib/types/tool-configs'
@@ -16,10 +16,12 @@ type ExecutorStep = 'upload' | 'processing' | 'result'
 
 interface TaskOutput {
   assetId: string
-  url: string
+  storageKey: string
+  processedUrl?: string
+  originalUrl?: string
 }
 
-export function BackgroundRemoveExecutor({ tool }: { tool: ToolDetail }) {
+export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
   const config = (tool.config || {}) as Partial<BackgroundRemoveConfig>
 
@@ -62,8 +64,7 @@ export function BackgroundRemoveExecutor({ tool }: { tool: ToolDetail }) {
       return
     }
 
-    const taskResult = await createBackgroundRemoveTaskAction({
-      toolSlug: tool.slug,
+    const taskResult = await createTaskAction({
       imageStorageKey: storageKey,
     })
 
@@ -74,7 +75,7 @@ export function BackgroundRemoveExecutor({ tool }: { tool: ToolDetail }) {
 
     setTaskId(taskResult.taskId)
     setStep('processing')
-  }, [upload, tool.slug])
+  }, [upload])
 
   const handleReset = useCallback(() => {
     if (originalPreview) {
@@ -146,8 +147,8 @@ export function BackgroundRemoveExecutor({ tool }: { tool: ToolDetail }) {
       {step === 'result' && result && originalPreview && (
         <BeforeAfterComparison
           beforeUrl={originalPreview}
-          afterUrl={result.url}
-          onDownload={() => window.open(result.url, '_blank')}
+          afterUrl={result.processedUrl || ''}
+          onDownload={() => window.open(result.processedUrl, '_blank')}
           onReset={handleReset}
         />
       )}

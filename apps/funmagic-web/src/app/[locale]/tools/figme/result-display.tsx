@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui/button'
+
 interface ResultDisplayProps {
   imageUrl: string
   onSave: () => void
@@ -21,7 +23,7 @@ export function ResultDisplay({
 }: ResultDisplayProps) {
   return (
     <div className="space-y-6">
-      <div className="bg-gray-100 rounded-lg p-4">
+      <div className="bg-muted rounded-lg p-4">
         <img
           src={imageUrl}
           alt="Generated result"
@@ -30,35 +32,33 @@ export function ResultDisplay({
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          type="button"
+        <Button
           onClick={onSave}
           disabled={isSaving}
-          className="flex-1 bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex-1 bg-green-600 hover:bg-green-700"
         >
           {isSaving ? 'Saving...' : 'Save to Assets'}
-        </button>
+        </Button>
 
         {onGenerate3D && (
-          <button
-            type="button"
+          <Button
             onClick={onGenerate3D}
             disabled={isGenerating3D}
-            className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 bg-purple-600 hover:bg-purple-700"
           >
             {isGenerating3D
               ? 'Generating...'
               : `Generate 3D (${threeDCost} credits)`}
-          </button>
+          </Button>
         )}
 
-        <button
-          type="button"
+        <Button
+          variant="secondary"
           onClick={onReset}
-          className="flex-1 sm:flex-none bg-muted text-foreground px-6 py-3 rounded-lg font-medium hover:bg-accent transition-colors"
+          className="flex-1 sm:flex-none"
         >
           Start Over
-        </button>
+        </Button>
       </div>
     </div>
   )

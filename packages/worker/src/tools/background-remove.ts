@@ -3,7 +3,7 @@ import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
 import { decryptCredentials } from '../lib/credentials';
-import { uploadFromUrl } from '../lib/storage';
+import { uploadFromUrl, getDownloadUrl } from '../lib/storage';
 import { createProgressTracker } from '../lib/progress';
 
 /**
@@ -25,6 +25,7 @@ import { createProgressTracker } from '../lib/progress';
 
 interface BackgroundRemoveInput {
   imageUrl?: string;  // Direct image URL
+  imageStorageKey?: string;  // User uploaded image storage key (S3 key)
   assetId?: string;   // User's uploaded asset ID
 }
 
@@ -111,11 +112,14 @@ export const backgroundRemoveWorker: ToolWorker = {
 
       await progress.startStep('remove-bg', 'Removing Background');
 
-      // Validate input
-      const imageUrl = bgInput.imageUrl;
+      // Get image URL - either directly provided or from storage key
+      let imageUrl = bgInput.imageUrl;
+      if (!imageUrl && bgInput.imageStorageKey) {
+        imageUrl = await getDownloadUrl(bgInput.imageStorageKey);
+      }
 
       if (!imageUrl) {
-        throw new Error('Image URL is required');
+        throw new Error('Image URL or storage key is required');
       }
 
       await progress.updateProgress(10, 'Starting background removal');

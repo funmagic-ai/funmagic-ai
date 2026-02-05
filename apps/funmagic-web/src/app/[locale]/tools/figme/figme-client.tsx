@@ -5,15 +5,15 @@ import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
 import {
-  createFigMeImageTaskAction,
-  createFigMe3DTaskAction,
+  createImageTaskAction,
+  create3DTaskAction,
   saveTaskOutputAction,
-} from '@/app/actions/tools'
+} from './actions'
 import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
-import { StyleSelector } from './figme/StyleSelector'
-import { ResultDisplay } from './figme/ResultDisplay'
-import { ThreeDViewer } from './figme/ThreeDViewer'
+import { StyleSelector } from './style-selector'
+import { ResultDisplay } from './result-display'
+import { ThreeDViewer } from './three-d-viewer'
 import type { ToolDetail, FigMeConfig, StyleReference } from '@/lib/types/tool-configs'
 
 type ExecutorStep =
@@ -26,10 +26,13 @@ type ExecutorStep =
 
 interface TaskOutput {
   assetId: string
-  url: string
+  imageUrl?: string
+  storageKey?: string
+  modelUrl?: string
+  modelStorageKey?: string
 }
 
-export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
+export function FigMeClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
   const config = (tool.config || {}) as Partial<FigMeConfig>
 
@@ -88,8 +91,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
       return
     }
 
-    const result = await createFigMeImageTaskAction({
-      toolSlug: tool.slug,
+    const result = await createImageTaskAction({
       styleReferenceId: selectedStyleId,
       imageStorageKey: storageKey,
     })
@@ -101,17 +103,16 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
     setTaskId(result.taskId)
     setStep('generating-image')
-  }, [selectedStyleId, upload, tool.slug])
+  }, [selectedStyleId, upload])
 
   const handleGenerate3D = useCallback(async () => {
     if (!imageResult || !parentTaskId) return
     setError(null)
 
-    const result = await createFigMe3DTaskAction({
-      toolSlug: tool.slug,
+    const result = await create3DTaskAction({
       parentTaskId,
       sourceAssetId: imageResult.assetId,
-      sourceImageUrl: imageResult.url,
+      sourceImageUrl: imageResult.imageUrl || '',
     })
 
     if (!result.success) {
@@ -121,7 +122,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
     setTaskId(result.taskId)
     setStep('generating-3d')
-  }, [imageResult, parentTaskId, tool.slug])
+  }, [imageResult, parentTaskId])
 
   const handleSave = useCallback(async () => {
     if (!parentTaskId) return
@@ -148,11 +149,11 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <div className="bg-white p-8 rounded-xl shadow-sm border text-center">
-        <p className="text-gray-600 mb-4">Please sign in to use this tool</p>
+      <div className="bg-card p-8 rounded-xl shadow-sm border text-center">
+        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
         <a
           href="/login"
-          className="inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
         >
           Sign In
         </a>
@@ -161,7 +162,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
+    <div className="bg-card p-6 rounded-xl shadow-sm border space-y-6">
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
@@ -186,7 +187,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
           {selectedStyleId && step === 'upload-image' && (
             <div className="border-t pt-6 space-y-4">
-              <h3 className="font-medium text-gray-900">Upload Your Image</h3>
+              <h3 className="font-medium text-foreground">Upload Your Image</h3>
               <ImagePicker
                 onFileSelect={upload.setFile}
                 preview={upload.preview}
@@ -197,7 +198,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
                 type="button"
                 onClick={handleGenerateImage}
                 disabled={!upload.pendingFile || upload.isUploading}
-                className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {upload.isUploading
                   ? 'Uploading...'
@@ -214,7 +215,7 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === 'image-result' && imageResult && (
         <ResultDisplay
-          imageUrl={imageResult.url}
+          imageUrl={imageResult.imageUrl || ''}
           onSave={handleSave}
           onGenerate3D={handleGenerate3D}
           onReset={handleReset}
@@ -229,8 +230,8 @@ export function FigMeExecutor({ tool }: { tool: ToolDetail }) {
 
       {step === '3d-result' && threeDResult && (
         <ThreeDViewer
-          modelUrl={threeDResult.url}
-          onDownload={() => window.open(threeDResult.url, '_blank')}
+          modelUrl={threeDResult.modelUrl || ''}
+          onDownload={() => window.open(threeDResult.modelUrl, '_blank')}
           onReset={handleReset}
         />
       )}
