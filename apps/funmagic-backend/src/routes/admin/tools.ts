@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import { db, tools, toolTypes } from '@funmagic/database';
-import { eq, asc, isNull, and } from 'drizzle-orm';
+import { db, tools, toolTypes, tasks } from '@funmagic/database';
+import { eq, asc, isNull, and, count } from 'drizzle-orm';
 
 // Schemas
 const ToolAdminSchema = z.object({
@@ -149,6 +149,10 @@ const deleteToolRoute = createRoute({
     404: {
       content: { 'application/json': { schema: ErrorSchema } },
       description: 'Tool not found',
+    },
+    409: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Tool is still referenced by active tasks',
     },
   },
 });
@@ -336,6 +340,18 @@ export const toolsAdminRoutes = new OpenAPIHono()
 
     if (!existing) {
       return c.json({ error: 'Tool not found' }, 404);
+    }
+
+    // Check for active tasks referencing this tool
+    const [{ count: taskCount }] = await db
+      .select({ count: count() })
+      .from(tasks)
+      .where(and(eq(tasks.toolId, id), isNull(tasks.deletedAt)));
+
+    if (Number(taskCount) > 0) {
+      return c.json({
+        error: `Cannot delete tool: ${taskCount} task(s) still reference this tool`
+      }, 409);
     }
 
     // Soft delete by setting deletedAt timestamp

@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import { db, toolTypes } from '@funmagic/database';
-import { eq, asc, isNull, and } from 'drizzle-orm';
+import { db, toolTypes, tools } from '@funmagic/database';
+import { eq, asc, isNull, and, count } from 'drizzle-orm';
 
 // Schemas
 const ToolTypeSchema = z.object({
@@ -125,6 +125,10 @@ const deleteToolTypeRoute = createRoute({
       content: { 'application/json': { schema: ErrorSchema } },
       description: 'Tool type not found',
     },
+    409: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Tool type is still referenced by active tools',
+    },
   },
 });
 
@@ -226,6 +230,18 @@ export const toolTypesRoutes = new OpenAPIHono()
 
     if (!existing) {
       return c.json({ error: 'Tool type not found' }, 404);
+    }
+
+    // Check for active tools referencing this tool type
+    const [{ count: toolCount }] = await db
+      .select({ count: count() })
+      .from(tools)
+      .where(and(eq(tools.toolTypeId, id), isNull(tools.deletedAt)));
+
+    if (Number(toolCount) > 0) {
+      return c.json({
+        error: `Cannot delete tool type: ${toolCount} tool(s) still use this type`
+      }, 409);
     }
 
     // Soft delete by setting deletedAt timestamp

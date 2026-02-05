@@ -3,6 +3,7 @@
 import { useTransition } from 'react';
 import Link from 'next/link';
 import { Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
 import { deleteTool } from '@/actions/tools';
@@ -19,8 +20,9 @@ export function ToolActions({ toolId, toolName }: ToolActionsProps) {
     startTransition(async () => {
       try {
         await deleteTool(toolId);
+        toast.success('Tool deleted successfully');
       } catch (error) {
-        console.error('Failed to delete tool:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete tool');
       }
     });
   };

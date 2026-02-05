@@ -17,6 +17,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={resolvedMode}
       className="toaster group"
+      position="top-center"
+      richColors
+      closeButton
+      gap={12}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
