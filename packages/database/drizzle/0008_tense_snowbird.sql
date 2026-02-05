@@ -1,0 +1,1 @@
+ALTER TABLE "banners" ADD COLUMN "translations" jsonb DEFAULT '{}'::jsonb;

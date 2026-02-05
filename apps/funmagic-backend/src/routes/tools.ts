@@ -1,7 +1,17 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tools, toolTypes } from '@funmagic/database';
-import { eq, and, ilike, or, sql, count, isNull } from 'drizzle-orm';
+import { eq, and, ilike, or, count, isNull } from 'drizzle-orm';
 import { ToolsListSchema, ToolDetailSchema, ErrorSchema } from '../schemas';
+import {
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  type SupportedLocale,
+  type TranslationsRecord,
+  type ToolTranslationContent,
+  type ToolTypeTranslationContent,
+  getLocalizedToolContent,
+  getLocalizedToolTypeContent,
+} from '@funmagic/shared';
 
 const listToolsRoute = createRoute({
   method: 'get',
@@ -13,6 +23,7 @@ const listToolsRoute = createRoute({
       category: z.string().optional(),
       page: z.coerce.number().default(1),
       limit: z.coerce.number().default(12),
+      locale: z.enum(SUPPORTED_LOCALES).default(DEFAULT_LOCALE),
     }),
   },
   responses: {
@@ -29,6 +40,9 @@ const getToolRoute = createRoute({
   tags: ['Tools'],
   request: {
     params: z.object({ slug: z.string() }),
+    query: z.object({
+      locale: z.enum(SUPPORTED_LOCALES).default(DEFAULT_LOCALE),
+    }),
   },
   responses: {
     200: {
@@ -45,7 +59,7 @@ const getToolRoute = createRoute({
 export const toolsRoutes = new OpenAPIHono()
   .openapi(listToolsRoute, async (c) => {
     try {
-      const { q, category, page, limit } = c.req.valid('query');
+      const { q, category, page, limit, locale } = c.req.valid('query');
       const offset = (page - 1) * limit;
 
       // Build where conditions - only show active, non-deleted tools
@@ -92,25 +106,42 @@ export const toolsRoutes = new OpenAPIHono()
       const totalPages = Math.ceil(totalCount / limit);
 
       return c.json({
-        tools: allTools.map((t) => ({
-          id: t.id,
-          slug: t.slug,
-          title: t.title,
-          description: t.description,
-          thumbnail: t.thumbnail,
-          category: t.toolType?.displayName,
-        })),
+        tools: allTools.map((t) => {
+          const localizedContent = getLocalizedToolContent(
+            t.translations as TranslationsRecord<ToolTranslationContent>,
+            locale as SupportedLocale
+          );
+          const toolTypeTranslations = t.toolType?.translations as TranslationsRecord<ToolTypeTranslationContent> | undefined;
+          const localizedToolType = toolTypeTranslations
+            ? getLocalizedToolTypeContent(toolTypeTranslations, locale as SupportedLocale)
+            : null;
+
+          return {
+            id: t.id,
+            slug: t.slug,
+            title: localizedContent.title,
+            description: localizedContent.description ?? null,
+            thumbnail: t.thumbnail,
+            category: localizedToolType?.displayName ?? t.toolType?.displayName,
+          };
+        }),
         pagination: {
           total: totalCount,
           page,
           limit,
           totalPages,
       },
-        categories: allToolTypes.map(t => ({
-          id: t.id,
-          name: t.name,
-          displayName: t.displayName,
-        })),
+        categories: allToolTypes.map(t => {
+          const localizedToolType = getLocalizedToolTypeContent(
+            t.translations as TranslationsRecord<ToolTypeTranslationContent>,
+            locale as SupportedLocale
+          );
+          return {
+            id: t.id,
+            name: t.name,
+            displayName: localizedToolType.displayName,
+          };
+        }),
       });
     } catch (error) {
       console.error('Failed to fetch tools:', error);
@@ -123,6 +154,7 @@ export const toolsRoutes = new OpenAPIHono()
   })
   .openapi(getToolRoute, async (c) => {
     const { slug } = c.req.valid('param');
+    const { locale } = c.req.valid('query');
 
     const tool = await db.query.tools.findFirst({
       where: and(eq(tools.slug, slug), isNull(tools.deletedAt)),
@@ -135,13 +167,18 @@ export const toolsRoutes = new OpenAPIHono()
       return c.json({ error: 'Tool not found' }, 404);
     }
 
+    const localizedContent = getLocalizedToolContent(
+      tool.translations as TranslationsRecord<ToolTranslationContent>,
+      locale as SupportedLocale
+    );
+
     return c.json({
       tool: {
         id: tool.id,
         slug: tool.slug,
-        title: tool.title,
-        description: tool.description,
-        shortDescription: tool.shortDescription,
+        title: localizedContent.title,
+        description: localizedContent.description ?? null,
+        shortDescription: localizedContent.shortDescription ?? null,
         thumbnail: tool.thumbnail,
         config: tool.config,
         isActive: tool.isActive,

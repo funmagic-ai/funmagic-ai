@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import { ToolEditForm } from '@/components/tools/tool-edit-form';
+import type { ToolTranslations } from '@funmagic/shared';
 
 interface ToolDetailPageProps {
   params: Promise<{ id: string }>;
@@ -55,7 +56,10 @@ async function ToolDetailContent({ id }: { id: string }) {
 
   return (
     <ToolEditForm
-      tool={tool}
+      tool={{
+        ...tool,
+        translations: tool.translations as ToolTranslations | undefined,
+      }}
       toolTypes={allToolTypes}
       providers={allProviders}
     />

@@ -1,6 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, creditPackages } from '@funmagic/database';
 import { eq, asc, isNull, and } from 'drizzle-orm';
+import {
+  CreditPackageTranslationsSchema,
+  type CreditPackageTranslations,
+} from '@funmagic/shared';
 
 // Schemas
 const PackageSchema = z.object({
@@ -11,6 +15,7 @@ const PackageSchema = z.object({
   bonusCredits: z.number(),
   price: z.string(),
   currency: z.string(),
+  translations: CreditPackageTranslationsSchema,
   isPopular: z.boolean(),
   isActive: z.boolean(),
   sortOrder: z.number(),
@@ -29,6 +34,7 @@ const CreatePackageSchema = z.object({
   bonusCredits: z.number().min(0).optional(),
   price: z.number().min(0, 'Price must be 0 or greater'),
   currency: z.string().optional(),
+  translations: CreditPackageTranslationsSchema.optional(),
   isPopular: z.boolean().optional(),
   isActive: z.boolean().optional(),
   sortOrder: z.number().optional(),
@@ -134,6 +140,25 @@ const deletePackageRoute = createRoute({
   },
 });
 
+const toggleActiveRoute = createRoute({
+  method: 'patch',
+  path: '/{id}/toggle-active',
+  tags: ['Admin - Credit Packages'],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ isActive: z.boolean() }).openapi('TogglePackageActiveResponse') } },
+      description: 'Package active status toggled',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Credit package not found',
+    },
+  },
+});
+
 // Helper function to format package response
 function formatPackage(p: typeof creditPackages.$inferSelect) {
   return {
@@ -144,11 +169,28 @@ function formatPackage(p: typeof creditPackages.$inferSelect) {
     bonusCredits: p.bonusCredits ?? 0,
     price: p.price,
     currency: p.currency,
+    translations: p.translations as CreditPackageTranslations,
     isPopular: p.isPopular ?? false,
     isActive: p.isActive,
     sortOrder: p.sortOrder ?? 0,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
+  };
+}
+
+// Helper to build translations from legacy fields
+function buildTranslationsFromLegacy(
+  name: string,
+  description?: string,
+  existingTranslations?: CreditPackageTranslations
+): CreditPackageTranslations {
+  const existingEn = existingTranslations?.en as { name?: string; description?: string } | undefined;
+  return {
+    ...existingTranslations,
+    en: {
+      name,
+      description: description ?? existingEn?.description ?? '',
+    },
   };
 }
 
@@ -181,6 +223,12 @@ export const packagesRoutes = new OpenAPIHono()
   .openapi(createPackageRoute, async (c) => {
     const data = c.req.valid('json');
 
+    // Build translations: use provided translations or build from legacy fields
+    const translations = data.translations ?? buildTranslationsFromLegacy(
+      data.name,
+      data.description
+    );
+
     const [pkg] = await db.insert(creditPackages).values({
       name: data.name,
       description: data.description,
@@ -188,6 +236,7 @@ export const packagesRoutes = new OpenAPIHono()
       bonusCredits: data.bonusCredits ?? 0,
       price: String(data.price),
       currency: data.currency ?? 'USD',
+      translations,
       isPopular: data.isPopular ?? false,
       isActive: data.isActive ?? true,
       sortOrder: data.sortOrder ?? 0,
@@ -216,9 +265,20 @@ export const packagesRoutes = new OpenAPIHono()
     if (data.bonusCredits !== undefined) updateData.bonusCredits = data.bonusCredits;
     if (data.price !== undefined) updateData.price = String(data.price);
     if (data.currency !== undefined) updateData.currency = data.currency;
+    if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isPopular !== undefined) updateData.isPopular = data.isPopular;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
+
+    // Sync legacy fields to translations.en if legacy fields change but translations don't
+    if (!data.translations && (data.name !== undefined || data.description !== undefined)) {
+      const existingTranslations = existing.translations as CreditPackageTranslations;
+      updateData.translations = buildTranslationsFromLegacy(
+        data.name ?? existing.name,
+        data.description ?? existing.description ?? undefined,
+        existingTranslations
+      );
+    }
 
     const [pkg] = await db.update(creditPackages)
       .set(updateData)
@@ -246,4 +306,22 @@ export const packagesRoutes = new OpenAPIHono()
       .where(eq(creditPackages.id, id));
 
     return c.json({ success: true }, 200);
+  })
+  .openapi(toggleActiveRoute, async (c) => {
+    const { id } = c.req.valid('param');
+
+    const existing = await db.query.creditPackages.findFirst({
+      where: and(eq(creditPackages.id, id), isNull(creditPackages.deletedAt)),
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Credit package not found' }, 404);
+    }
+
+    const [updated] = await db.update(creditPackages)
+      .set({ isActive: !existing.isActive })
+      .where(eq(creditPackages.id, id))
+      .returning();
+
+    return c.json({ isActive: updated.isActive }, 200);
   });

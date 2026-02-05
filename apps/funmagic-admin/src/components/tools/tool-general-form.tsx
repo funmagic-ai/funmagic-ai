@@ -17,11 +17,12 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
+import { TranslationsEditor } from '@/components/translations';
 import { createTool } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
-import { getAllToolDefinitions, getToolDefinition, type SavedToolConfig, type StepConfig } from '@funmagic/shared';
+import { getAllToolDefinitions, getToolDefinition, type SavedToolConfig, type StepConfig, type ToolTranslations } from '@funmagic/shared';
 import { ConfigFieldsSection } from './config-fields-section';
 import { getPendingFile, removePendingFile, isPendingUrl, clearPendingFiles } from './field-renderers';
 import type { Provider } from './field-renderers';
@@ -53,6 +54,31 @@ interface ToolGeneralFormProps {
 }
 
 type ToolFormState = FormState & { toolId?: string };
+
+const TOOL_TRANSLATION_FIELDS = [
+  {
+    name: 'title',
+    label: 'Title',
+    required: true,
+    rows: 1,
+    placeholder: 'e.g., My Tool',
+  },
+  {
+    name: 'shortDescription',
+    label: 'Short Description',
+    required: false,
+    rows: 2,
+    maxLength: 100,
+    placeholder: 'Brief tagline shown in listings',
+  },
+  {
+    name: 'description',
+    label: 'Full Description',
+    required: false,
+    rows: 4,
+    placeholder: 'Detailed description shown on tool page',
+  },
+];
 
 /**
  * Tool creation form with unified Basic Info and Configuration in a single form.
@@ -110,6 +136,15 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
   const [config, setConfig] = useState<SavedToolConfig>(() => buildInitialConfig(selectedSlug));
   const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool?.thumbnail ?? ''));
+
+  // Initialize translations with empty English content
+  const [translations, setTranslations] = useState<ToolTranslations>({
+    en: {
+      title: '',
+      description: '',
+      shortDescription: '',
+    },
+  });
 
   // Update config when slug changes
   const handleSlugChange = (slug: string) => {
@@ -221,6 +256,7 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
       // Now submit the form
       formData.set('thumbnail', thumbnailUrl);
+      formData.set('translations', JSON.stringify(translations));
       if (processedConfig.steps.length > 0) {
         formData.set('config', JSON.stringify(processedConfig));
       }
@@ -311,34 +347,46 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
             <div className="grid gap-2">
               <Label htmlFor="title">
-                Title <span className="text-destructive">*</span>
+                Title (Default) <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="title"
                 name="title"
-                defaultValue={tool?.title ?? ''}
                 placeholder="e.g., My Tool"
                 rows={1}
+                value={translations.en?.title ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, title: e.target.value },
+                  }));
+                }}
                 aria-invalid={!!formState.errors?.title}
               />
               {formState.errors?.title && (
                 <p className="text-destructive text-xs">{formState.errors.title[0]}</p>
               )}
               <p className="text-muted-foreground text-xs">
-                Display name for the tool
+                Default display name (English)
               </p>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="shortDescription">
-                Short Description <span className="text-muted-foreground text-xs">(optional)</span>
+                Short Description (Default) <span className="text-muted-foreground text-xs">(optional)</span>
               </Label>
               <Textarea
                 id="shortDescription"
                 name="shortDescription"
-                defaultValue={tool?.shortDescription ?? ''}
                 placeholder="e.g., A brief description..."
                 rows={2}
+                value={translations.en?.shortDescription ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, shortDescription: e.target.value },
+                  }));
+                }}
                 aria-invalid={!!formState.errors?.shortDescription}
               />
               {formState.errors?.shortDescription && (
@@ -351,17 +399,23 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
             <div className="grid gap-2">
               <Label htmlFor="description">
-                Full Description <span className="text-muted-foreground text-xs">(optional)</span>
+                Full Description (Default) <span className="text-muted-foreground text-xs">(optional)</span>
               </Label>
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={tool?.description ?? ''}
                 placeholder="e.g., Detailed description..."
                 rows={4}
+                value={translations.en?.description ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, description: e.target.value },
+                  }));
+                }}
               />
               <p className="text-muted-foreground text-xs">
-                Detailed description shown on tool page
+                Default detailed description (English)
               </p>
             </div>
 
@@ -392,6 +446,15 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
             </div>
           </CardContent>
         </Card>
+
+        {/* Translations Editor */}
+        <TranslationsEditor
+          translations={translations}
+          onChange={setTranslations}
+          fields={TOOL_TRANSLATION_FIELDS}
+          title="Localized Content"
+          description="Translate title and descriptions for each language"
+        />
 
         {/* Show config fields when a definition is selected */}
         {definition && (

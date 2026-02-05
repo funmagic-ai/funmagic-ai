@@ -1,6 +1,16 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, banners } from '@funmagic/database';
 import { eq, and, or, isNull, lte, gte, asc, sql } from 'drizzle-orm';
+import {
+  BannerTranslationsSchema,
+  type BannerTranslations,
+  getLocalizedBannerContent,
+  type SupportedLocale,
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  type TranslationsRecord,
+  type BannerTranslationContent,
+} from '@funmagic/shared';
 
 // Schemas
 const BannerSchema = z.object({
@@ -9,12 +19,13 @@ const BannerSchema = z.object({
   description: z.string().nullable(),
   thumbnail: z.string(),
   link: z.string().nullable(),
-  linkText: z.string().nullable(),
-  linkTarget: z.string().nullable(),
+  linkText: z.string(),
+  linkTarget: z.string(),
   type: z.string(),
   position: z.number().nullable(),
   badge: z.string().nullable(),
   badgeColor: z.string().nullable(),
+  translations: BannerTranslationsSchema,
 }).openapi('Banner');
 
 const BannersListSchema = z.object({
@@ -26,12 +37,13 @@ const CreateBannerSchema = z.object({
   description: z.string().optional(),
   thumbnail: z.string().url('Thumbnail must be a valid URL'),
   link: z.string().url().optional(),
-  linkText: z.string().optional(),
-  linkTarget: z.enum(['_self', '_blank']).optional(),
+  linkText: z.string().min(1, 'Link text is required').default('Learn More'),
+  linkTarget: z.enum(['_self', '_blank']).default('_self'),
   type: z.enum(['main', 'side']).default('main'),
   position: z.number().optional(),
   badge: z.string().optional(),
   badgeColor: z.string().optional(),
+  translations: BannerTranslationsSchema.optional(),
   isActive: z.boolean().optional(),
   startsAt: z.string().datetime().optional(),
   endsAt: z.string().datetime().optional(),
@@ -61,6 +73,7 @@ const listActiveBannersRoute = createRoute({
   request: {
     query: z.object({
       type: z.enum(['main', 'side']).optional(),
+      locale: z.enum(SUPPORTED_LOCALES).optional(),
     }),
   },
   responses: {
@@ -72,7 +85,19 @@ const listActiveBannersRoute = createRoute({
 });
 
 // Schema for admin list (includes all fields)
-const AdminBannerSchema = BannerSchema.extend({
+const AdminBannerSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  description: z.string().nullable(),
+  thumbnail: z.string(),
+  link: z.string().nullable(),
+  linkText: z.string(),
+  linkTarget: z.string(),
+  type: z.string(),
+  position: z.number().nullable(),
+  badge: z.string().nullable(),
+  badgeColor: z.string().nullable(),
+  translations: BannerTranslationsSchema,
   isActive: z.boolean(),
   startsAt: z.string().nullable(),
   endsAt: z.string().nullable(),
@@ -174,10 +199,29 @@ const deleteBannerRoute = createRoute({
   },
 });
 
+const toggleActiveRoute = createRoute({
+  method: 'patch',
+  path: '/{id}/toggle-active',
+  tags: ['Admin - Banners'],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ isActive: z.boolean() }).openapi('ToggleBannerActiveResponse') } },
+      description: 'Banner active status toggled',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Banner not found',
+    },
+  },
+});
+
 // Public routes - List active banners with scheduling filter
 export const bannersPublicRoutes = new OpenAPIHono()
   .openapi(listActiveBannersRoute, async (c) => {
-    const { type } = c.req.valid('query');
+    const { type, locale = DEFAULT_LOCALE } = c.req.valid('query');
     const now = new Date();
 
     const conditions = [
@@ -207,19 +251,29 @@ export const bannersPublicRoutes = new OpenAPIHono()
     });
 
     return c.json({
-      banners: activeBanners.map((b) => ({
-        id: b.id,
-        title: b.title,
-        description: b.description,
-        thumbnail: b.thumbnail,
-        link: b.link,
-        linkText: b.linkText,
-        linkTarget: b.linkTarget,
-        type: b.type,
-        position: b.position,
-        badge: b.badge,
-        badgeColor: b.badgeColor,
-      })),
+      banners: activeBanners.map((b) => {
+        // Get localized content from translations
+        const translations = b.translations as BannerTranslations;
+        const localizedContent = getLocalizedBannerContent(
+          translations as TranslationsRecord<BannerTranslationContent>,
+          locale as SupportedLocale
+        );
+
+        return {
+          id: b.id,
+          title: localizedContent.title,
+          description: localizedContent.description ?? null,
+          thumbnail: b.thumbnail,
+          link: b.link,
+          linkText: localizedContent.linkText ?? b.linkText,
+          linkTarget: b.linkTarget,
+          type: b.type,
+          position: b.position,
+          badge: localizedContent.badge ?? null,
+          badgeColor: b.badgeColor,
+          translations,
+        };
+      }),
     });
   });
 
@@ -237,11 +291,31 @@ function formatBannerAdmin(b: typeof banners.$inferSelect) {
     position: b.position,
     badge: b.badge,
     badgeColor: b.badgeColor,
+    translations: b.translations as BannerTranslations,
     isActive: b.isActive,
     startsAt: b.startsAt?.toISOString() ?? null,
     endsAt: b.endsAt?.toISOString() ?? null,
     createdAt: b.createdAt.toISOString(),
     updatedAt: b.updatedAt.toISOString(),
+  };
+}
+
+// Helper to build translations from legacy fields
+function buildTranslationsFromLegacy(
+  title: string,
+  description?: string,
+  linkText?: string,
+  badge?: string,
+  existingTranslations?: BannerTranslations
+): BannerTranslations {
+  return {
+    ...existingTranslations,
+    en: {
+      title,
+      description: description ?? existingTranslations?.en?.description ?? '',
+      linkText: linkText ?? existingTranslations?.en?.linkText ?? '',
+      badge: badge ?? existingTranslations?.en?.badge ?? '',
+    },
   };
 }
 
@@ -278,6 +352,14 @@ export const bannersAdminRoutes = new OpenAPIHono()
   .openapi(createBannerRoute, async (c) => {
     const data = c.req.valid('json');
 
+    // Build translations: use provided translations or build from legacy fields
+    const translations = data.translations ?? buildTranslationsFromLegacy(
+      data.title,
+      data.description,
+      data.linkText,
+      data.badge
+    );
+
     const [banner] = await db.insert(banners).values({
       title: data.title,
       description: data.description,
@@ -289,6 +371,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
       position: data.position,
       badge: data.badge,
       badgeColor: data.badgeColor,
+      translations,
       isActive: data.isActive ?? true,
       startsAt: data.startsAt ? new Date(data.startsAt) : null,
       endsAt: data.endsAt ? new Date(data.endsAt) : null,
@@ -322,9 +405,22 @@ export const bannersAdminRoutes = new OpenAPIHono()
     if (data.position !== undefined) updateData.position = data.position;
     if (data.badge !== undefined) updateData.badge = data.badge;
     if (data.badgeColor !== undefined) updateData.badgeColor = data.badgeColor;
+    if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.startsAt !== undefined) updateData.startsAt = data.startsAt ? new Date(data.startsAt) : null;
     if (data.endsAt !== undefined) updateData.endsAt = data.endsAt ? new Date(data.endsAt) : null;
+
+    // Sync legacy fields to translations.en if legacy fields change but translations don't
+    if (!data.translations && (data.title !== undefined || data.description !== undefined || data.linkText !== undefined || data.badge !== undefined)) {
+      const existingTranslations = existing.translations as BannerTranslations;
+      updateData.translations = buildTranslationsFromLegacy(
+        data.title ?? existing.title,
+        data.description ?? existing.description ?? undefined,
+        data.linkText ?? existing.linkText ?? undefined,
+        data.badge ?? existing.badge ?? undefined,
+        existingTranslations
+      );
+    }
 
     const [banner] = await db.update(banners)
       .set(updateData)
@@ -353,4 +449,22 @@ export const bannersAdminRoutes = new OpenAPIHono()
       .where(eq(banners.id, id));
 
     return c.json({ success: true }, 200);
+  })
+  .openapi(toggleActiveRoute, async (c) => {
+    const { id } = c.req.valid('param');
+
+    const existing = await db.query.banners.findFirst({
+      where: and(eq(banners.id, id), isNull(banners.deletedAt)),
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Banner not found' }, 404);
+    }
+
+    const [updated] = await db.update(banners)
+      .set({ isActive: !existing.isActive })
+      .where(eq(banners.id, id))
+      .returning();
+
+    return c.json({ isActive: updated.isActive }, 200);
   });

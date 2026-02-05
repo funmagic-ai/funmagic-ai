@@ -179,8 +179,7 @@ async function PackagesTable() {
             <TableHead className="text-right">Credits</TableHead>
             <TableHead className="hidden text-right sm:table-cell">Bonus</TableHead>
             <TableHead className="text-right">Price</TableHead>
-            <TableHead className="hidden sm:table-cell">Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            <TableHead className="w-[140px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -200,11 +199,6 @@ async function PackagesTable() {
               </TableCell>
               <TableCell className="text-right">
                 ${Number(pkg.price).toFixed(2)} {pkg.currency}
-              </TableCell>
-              <TableCell className="hidden sm:table-cell">
-                <Badge variant={pkg.isActive ? 'default' : 'secondary'}>
-                  {pkg.isActive ? 'Active' : 'Inactive'}
-                </Badge>
               </TableCell>
               <TableCell>
                 <PackageActions pkg={pkg} />

@@ -2,6 +2,7 @@ import { connection } from 'next/server'
 import { cacheLife, cacheTag } from 'next/cache'
 import { api } from '@/lib/api'
 import { cookies } from 'next/headers'
+import type { SupportedLocale } from '@funmagic/shared'
 
 // Type definitions - should match generated types after running `bun run api:generate`
 export interface CreditPackage {
@@ -16,13 +17,15 @@ export interface CreditPackage {
   sortOrder: number
 }
 
-export async function getCreditPackages(): Promise<CreditPackage[]> {
+export async function getCreditPackages(locale: SupportedLocale = 'en'): Promise<CreditPackage[]> {
   'use cache'
   cacheLife('hours')
   cacheTag('credit-packages')
 
   // TODO: After running `bun run api:generate`, this can use api.GET('/api/credits/packages')
-  const { data } = await api.GET('/api/credits/packages' as '/api/credits/balance')
+  const { data } = await api.GET('/api/credits/packages' as '/api/credits/balance', {
+    params: { query: { locale } },
+  } as unknown as undefined)
   return ((data as unknown as { packages?: CreditPackage[] })?.packages) ?? []
 }
 

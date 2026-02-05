@@ -1,6 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tools, toolTypes, tasks } from '@funmagic/database';
 import { eq, asc, isNull, and, count } from 'drizzle-orm';
+import {
+  ToolTranslationsSchema,
+  type ToolTranslations,
+} from '@funmagic/shared';
 
 // Schemas
 const ToolAdminSchema = z.object({
@@ -12,6 +16,7 @@ const ToolAdminSchema = z.object({
   thumbnail: z.string().nullable(),
   toolTypeId: z.string().uuid(),
   config: z.any(),
+  translations: ToolTranslationsSchema,
   isActive: z.boolean(),
   isFeatured: z.boolean(),
   usageCount: z.number(),
@@ -36,6 +41,7 @@ const CreateToolSchema = z.object({
   thumbnail: z.string().url().optional(),
   toolTypeId: z.string().uuid('Tool type ID must be a valid UUID'),
   config: z.any().default({}),
+  translations: ToolTranslationsSchema.optional(),
   isActive: z.boolean().optional(),
   isFeatured: z.boolean().optional(),
 }).openapi('CreateTool');
@@ -206,6 +212,7 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
     thumbnail: t.thumbnail,
     toolTypeId: t.toolTypeId,
     config: t.config,
+    translations: t.translations as ToolTranslations,
     isActive: t.isActive,
     isFeatured: t.isFeatured,
     usageCount: t.usageCount,
@@ -216,6 +223,23 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
       name: t.toolType.name,
       displayName: t.toolType.displayName,
     } : undefined,
+  };
+}
+
+// Helper to build translations from legacy fields
+function buildTranslationsFromLegacy(
+  title: string,
+  description?: string,
+  shortDescription?: string,
+  existingTranslations?: ToolTranslations
+): ToolTranslations {
+  return {
+    ...existingTranslations,
+    en: {
+      title,
+      description: description ?? existingTranslations?.en?.description ?? '',
+      shortDescription: shortDescription ?? existingTranslations?.en?.shortDescription ?? '',
+    },
   };
 }
 
@@ -274,6 +298,13 @@ export const toolsAdminRoutes = new OpenAPIHono()
       return c.json({ error: 'Tool type not found' }, 404);
     }
 
+    // Build translations: use provided translations or build from legacy fields
+    const translations = data.translations ?? buildTranslationsFromLegacy(
+      data.title,
+      data.description,
+      data.shortDescription
+    );
+
     const [tool] = await db.insert(tools).values({
       slug: data.slug,
       title: data.title,
@@ -282,6 +313,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
       thumbnail: data.thumbnail,
       toolTypeId: data.toolTypeId,
       config: data.config,
+      translations,
       isActive: data.isActive ?? true,
       isFeatured: data.isFeatured ?? false,
     }).returning();
@@ -315,8 +347,20 @@ export const toolsAdminRoutes = new OpenAPIHono()
     if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
     if (data.toolTypeId !== undefined) updateData.toolTypeId = data.toolTypeId;
     if (data.config !== undefined) updateData.config = data.config;
+    if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
+
+    // Sync legacy fields to translations.en if legacy fields change but translations don't
+    if (!data.translations && (data.title !== undefined || data.description !== undefined || data.shortDescription !== undefined)) {
+      const existingTranslations = existing.translations as ToolTranslations;
+      updateData.translations = buildTranslationsFromLegacy(
+        data.title ?? existing.title,
+        data.description ?? existing.description ?? undefined,
+        data.shortDescription ?? existing.shortDescription ?? undefined,
+        existingTranslations
+      );
+    }
 
     await db.update(tools)
       .set(updateData)

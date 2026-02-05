@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { api } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
-import { ToolInputSchema } from '@funmagic/shared/schemas';
+import { ToolInputSchema, type ToolTranslations } from '@funmagic/shared/schemas';
 import { parseFormData } from '@/lib/validate';
 import type { FormState } from '@/lib/form-types';
 
@@ -29,6 +29,17 @@ export async function createTool(
     }
   }
 
+  // Parse translations from formData
+  let translations: ToolTranslations | undefined;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr) as ToolTranslations;
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const { data, error } = await api.POST('/api/admin/tools', {
@@ -42,6 +53,7 @@ export async function createTool(
         isActive: parsed.data.isActive,
         isFeatured: parsed.data.isFeatured,
         config,
+        translations,
       },
       headers: { cookie: cookieHeader },
     });
@@ -164,6 +176,17 @@ export async function updateTool(
     }
   }
 
+  // Parse translations from formData
+  let translations: ToolTranslations | undefined;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr) as ToolTranslations;
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const { data, error } = await api.PUT('/api/admin/tools/{id}', {
@@ -178,6 +201,7 @@ export async function updateTool(
         isActive: parsed.data.isActive,
         isFeatured: parsed.data.isFeatured,
         config,
+        translations,
       },
       headers: { cookie: cookieHeader },
     });

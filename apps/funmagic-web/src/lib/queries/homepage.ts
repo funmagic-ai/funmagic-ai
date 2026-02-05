@@ -1,5 +1,6 @@
 import { cacheLife, cacheTag } from 'next/cache'
 import { api } from '@/lib/api'
+import type { SupportedLocale } from '@funmagic/shared'
 
 export interface CarouselSlide {
   id: string
@@ -34,18 +35,19 @@ interface Banner {
   description: string | null
   thumbnail: string
   link: string | null
+  linkText: string | null
   badge: string | null
 }
 
-export async function getHomepageData() {
+export async function getHomepageData(locale: SupportedLocale = 'en') {
   'use cache'
   cacheLife('tools')
   cacheTag('homepage', 'tools-list', 'banners')
 
   const [toolsRes, mainBannersRes, sideBannersRes] = await Promise.all([
-    api.GET('/api/tools'),
-    api.GET('/api/banners', { params: { query: { type: 'main' } } }),
-    api.GET('/api/banners', { params: { query: { type: 'side' } } }),
+    api.GET('/api/tools', { params: { query: { locale } } }),
+    api.GET('/api/banners', { params: { query: { type: 'main', locale } } }),
+    api.GET('/api/banners', { params: { query: { type: 'side', locale } } }),
   ])
 
   const tools = (toolsRes.data?.tools ?? []) as Tool[]

@@ -1,21 +1,23 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { TranslationsEditor } from '@/components/translations';
 import { updateToolType } from '@/actions/tool-types';
 import type { FormState } from '@/lib/form-types';
+import type { ToolTypeTranslations } from '@funmagic/shared';
 
 interface ToolType {
   id: string;
   name: string;
   displayName: string;
   description: string | null;
+  translations?: ToolTypeTranslations;
   isActive: boolean;
 }
 
@@ -23,26 +25,63 @@ interface ToolTypeEditFormProps {
   toolType: ToolType;
 }
 
+const TOOL_TYPE_TRANSLATION_FIELDS = [
+  {
+    name: 'displayName',
+    label: 'Display Name',
+    required: true,
+    rows: 1,
+    placeholder: 'e.g., Style Transform',
+  },
+  {
+    name: 'description',
+    label: 'Description',
+    required: false,
+    rows: 2,
+    placeholder: 'e.g., Transform images with AI styles',
+  },
+];
+
 export function ToolTypeEditForm({ toolType }: ToolTypeEditFormProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [formState, setFormState] = useState<FormState>({
+    success: false,
+    message: '',
+    errors: {},
+  });
 
-  const [state, formAction, isPending] = useActionState(
-    async (prevState: FormState, formData: FormData) => {
-      const result = await updateToolType(prevState, formData);
+  // Initialize translations from existing data
+  const [translations, setTranslations] = useState<ToolTypeTranslations>(
+    toolType.translations ?? {
+      en: {
+        displayName: toolType.displayName,
+        description: toolType.description ?? '',
+      },
+    }
+  );
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+
+    // Add translations as JSON
+    formData.set('translations', JSON.stringify(translations));
+
+    startTransition(async () => {
+      const result = await updateToolType(formState, formData);
 
       if (result.success) {
         toast.success(result.message || 'Tool type updated successfully');
-        await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/tool-types');
       }
 
-      return result;
-    },
-    { success: false, message: '', errors: {} as Record<string, string[]> }
-  );
+      setFormState(result);
+    });
+  };
 
   return (
-    <form action={formAction}>
+    <form onSubmit={handleSubmit}>
       <input type="hidden" name="id" value={toolType.id} />
       <div className="mx-auto max-w-4xl grid gap-6">
         <Card>
@@ -61,10 +100,10 @@ export function ToolTypeEditForm({ toolType }: ToolTypeEditFormProps) {
                   name="name"
                   defaultValue={toolType.name}
                   placeholder="e.g., style-transform"
-                  aria-invalid={!!state.errors?.name}
+                  aria-invalid={!!formState.errors?.name}
                 />
-                {state.errors?.name && (
-                  <p className="text-destructive text-xs">{state.errors.name[0]}</p>
+                {formState.errors?.name && (
+                  <p className="text-destructive text-xs">{formState.errors.name[0]}</p>
                 )}
                 <p className="text-muted-foreground text-xs">
                   Unique identifier. Only lowercase letters, numbers, and hyphens.
@@ -73,65 +112,64 @@ export function ToolTypeEditForm({ toolType }: ToolTypeEditFormProps) {
 
               <div className="grid gap-2">
                 <Label htmlFor="displayName">
-                  Display Name <span className="text-destructive">*</span>
+                  Display Name (Default) <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="displayName"
                   name="displayName"
-                  defaultValue={toolType.displayName}
                   placeholder="e.g., Style Transform"
-                  aria-invalid={!!state.errors?.displayName}
+                  value={translations.en?.displayName ?? ''}
+                  onChange={(e) => {
+                    setTranslations((prev) => ({
+                      ...prev,
+                      en: { ...prev.en, displayName: e.target.value },
+                    }));
+                  }}
+                  aria-invalid={!!formState.errors?.displayName}
                 />
-                {state.errors?.displayName && (
-                  <p className="text-destructive text-xs">{state.errors.displayName[0]}</p>
+                {formState.errors?.displayName && (
+                  <p className="text-destructive text-xs">{formState.errors.displayName[0]}</p>
                 )}
                 <p className="text-muted-foreground text-xs">
-                  Human-readable name shown to users
+                  Default display name (English)
                 </p>
               </div>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="description">
-                Description <span className="text-muted-foreground text-xs">(optional)</span>
+                Description (Default) <span className="text-muted-foreground text-xs">(optional)</span>
               </Label>
               <Input
                 id="description"
                 name="description"
-                defaultValue={toolType.description ?? ''}
                 placeholder="e.g., Transform images with AI styles"
+                value={translations.en?.description ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, description: e.target.value },
+                  }));
+                }}
               />
               <p className="text-muted-foreground text-xs">
-                Brief description of this tool type
+                Default description (English)
               </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Status</CardTitle>
-            <CardDescription>Control visibility</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="isActive">
-                  Active <span className="text-muted-foreground text-xs">(optional)</span>
-                </Label>
-                <p className="text-sm text-muted-foreground">Show in tool creation</p>
-              </div>
-              <Switch
-                id="isActive"
-                name="isActive"
-                defaultChecked={toolType.isActive}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Translations Editor */}
+        <TranslationsEditor
+          translations={translations}
+          onChange={setTranslations}
+          fields={TOOL_TYPE_TRANSLATION_FIELDS}
+          title="Localized Content"
+          description="Translate display name and description for each language"
+        />
 
-        {state.message && !state.success && !state.errors && (
-          <p className="text-destructive">{state.message}</p>
+        {formState.message && !formState.success && !formState.errors && (
+          <p className="text-destructive">{formState.message}</p>
         )}
 
         <div className="flex justify-end gap-2">

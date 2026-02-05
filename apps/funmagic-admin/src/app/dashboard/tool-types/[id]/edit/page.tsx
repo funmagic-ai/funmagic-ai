@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 import { getToolTypeById } from '@/actions/tool-types';
 import { ToolTypeEditForm } from '@/components/tool-types/tool-type-edit-form';
+import type { ToolTypeTranslations } from '@funmagic/shared';
 
 interface EditToolTypePageProps {
   params: Promise<{ id: string }>;
@@ -31,7 +32,10 @@ export default async function EditToolTypePage({ params }: EditToolTypePageProps
         </div>
       </div>
 
-      <ToolTypeEditForm toolType={toolType} />
+      <ToolTypeEditForm toolType={{
+        ...toolType,
+        translations: toolType.translations as ToolTypeTranslations | undefined,
+      }} />
     </div>
   );
 }

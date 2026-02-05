@@ -2,7 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { BannerInputSchema } from '@funmagic/shared/schemas';
+import { BannerInputSchema, type BannerTranslations } from '@funmagic/shared/schemas';
 import { parseFormData } from '@/lib/validate';
 import type { FormState } from '@/lib/form-types';
 
@@ -21,14 +21,15 @@ interface Banner {
   description: string | null;
   thumbnail: string;
   link: string | null;
-  linkText: string | null;
-  linkTarget: string | null;
+  linkText: string;
+  linkTarget: string;
   type: string;
   position: number | null;
   badge: string | null;
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  translations?: BannerTranslations;
 }
 
 // TODO: After regenerating API types with `bun run api:generate`, replace these
@@ -55,6 +56,17 @@ export async function createBanner(
   const parsed = parseFormData(BannerInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
+  // Parse translations from formData
+  let translations: BannerTranslations | undefined;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr) as BannerTranslations;
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const res = await fetch(`${baseUrl}/api/admin/banners`, {
@@ -65,13 +77,15 @@ export async function createBanner(
         description: parsed.data.description || undefined,
         thumbnail: parsed.data.thumbnail,
         link: parsed.data.link || undefined,
-        linkText: parsed.data.linkText || undefined,
+        linkText: parsed.data.linkText,
+        linkTarget: parsed.data.linkTarget,
         type: parsed.data.type as 'main' | 'side',
         position: parsed.data.position,
         badge: parsed.data.badge || undefined,
         startsAt: parsed.data.startsAt || undefined,
         endsAt: parsed.data.endsAt || undefined,
         isActive: parsed.data.isActive,
+        translations,
       }),
     });
 
@@ -105,6 +119,17 @@ export async function updateBanner(
   const parsed = parseFormData(BannerInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
+  // Parse translations from formData
+  let translations: BannerTranslations | undefined;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr) as BannerTranslations;
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const res = await fetch(`${baseUrl}/api/admin/banners/${id}`, {
@@ -115,13 +140,15 @@ export async function updateBanner(
         description: parsed.data.description || undefined,
         thumbnail: parsed.data.thumbnail,
         link: parsed.data.link || undefined,
-        linkText: parsed.data.linkText || undefined,
+        linkText: parsed.data.linkText,
+        linkTarget: parsed.data.linkTarget,
         type: parsed.data.type as 'main' | 'side',
         position: parsed.data.position,
         badge: parsed.data.badge || undefined,
         startsAt: parsed.data.startsAt || undefined,
         endsAt: parsed.data.endsAt || undefined,
         isActive: parsed.data.isActive,
+        translations,
       }),
     });
 
@@ -149,6 +176,21 @@ export async function deleteBanner(id: string) {
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Failed to delete banner' }));
     throw new Error(error.error ?? 'Failed to delete banner');
+  }
+
+  revalidatePath('/dashboard/content');
+}
+
+export async function toggleBannerStatus(id: string) {
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/banners/${id}/toggle-active`, {
+    method: 'PATCH',
+    headers: { cookie: cookieHeader },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to toggle status' }));
+    throw new Error(error.error ?? 'Failed to toggle status');
   }
 
   revalidatePath('/dashboard/content');

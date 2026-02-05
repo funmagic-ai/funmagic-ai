@@ -52,6 +52,17 @@ export async function createPackage(
   const parsed = parseFormData(CreditPackageInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
+  // Parse translations from formData
+  let translations: unknown;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr);
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const res = await fetch(`${baseUrl}/api/admin/packages`, {
@@ -66,6 +77,7 @@ export async function createPackage(
         sortOrder: parsed.data.sortOrder,
         isPopular: parsed.data.isPopular,
         isActive: parsed.data.isActive,
+        translations,
       }),
     });
 
@@ -99,6 +111,17 @@ export async function updatePackage(
   const parsed = parseFormData(CreditPackageInputSchema, formData);
   if (!parsed.success) return parsed.state;
 
+  // Parse translations from formData
+  let translations: unknown;
+  const translationsStr = formData.get('translations') as string;
+  if (translationsStr) {
+    try {
+      translations = JSON.parse(translationsStr);
+    } catch {
+      return { success: false, message: 'Invalid translations JSON' };
+    }
+  }
+
   try {
     const cookieHeader = (await cookies()).toString();
     const res = await fetch(`${baseUrl}/api/admin/packages/${id}`, {
@@ -113,6 +136,7 @@ export async function updatePackage(
         sortOrder: parsed.data.sortOrder,
         isPopular: parsed.data.isPopular,
         isActive: parsed.data.isActive,
+        translations,
       }),
     });
 
@@ -140,6 +164,21 @@ export async function deletePackage(id: string) {
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Failed to delete package' }));
     throw new Error(error.error ?? 'Failed to delete package');
+  }
+
+  revalidatePath('/dashboard/billing');
+}
+
+export async function togglePackageStatus(id: string) {
+  const cookieHeader = (await cookies()).toString();
+  const res = await fetch(`${baseUrl}/api/admin/packages/${id}/toggle-active`, {
+    method: 'PATCH',
+    headers: { cookie: cookieHeader },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ error: 'Failed to toggle status' }));
+    throw new Error(error.error ?? 'Failed to toggle status');
   }
 
   revalidatePath('/dashboard/billing');

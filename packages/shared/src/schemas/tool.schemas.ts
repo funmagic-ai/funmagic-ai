@@ -1,5 +1,32 @@
 import { z } from 'zod'
 
+// Single locale translation schema for tools
+export const ToolTranslationSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional(),
+  shortDescription: z.string().max(100, 'Short description must be 100 characters or less').optional(),
+})
+
+// Partial translation schema for non-default locales
+export const PartialToolTranslationSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  shortDescription: z.string().max(100, 'Short description must be 100 characters or less').optional(),
+})
+
+// Translations schema with explicit typing for all supported locales
+export const ToolTranslationsSchema = z.object({
+  en: ToolTranslationSchema,
+  zh: PartialToolTranslationSchema.optional(),
+  ja: PartialToolTranslationSchema.optional(),
+  fr: PartialToolTranslationSchema.optional(),
+  es: PartialToolTranslationSchema.optional(),
+  pt: PartialToolTranslationSchema.optional(),
+  de: PartialToolTranslationSchema.optional(),
+  vi: PartialToolTranslationSchema.optional(),
+  ko: PartialToolTranslationSchema.optional(),
+})
+
 export const CreateToolInputSchema = z.object({
   slug: z.string()
     .min(1, 'Slug is required')
@@ -23,6 +50,7 @@ export const ToolInputSchema = z.object({
   thumbnail: z.string().optional(),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
+  translations: ToolTranslationsSchema.optional(),
 })
 
 export const ToolSchema = z.object({
@@ -34,6 +62,9 @@ export const ToolSchema = z.object({
   category: z.string().optional(),
 })
 
+export type ToolTranslation = z.infer<typeof ToolTranslationSchema>
+export type PartialToolTranslation = z.infer<typeof PartialToolTranslationSchema>
+export type ToolTranslations = z.infer<typeof ToolTranslationsSchema>
 export type CreateToolInput = z.infer<typeof CreateToolInputSchema>
 export type Tool = z.infer<typeof ToolSchema>
 export type ToolInput = z.infer<typeof ToolInputSchema>

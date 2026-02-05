@@ -8,7 +8,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -19,10 +18,41 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
+import { TranslationsEditor } from '@/components/translations';
 import { updateBanner } from '@/actions/banners';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
 import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
+import type { BannerTranslations } from '@funmagic/shared';
+
+const BANNER_TRANSLATION_FIELDS = [
+  {
+    name: 'title',
+    label: 'Title',
+    required: true,
+    rows: 1,
+    placeholder: 'e.g., New Feature Available!',
+  },
+  {
+    name: 'description',
+    label: 'Description',
+    rows: 2,
+    placeholder: 'e.g., Check out our latest features...',
+  },
+  {
+    name: 'linkText',
+    label: 'Link Text',
+    rows: 1,
+    placeholder: 'e.g., Learn More',
+  },
+  {
+    name: 'badge',
+    label: 'Badge Text',
+    rows: 1,
+    maxLength: 20,
+    placeholder: 'e.g., NEW',
+  },
+];
 
 interface Banner {
   id: string;
@@ -30,14 +60,15 @@ interface Banner {
   description: string | null;
   thumbnail: string;
   link: string | null;
-  linkText: string | null;
-  linkTarget: string | null;
+  linkText: string;
+  linkTarget: string;
   type: string;
   position: number | null;
   badge: string | null;
   isActive: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  translations?: BannerTranslations;
 }
 
 interface BannerEditFormProps {
@@ -51,6 +82,18 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
   const [existingUrl, setExistingUrl] = useState(getS3PublicUrl(banner.thumbnail));
   const [bannerType, setBannerType] = useState(banner.type);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Initialize translations from existing data
+  const [translations, setTranslations] = useState<BannerTranslations>(
+    banner.translations ?? {
+      en: {
+        title: banner.title,
+        description: banner.description ?? '',
+        linkText: banner.linkText,
+        badge: banner.badge ?? '',
+      },
+    }
+  );
 
   // Create local preview URL when file is selected
   useEffect(() => {
@@ -144,8 +187,14 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
               <Input
                 id="title"
                 name="title"
-                defaultValue={banner.title}
                 placeholder="e.g., New Feature Available!"
+                value={translations.en?.title ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, title: e.target.value },
+                  }));
+                }}
                 aria-invalid={!!state.errors?.title}
               />
               {state.errors?.title && (
@@ -163,9 +212,15 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
               <Textarea
                 id="description"
                 name="description"
-                defaultValue={banner.description ?? ''}
                 placeholder="e.g., Check out our latest features..."
                 rows={2}
+                value={translations.en?.description ?? ''}
+                onChange={(e) => {
+                  setTranslations((prev) => ({
+                    ...prev,
+                    en: { ...prev.en, description: e.target.value },
+                  }));
+                }}
               />
               <p className="text-muted-foreground text-xs">
                 Brief description shown on the banner
@@ -231,19 +286,39 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="linkText">
-                  Link Text <span className="text-muted-foreground text-xs">(optional)</span>
-                </Label>
+                <Label htmlFor="linkText">Link Text</Label>
                 <Input
                   id="linkText"
                   name="linkText"
-                  defaultValue={banner.linkText ?? ''}
                   placeholder="e.g., Learn More"
+                  value={translations.en?.linkText ?? ''}
+                  onChange={(e) => {
+                    setTranslations((prev) => ({
+                      ...prev,
+                      en: { ...prev.en, linkText: e.target.value },
+                    }));
+                  }}
                 />
                 <p className="text-muted-foreground text-xs">
                   Call-to-action button text
                 </p>
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="linkTarget">Link Target</Label>
+              <Select name="linkTarget" defaultValue={banner.linkTarget}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_self">Same Window (_self)</SelectItem>
+                  <SelectItem value="_blank">New Tab (_blank)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-muted-foreground text-xs">
+                How the link opens when clicked
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -300,9 +375,15 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
                 <Input
                   id="badge"
                   name="badge"
-                  defaultValue={banner.badge ?? ''}
                   placeholder="e.g., NEW"
                   maxLength={20}
+                  value={translations.en?.badge ?? ''}
+                  onChange={(e) => {
+                    setTranslations((prev) => ({
+                      ...prev,
+                      en: { ...prev.en, badge: e.target.value },
+                    }));
+                  }}
                   aria-invalid={!!state.errors?.badge}
                 />
                 {state.errors?.badge && (
@@ -361,18 +442,18 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="isActive">
-                  Active <span className="text-muted-foreground text-xs">(optional)</span>
-                </Label>
-                <p className="text-sm text-muted-foreground">Show this banner</p>
-              </div>
-              <Switch id="isActive" name="isActive" defaultChecked={banner.isActive} />
-            </div>
           </CardContent>
         </Card>
+
+        {/* Translations Editor */}
+        <TranslationsEditor
+          translations={translations}
+          onChange={setTranslations}
+          fields={BANNER_TRANSLATION_FIELDS}
+          title="Localized Content"
+          description="Translate banner content for each language"
+        />
+        <input type="hidden" name="translations" value={JSON.stringify(translations)} />
 
         {state.message && !state.success && !state.errors && (
           <p className="text-destructive">{state.message}</p>

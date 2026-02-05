@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import { getHomepageData } from '@/lib/queries/homepage'
+import type { SupportedLocale } from '@funmagic/shared'
 import { HeroCarousel } from '@/components/home'
 import { SideBanner } from '@/components/home'
 import { ToolCard } from '@/components/tools'
@@ -43,7 +44,7 @@ export default async function HomePage({ params }: HomePageProps) {
 
 async function HeroSection({ locale }: { locale: string }) {
   const t = await getTranslations('home')
-  const { carouselSlides, sideBanners } = await getHomepageData()
+  const { carouselSlides, sideBanners } = await getHomepageData(locale as SupportedLocale)
 
   return (
     <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -74,7 +75,7 @@ async function ToolGridSection({ locale }: { locale: string }) {
   const t = await getTranslations('home')
   const tTools = await getTranslations('tools')
   const tCommon = await getTranslations('common')
-  const { tools } = await getHomepageData()
+  const { tools } = await getHomepageData(locale as SupportedLocale)
 
   // Get category translations for filter
   const categories: Record<string, string> = {

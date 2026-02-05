@@ -3,6 +3,7 @@ import { connection } from 'next/server'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import { getCreditPackages } from '@/lib/queries/credits'
+import type { SupportedLocale } from '@funmagic/shared'
 import { Check, Sparkles, Zap, Crown, Package } from 'lucide-react'
 import {
   Empty,
@@ -31,7 +32,7 @@ export default async function PricingPage({ params }: PricingPageProps) {
       </div>
 
       <Suspense fallback={<PricingGridSkeleton />}>
-        <PricingGrid />
+        <PricingGrid locale={locale} />
       </Suspense>
 
       <div className="mt-16 text-center">
@@ -55,10 +56,10 @@ export default async function PricingPage({ params }: PricingPageProps) {
   )
 }
 
-async function PricingGrid() {
+async function PricingGrid({ locale }: { locale: string }) {
   await connection()
   const t = await getTranslations('pricing')
-  const packages = await getCreditPackages()
+  const packages = await getCreditPackages(locale as SupportedLocale)
 
   if (packages.length === 0) {
     return (

@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { api } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -85,8 +84,7 @@ async function ToolTypesTable() {
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Display Name</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="w-[100px]">Actions</TableHead>
+            <TableHead className="w-[140px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -94,11 +92,6 @@ async function ToolTypesTable() {
             <TableRow key={type.id}>
               <TableCell className="font-medium">{type.name}</TableCell>
               <TableCell>{type.displayName}</TableCell>
-              <TableCell>
-                <Badge variant={type.isActive ? 'default' : 'secondary'}>
-                  {type.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </TableCell>
               <TableCell>
                 <ToolTypeActions toolType={type} />
               </TableCell>

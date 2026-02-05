@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useState, useActionState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,14 +8,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { TranslationsEditor } from '@/components/translations/translations-editor';
 import { createPackage } from '@/actions/billing';
 import type { FormState } from '@/lib/form-types';
+import type { CreditPackageTranslations } from '@funmagic/shared';
+
+const PACKAGE_TRANSLATION_FIELDS = [
+  { name: 'name', label: 'Name', required: true, placeholder: 'e.g., Starter Pack' },
+  { name: 'description', label: 'Description', required: false, placeholder: 'e.g., Perfect for getting started', rows: 2 },
+];
 
 export function PackageGeneralForm() {
   const router = useRouter();
 
+  // Initialize translations with empty English content
+  const [translations, setTranslations] = useState<CreditPackageTranslations>({
+    en: {
+      name: '',
+      description: '',
+    },
+  });
+
   const [state, formAction, isPending] = useActionState(
     async (prevState: FormState, formData: FormData) => {
+      // Add translations to formData
+      formData.set('translations', JSON.stringify(translations));
+
       const result = await createPackage(prevState, formData);
 
       if (result.success) {
@@ -31,46 +49,18 @@ export function PackageGeneralForm() {
 
   return (
     <form action={formAction}>
-      <div className="mx-auto max-w-4xl grid gap-4 md:gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Package name and description</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">
-                Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="e.g., Starter Pack"
-                aria-invalid={!!state.errors?.name}
-              />
-              {state.errors?.name && (
-                <p className="text-destructive text-xs">{state.errors.name[0]}</p>
-              )}
-              <p className="text-muted-foreground text-xs">
-                Unique identifier for the package
-              </p>
-            </div>
+      {/* Sync English translations to legacy fields */}
+      <input type="hidden" name="name" value={(translations.en as { name?: string })?.name ?? ''} />
+      <input type="hidden" name="description" value={(translations.en as { description?: string })?.description ?? ''} />
 
-            <div className="grid gap-2">
-              <Label htmlFor="description">
-                Description <span className="text-muted-foreground text-xs">(optional)</span>
-              </Label>
-              <Input
-                id="description"
-                name="description"
-                placeholder="e.g., Perfect for getting started"
-              />
-              <p className="text-muted-foreground text-xs">
-                Brief description of the package
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="mx-auto max-w-4xl grid gap-4 md:gap-6">
+        <TranslationsEditor
+          translations={translations}
+          onChange={setTranslations}
+          fields={PACKAGE_TRANSLATION_FIELDS}
+          title="Package Content"
+          description="Name and description displayed in each language"
+        />
 
         <Card>
           <CardHeader>

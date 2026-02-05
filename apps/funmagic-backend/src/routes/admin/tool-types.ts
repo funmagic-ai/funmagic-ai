@@ -1,6 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, toolTypes, tools } from '@funmagic/database';
 import { eq, asc, isNull, and, count } from 'drizzle-orm';
+import {
+  ToolTypeTranslationsSchema,
+  type ToolTypeTranslations,
+} from '@funmagic/shared';
 
 // Schemas
 const ToolTypeSchema = z.object({
@@ -8,6 +12,7 @@ const ToolTypeSchema = z.object({
   name: z.string(),
   displayName: z.string(),
   description: z.string().nullable(),
+  translations: ToolTypeTranslationsSchema,
   isActive: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -21,6 +26,7 @@ const CreateToolTypeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   displayName: z.string().min(1, 'Display name is required'),
   description: z.string().optional(),
+  translations: ToolTypeTranslationsSchema.optional(),
   isActive: z.boolean().optional(),
 }).openapi('CreateToolType');
 
@@ -132,6 +138,25 @@ const deleteToolTypeRoute = createRoute({
   },
 });
 
+const toggleActiveRoute = createRoute({
+  method: 'patch',
+  path: '/{id}/toggle-active',
+  tags: ['Admin - Tool Types'],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ isActive: z.boolean() }).openapi('ToggleToolTypeActiveResponse') } },
+      description: 'Tool type active status toggled',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Tool type not found',
+    },
+  },
+});
+
 // Helper function to format tool type response
 function formatToolType(t: typeof toolTypes.$inferSelect) {
   return {
@@ -139,9 +164,25 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
     name: t.name,
     displayName: t.displayName,
     description: t.description,
+    translations: t.translations as ToolTypeTranslations,
     isActive: t.isActive,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
+  };
+}
+
+// Helper to build translations from legacy fields
+function buildTranslationsFromLegacy(
+  displayName: string,
+  description?: string,
+  existingTranslations?: ToolTypeTranslations
+): ToolTypeTranslations {
+  return {
+    ...existingTranslations,
+    en: {
+      displayName,
+      description: description ?? existingTranslations?.en?.description ?? '',
+    },
   };
 }
 
@@ -183,10 +224,17 @@ export const toolTypesRoutes = new OpenAPIHono()
       return c.json({ error: 'Tool type name already exists' }, 409);
     }
 
+    // Build translations: use provided translations or build from legacy fields
+    const translations = data.translations ?? buildTranslationsFromLegacy(
+      data.displayName,
+      data.description
+    );
+
     const [toolType] = await db.insert(toolTypes).values({
       name: data.name,
       displayName: data.displayName,
       description: data.description,
+      translations,
       isActive: data.isActive ?? true,
     }).returning();
 
@@ -210,7 +258,18 @@ export const toolTypesRoutes = new OpenAPIHono()
     if (data.name !== undefined) updateData.name = data.name;
     if (data.displayName !== undefined) updateData.displayName = data.displayName;
     if (data.description !== undefined) updateData.description = data.description;
+    if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
+
+    // Sync legacy fields to translations.en if legacy fields change but translations don't
+    if (!data.translations && (data.displayName !== undefined || data.description !== undefined)) {
+      const existingTranslations = existing.translations as ToolTypeTranslations;
+      updateData.translations = buildTranslationsFromLegacy(
+        data.displayName ?? existing.displayName,
+        data.description ?? existing.description ?? undefined,
+        existingTranslations
+      );
+    }
 
     const [toolType] = await db.update(toolTypes)
       .set(updateData)
@@ -250,4 +309,22 @@ export const toolTypesRoutes = new OpenAPIHono()
       .where(eq(toolTypes.id, id));
 
     return c.json({ success: true }, 200);
+  })
+  .openapi(toggleActiveRoute, async (c) => {
+    const { id } = c.req.valid('param');
+
+    const existing = await db.query.toolTypes.findFirst({
+      where: and(eq(toolTypes.id, id), isNull(toolTypes.deletedAt)),
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Tool type not found' }, 404);
+    }
+
+    const [updated] = await db.update(toolTypes)
+      .set({ isActive: !existing.isActive })
+      .where(eq(toolTypes.id, id))
+      .returning();
+
+    return c.json({ isActive: updated.isActive }, 200);
   });

@@ -38,6 +38,7 @@ export const creditPackages = pgTable('credit_packages', {
   currency: text('currency').notNull().default('USD'),
   stripePriceId: text('stripe_price_id'),
   stripeProductId: text('stripe_product_id'),
+  translations: jsonb('translations').notNull().default({ en: { name: '', description: '' } }),
   isPopular: boolean('is_popular').default(false),
   isActive: boolean('is_active').notNull().default(true),
   sortOrder: integer('sort_order').default(0),

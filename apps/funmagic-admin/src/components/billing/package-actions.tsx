@@ -3,13 +3,16 @@
 import { useTransition } from 'react';
 import Link from 'next/link';
 import { Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
-import { deletePackage } from '@/actions/billing';
+import { deletePackage, togglePackageStatus } from '@/actions/billing';
 
 interface CreditPackage {
   id: string;
   name: string;
+  isActive: boolean;
 }
 
 interface PackageActionsProps {
@@ -18,19 +21,38 @@ interface PackageActionsProps {
 
 export function PackageActions({ pkg }: PackageActionsProps) {
   const [isPending, startTransition] = useTransition();
+  const [isToggling, startToggleTransition] = useTransition();
 
   const handleDelete = () => {
     startTransition(async () => {
       try {
         await deletePackage(pkg.id);
+        toast.success('Package deleted successfully');
       } catch (error) {
-        console.error('Failed to delete package:', error);
+        toast.error(error instanceof Error ? error.message : 'Failed to delete package');
+      }
+    });
+  };
+
+  const handleToggle = () => {
+    startToggleTransition(async () => {
+      try {
+        await togglePackageStatus(pkg.id);
+        toast.success(pkg.isActive ? 'Package deactivated' : 'Package activated');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Failed to toggle status');
       }
     });
   };
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-2">
+      <Switch
+        checked={pkg.isActive}
+        onCheckedChange={handleToggle}
+        disabled={isToggling}
+        aria-label="Toggle active status"
+      />
       <Button variant="ghost" size="icon" asChild>
         <Link href={`/dashboard/billing/packages/${pkg.id}/edit`}>
           <Pencil className="h-4 w-4" />

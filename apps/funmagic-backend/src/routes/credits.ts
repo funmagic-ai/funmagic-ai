@@ -1,6 +1,14 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, credits, creditTransactions, creditPackages } from '@funmagic/database';
-import { eq, desc, asc } from 'drizzle-orm';
+import { eq, desc, asc, isNull } from 'drizzle-orm';
+import {
+  getLocalizedCreditPackageContent,
+  type SupportedLocale,
+  SUPPORTED_LOCALES,
+  DEFAULT_LOCALE,
+  type TranslationsRecord,
+  type CreditPackageTranslationContent,
+} from '@funmagic/shared';
 
 // Schemas
 const BalanceSchema = z.object({
@@ -88,6 +96,11 @@ const getPackagesRoute = createRoute({
   method: 'get',
   path: '/packages',
   tags: ['Credits'],
+  request: {
+    query: z.object({
+      locale: z.enum(SUPPORTED_LOCALES).optional(),
+    }),
+  },
   responses: {
     200: {
       content: { 'application/json': { schema: PackagesSchema } },
@@ -100,23 +113,34 @@ const getPackagesRoute = createRoute({
 export const creditsPublicRoutes = new OpenAPIHono()
   .openapi(getPackagesRoute, async (c) => {
     try {
+      const { locale = DEFAULT_LOCALE } = c.req.valid('query');
+
       const packages = await db.query.creditPackages.findMany({
         where: eq(creditPackages.isActive, true),
         orderBy: asc(creditPackages.sortOrder),
       });
 
       return c.json({
-        packages: packages.map((p) => ({
-          id: p.id,
-          name: p.name,
-          description: p.description,
-          credits: p.credits,
-          bonusCredits: p.bonusCredits ?? 0,
-          price: p.price,
-          currency: p.currency,
-          isPopular: p.isPopular ?? false,
-          sortOrder: p.sortOrder ?? 0,
-        })),
+        packages: packages.map((p) => {
+          // Get localized content from translations
+          const translations = p.translations as TranslationsRecord<CreditPackageTranslationContent>;
+          const localizedContent = getLocalizedCreditPackageContent(
+            translations,
+            locale as SupportedLocale
+          );
+
+          return {
+            id: p.id,
+            name: localizedContent.name,
+            description: localizedContent.description ?? null,
+            credits: p.credits,
+            bonusCredits: p.bonusCredits ?? 0,
+            price: p.price,
+            currency: p.currency,
+            isPopular: p.isPopular ?? false,
+            sortOrder: p.sortOrder ?? 0,
+          };
+        }),
       }, 200);
     } catch (error) {
       console.error('Failed to fetch credit packages:', error);
