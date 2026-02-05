@@ -2,7 +2,7 @@
 
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import type { ToolDefinition, StepConfig, SavedToolConfig, Field, StepProvider } from '@funmagic/shared';
+import type { ToolDefinition, StepConfig, SavedToolConfig, Field, StepProvider, NumberField } from '@funmagic/shared';
 import { FieldRenderer, KeyValueFieldRenderer, type Provider } from './field-renderers';
 
 interface ConfigFieldsSectionProps {
@@ -140,8 +140,8 @@ export function ConfigFieldsSection({
               </div>
             </div>
 
-            {/* Provider Info - model is editable */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            {/* Provider Info + Model + Cost - on same row */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Provider:</span>
                 <Badge
@@ -166,24 +166,38 @@ export function ConfigFieldsSection({
                 <Input
                   value={(stepConfig.provider as StepProvider)?.model ?? stepDef.provider.model}
                   onChange={(e) => updateProviderModel(stepDef.id, e.target.value)}
-                  className="h-7 w-40 text-xs"
+                  className="h-7 w-64 text-xs"
                   placeholder={stepDef.provider.model}
                 />
               </div>
+              {stepDef.fields.cost && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-muted-foreground">Cost:</span>
+                  <Input
+                    type="number"
+                    value={stepConfig.cost ?? (stepDef.fields.cost as NumberField).default ?? ''}
+                    onChange={(e) => updateStepField(stepDef.id, 'cost', e.target.value ? Number(e.target.value) : undefined)}
+                    className="h-7 w-20 text-xs"
+                    min={(stepDef.fields.cost as NumberField).min}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Admin-Editable Fields */}
+            {/* Admin-Editable Fields (excluding cost - rendered above) */}
             <div className="space-y-4">
-              {Object.entries(stepDef.fields).map(([fieldName, fieldDef]) => (
-                <FieldRenderer
-                  key={fieldName}
-                  name={fieldName}
-                  field={fieldDef}
-                  value={stepConfig[fieldName]}
-                  onChange={(value) => updateStepField(stepDef.id, fieldName, value)}
-                  providers={providers}
-                />
-              ))}
+              {Object.entries(stepDef.fields)
+                .filter(([fieldName]) => fieldName !== 'cost')
+                .map(([fieldName, fieldDef]) => (
+                  <FieldRenderer
+                    key={fieldName}
+                    name={fieldName}
+                    field={fieldDef}
+                    value={stepConfig[fieldName]}
+                    onChange={(value) => updateStepField(stepDef.id, fieldName, value)}
+                    providers={providers}
+                  />
+                ))}
             </div>
 
             {/* Overridable Options - compact grid layout */}
