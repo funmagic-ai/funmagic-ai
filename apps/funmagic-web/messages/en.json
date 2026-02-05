@@ -7,6 +7,7 @@
     "popular": "Most Popular",
     "buyNow": "Get Started",
     "noPackages": "No pricing packages available at the moment.",
+    "noPackagesDescription": "Credit packages will be available soon.",
     "features": {
       "instant": "Instant credit delivery",
       "allTools": "Access to all AI tools",
@@ -87,6 +88,8 @@
     "allTools": "All Tools",
     "noTools": "No tools available yet. Check back soon!",
     "noSearchResults": "No tools found matching your search.",
+    "noSearchResultsDescription": "Try different search terms.",
+    "noToolsDescription": "AI tools will be available soon.",
     "searchPlaceholder": "Search tools...",
     "allCategories": "All Categories",
     "searching": "Searching...",

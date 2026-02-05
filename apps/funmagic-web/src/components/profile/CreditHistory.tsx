@@ -1,3 +1,12 @@
+import { Receipt } from 'lucide-react'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
+
 interface Transaction {
   id: string
   type: string
@@ -64,7 +73,17 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
     return (
       <div className="bg-card rounded-xl border shadow-sm p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4">Transaction History</h2>
-        <p className="text-muted-foreground text-center py-8">No transactions yet</p>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Receipt />
+            </EmptyMedia>
+            <EmptyTitle>No transactions yet</EmptyTitle>
+            <EmptyDescription>
+              Your credit purchases will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       </div>
     )
   }

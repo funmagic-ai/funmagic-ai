@@ -7,6 +7,7 @@
     "popular": "最受欢迎",
     "buyNow": "立即购买",
     "noPackages": "暂无可用的定价套餐。",
+    "noPackagesDescription": "积分套餐即将推出。",
     "features": {
       "instant": "即时到账",
       "allTools": "使用所有AI工具",
@@ -87,6 +88,8 @@
     "allTools": "所有工具",
     "noTools": "暂无可用工具，请稍后再来！",
     "noSearchResults": "未找到匹配的工具。",
+    "noSearchResultsDescription": "尝试不同的搜索词。",
+    "noToolsDescription": "AI工具即将推出。",
     "searchPlaceholder": "搜索工具...",
     "allCategories": "所有分类",
     "searching": "搜索中...",

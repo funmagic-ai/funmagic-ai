@@ -7,7 +7,14 @@ import { SideBanner } from '@/components/home'
 import { ToolCard } from '@/components/tools'
 import { CategoryFilterWrapper } from '@/components/tools'
 import { Button } from '@/components/ui/button'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Wand2 } from 'lucide-react'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
 
 interface HomePageProps {
   params: Promise<{ locale: string }>
@@ -130,9 +137,15 @@ async function ToolGridSection({ locale }: { locale: string }) {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 text-muted-foreground">
-          {tTools('noTools')}
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Wand2 />
+            </EmptyMedia>
+            <EmptyTitle>{tTools('noTools')}</EmptyTitle>
+            <EmptyDescription>{tTools('noToolsDescription')}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       )}
 
       {/* Load More Button */}

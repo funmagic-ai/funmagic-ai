@@ -6,6 +6,14 @@ import { getTools } from '@/lib/queries/tools'
 import { ToolGridSkeleton } from '@/components/skeletons'
 import { ToolsSearch } from './tools-search'
 import { ToolsPagination } from './tools-pagination'
+import { Search, Wand2 } from 'lucide-react'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
 
 const TOOLS_PER_PAGE = 12
 
@@ -59,9 +67,19 @@ async function ToolsGrid({
 
   if (tools.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">{search.q ? t('noSearchResults') : t('noTools')}</p>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            {search.q ? <Search /> : <Wand2 />}
+          </EmptyMedia>
+          <EmptyTitle>
+            {search.q ? t('noSearchResults') : t('noTools')}
+          </EmptyTitle>
+          <EmptyDescription>
+            {search.q ? t('noSearchResultsDescription') : t('noToolsDescription')}
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 

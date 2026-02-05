@@ -1,7 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { ImageIcon } from 'lucide-react'
 import { AssetCard } from './AssetCard'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
 
 interface Asset {
   id: string
@@ -39,25 +47,17 @@ export function AssetGallery({ assets, pagination, currentPage }: AssetGalleryPr
 
   if (assets.length === 0) {
     return (
-      <div className="text-center py-16">
-        <svg
-          className="mx-auto h-16 w-16 text-muted-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-          />
-        </svg>
-        <h3 className="mt-4 text-lg font-medium text-foreground">No assets yet</h3>
-        <p className="mt-2 text-muted-foreground">
-          Your generated images and files will appear here.
-        </p>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ImageIcon />
+          </EmptyMedia>
+          <EmptyTitle>No assets yet</EmptyTitle>
+          <EmptyDescription>
+            Your generated images and files will appear here.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 

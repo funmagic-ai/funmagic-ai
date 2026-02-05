@@ -3,7 +3,14 @@ import { connection } from 'next/server'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import { getCreditPackages } from '@/lib/queries/credits'
-import { Check, Sparkles, Zap, Crown } from 'lucide-react'
+import { Check, Sparkles, Zap, Crown, Package } from 'lucide-react'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
 
 interface PricingPageProps {
   params: Promise<{ locale: string }>
@@ -55,9 +62,15 @@ async function PricingGrid() {
 
   if (packages.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">{t('noPackages')}</p>
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Package />
+          </EmptyMedia>
+          <EmptyTitle>{t('noPackages')}</EmptyTitle>
+          <EmptyDescription>{t('noPackagesDescription')}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 

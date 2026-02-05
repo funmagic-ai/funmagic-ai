@@ -2,8 +2,15 @@
 
 import type { StyleReference } from '@/lib/types/tool-configs'
 import { Button } from '@/components/ui/button'
-import { Check } from 'lucide-react'
+import { Check, Palette } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty'
 
 interface StyleSelectorProps {
   styles: StyleReference[]
@@ -20,9 +27,17 @@ export function StyleSelector({
 }: StyleSelectorProps) {
   if (styles.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        No styles available. Please contact support.
-      </div>
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Palette />
+          </EmptyMedia>
+          <EmptyTitle>No styles available</EmptyTitle>
+          <EmptyDescription>
+            Please contact support for assistance.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     )
   }
 
