@@ -14,6 +14,7 @@ import {
   EmptyTitle,
   EmptyDescription,
 } from '@/components/ui/empty'
+import type { SupportedLocale } from '@funmagic/shared'
 
 const TOOLS_PER_PAGE = 12
 
@@ -32,11 +33,11 @@ export default async function ToolsPage({ params, searchParams }: ToolsPageProps
       <h1 className="text-4xl font-bold mb-8">{t('allTools')}</h1>
 
       <Suspense fallback={<SearchSkeleton />}>
-        <ToolsSearchWrapper searchParams={searchParams} />
+        <ToolsSearchWrapper searchParams={searchParams} locale={locale} />
       </Suspense>
 
       <Suspense fallback={<ToolGridSkeleton count={6} />}>
-        <ToolsGrid searchParams={searchParams} />
+        <ToolsGrid searchParams={searchParams} locale={locale} />
       </Suspense>
     </div>
   )
@@ -44,26 +45,36 @@ export default async function ToolsPage({ params, searchParams }: ToolsPageProps
 
 async function ToolsSearchWrapper({
   searchParams,
+  locale,
 }: {
   searchParams: Promise<{ q?: string; category?: string; page?: string }>
+  locale: string
 }) {
   await connection()
   const search = await searchParams
-  const { categories } = await getTools({ limit: 1 })
+  const { categories } = await getTools({ limit: 1, locale: locale as SupportedLocale })
 
   return <ToolsSearch q={search.q} category={search.category} categories={categories} />
 }
 
 async function ToolsGrid({
   searchParams,
+  locale,
 }: {
   searchParams: Promise<{ q?: string; category?: string; page?: string }>
+  locale: string
 }) {
   await connection()
   const search = await searchParams
   const t = await getTranslations('tools')
   const page = search.page ? parseInt(search.page, 10) : 1
-  const { tools, pagination } = await getTools({ q: search.q, category: search.category, page, limit: TOOLS_PER_PAGE })
+  const { tools, pagination } = await getTools({
+    q: search.q,
+    category: search.category,
+    page,
+    limit: TOOLS_PER_PAGE,
+    locale: locale as SupportedLocale,
+  })
 
   if (tools.length === 0) {
     return (

@@ -1,11 +1,13 @@
 import { cacheLife, cacheTag } from 'next/cache'
 import { api } from '@/lib/api'
+import type { SupportedLocale } from '@funmagic/shared'
 
 export interface ToolsQueryParams {
   q?: string
   category?: string
   page?: number
   limit?: number
+  locale: SupportedLocale
 }
 
 // Extended response type - matches backend schema after `bun run api:generate`
@@ -31,13 +33,24 @@ interface ToolsResponse {
   }>
 }
 
-export async function getTools(params?: ToolsQueryParams) {
+export async function getTools(params: ToolsQueryParams) {
   'use cache'
   cacheLife('tools')
   cacheTag('tools-list')
 
-  // TODO: After running `bun run api:generate`, query params will be properly typed
-  const { data } = await api.GET('/api/tools')
+  const { locale, ...rest } = params
+
+  const { data } = await api.GET('/api/tools', {
+    params: {
+      query: {
+        q: rest.q,
+        category: rest.category,
+        page: rest.page,
+        limit: rest.limit,
+        locale,
+      },
+    },
+  })
 
   // Cast to extended type that includes pagination and categories
   const response = data as ToolsResponse | undefined
@@ -49,9 +62,12 @@ export async function getTools(params?: ToolsQueryParams) {
   }
 }
 
-export async function getToolBySlug(slug: string) {
+export async function getToolBySlug(slug: string, locale: SupportedLocale) {
   const { data } = await api.GET('/api/tools/{slug}', {
-    params: { path: { slug } },
+    params: {
+      path: { slug },
+      query: { locale },
+    },
   })
   return data?.tool
 }

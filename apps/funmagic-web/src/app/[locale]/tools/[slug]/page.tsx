@@ -5,6 +5,7 @@ import { setRequestLocale } from 'next-intl/server'
 import { getToolBySlug } from '@/lib/queries/tools'
 import { ToolExecutor } from '@/components/tools/ToolExecutor'
 import type { ToolDetail } from '@/lib/types/tool-configs'
+import type { SupportedLocale } from '@funmagic/shared'
 
 interface ToolPageProps {
   params: Promise<{ locale: string; slug: string }>
@@ -25,7 +26,7 @@ async function ToolContent({ params }: { params: Promise<{ locale: string; slug:
   const { locale, slug } = await params
   setRequestLocale(locale)
 
-  const tool = await getToolBySlug(slug)
+  const tool = await getToolBySlug(slug, locale as SupportedLocale)
 
   if (!tool) {
     notFound()
