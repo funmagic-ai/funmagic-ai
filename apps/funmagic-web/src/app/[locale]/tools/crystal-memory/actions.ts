@@ -87,5 +87,5 @@ export async function createVGGTTaskAction(input: {
   }
 }
 
-// Re-export shared actions that aren't tool-specific
-export { getTaskStatusAction, saveTaskOutputAction } from '@/app/actions/tools'
+// Note: Import shared actions directly from '@/app/actions/tools' in client components
+// e.g., import { getTaskStatusAction, saveTaskOutputAction } from '@/app/actions/tools'

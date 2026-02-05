@@ -4,11 +4,8 @@ import { useState, useCallback } from 'react'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
-import {
-  createImageTaskAction,
-  create3DTaskAction,
-  saveTaskOutputAction,
-} from './actions'
+import { createImageTaskAction, create3DTaskAction } from './actions'
+import { saveTaskOutputAction } from '@/app/actions/tools'
 import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { StyleSelector } from './style-selector'
