@@ -126,6 +126,8 @@ Tool Page → Upload Image → Submit → Progress → Result → Download
 
 1. **Access Tool**
    - Navigate to `/tools/background-remove`
+   - Server Component checks if tool exists and `isActive`
+   - If inactive → 404 page
    - View tool description and pricing
    - See credit balance
 
@@ -133,16 +135,16 @@ Tool Page → Upload Image → Submit → Progress → Result → Download
    - Click upload area
    - Select image file
    - Preview image
-   - (Alternative: Paste image URL)
+   - File stored in state (not uploaded yet)
 
 3. **Submit Task**
    - Click "Remove Background"
-   - Frontend calls `POST /api/assets/upload` for presigned URL
-   - Frontend uploads to S3 directly
-   - Frontend calls `POST /api/tasks` with image URL
+   - Frontend uploads to S3 via `useSubmitUpload` hook → gets `storageKey`
+   - Frontend calls colocated Server Action with `imageStorageKey`
+   - Server Action calls `POST /api/tasks` with credentials
 
 4. **Real-time Progress**
-   - Frontend connects to `GET /api/tasks/{id}/stream` (SSE)
+   - `useTaskProgress` hook connects to `GET /api/tasks/{id}/stream` (SSE)
    - Receives progress events:
      - `connected`
      - `step_started` ("Removing Background")
@@ -151,13 +153,32 @@ Tool Page → Upload Image → Submit → Progress → Result → Download
 
 5. **View Result**
    - Result image displayed
-   - Before/after comparison
+   - Before/after comparison slider
    - Download button enabled
 
 6. **Download/Save**
    - Click "Download"
-   - Get presigned URL: `GET /api/assets/{id}/url`
+   - Get presigned URL from result output
    - Browser downloads file
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│             Colocated Tool Route Structure                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  app/[locale]/tools/background-remove/                           │
+│  ├── page.tsx              # Server Component                    │
+│  │   └── Checks tool.isActive, fetches localized content         │
+│  ├── actions.ts            # Colocated Server Actions            │
+│  │   └── createTaskAction() - hardcoded toolSlug                 │
+│  ├── background-remove-client.tsx  # Client Component            │
+│  │   └── useSubmitUpload, useTaskProgress hooks                  │
+│  └── before-after-comparison.tsx   # Result display              │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ### Technical Sequence
 
@@ -201,52 +222,104 @@ Tool Page → Upload Image → Submit → Progress → Result → Download
 ### Flow
 
 ```
-Tool Page → Upload Photo → Select Style → Submit → Step 1 Progress →
-Review Image → Continue → Step 2 Progress → 3D Model → Download
+Tool Page → Select Style → Upload Photo → Submit → Step 1 Progress →
+Review Image → Generate 3D → Step 2 Progress → 3D Model → Download
 ```
 
 ### Steps
 
 1. **Access Tool**
    - Navigate to `/tools/figme`
+   - Server Component checks `tool.isActive`
    - View tool description (2-step process explained)
-   - See combined credit cost
+   - See individual step credit costs
 
-2. **Upload & Configure**
-   - Upload portrait photo
-   - Select style reference (anime, cartoon, realistic, etc.)
-   - Preview selections
+2. **Select Style**
+   - View admin-configured style references (anime, cartoon, etc.)
+   - Each style has preview image and prompt
+   - Select desired style
 
-3. **Submit Step 1**
+3. **Upload Photo**
+   - Upload portrait photo via `ImagePicker`
+   - File stored in state with preview
    - Click "Generate Image"
-   - `POST /api/tasks` with `stepId: "image-gen"`
-   - Connect to SSE stream
 
-4. **Step 1 Progress**
+4. **Submit Step 1**
+   - `useSubmitUpload` uploads to S3 → gets `storageKey`
+   - Colocated `createImageTaskAction` called with:
+     - `styleReferenceId`
+     - `imageStorageKey`
+   - `useTaskProgress` connects to SSE stream
+
+5. **Step 1 Progress**
    - `step_started: "Image Generation"`
-   - Progress updates (calling OpenAI)
+   - Progress updates (calling OpenAI gpt-image-1)
    - `step_completed` with generated image
 
-5. **Review & Continue**
-   - View generated image
-   - Option to regenerate
-   - Click "Continue to 3D"
+6. **Review & Continue**
+   - View stylized image result
+   - Options: Save to Assets, Generate 3D, Start Over
+   - Click "Generate 3D"
 
-6. **Submit Step 2**
-   - `POST /api/tasks` with:
-     - `stepId: "3d-gen"`
+7. **Submit Step 2**
+   - Colocated `create3DTaskAction` called with:
      - `parentTaskId: <step1-task-id>`
-   - Connect to new SSE stream
+     - `sourceAssetId`
+     - `sourceImageUrl`
+   - New SSE stream connected
 
-7. **Step 2 Progress**
+8. **Step 2 Progress**
    - `step_started: "3D Model Generation"`
-   - Progress updates (calling Tripo)
+   - Progress updates (calling Tripo API)
    - `step_completed` with 3D model
 
-8. **Final Result**
-   - 3D model viewer embedded
-   - Rotate/zoom controls
-   - Download options (GLB, OBJ, etc.)
+9. **Final Result**
+   - 3D model download available (GLB format)
+   - Download button
+   - "Create New" to restart
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                FigMe Colocated Route Structure                    │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  app/[locale]/tools/figme/                                       │
+│  ├── page.tsx              # Server Component                    │
+│  │   └── Fetches tool + locale, checks isActive                 │
+│  ├── actions.ts            # Colocated Server Actions            │
+│  │   ├── createImageTaskAction()  - stepId: 'image-gen'         │
+│  │   └── create3DTaskAction()     - stepId: '3d-gen'            │
+│  ├── figme-client.tsx      # Client Component with state machine│
+│  ├── style-selector.tsx    # Style reference grid               │
+│  ├── result-display.tsx    # Image result + action buttons      │
+│  └── three-d-viewer.tsx    # 3D model viewer + download         │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### User Journey State Machine
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                        FigMe Step States                                │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                        │
+│  ┌──────────────┐    ┌────────────┐    ┌───────────────┐              │
+│  │ select-style │───►│upload-image│───►│generating-image│              │
+│  └──────────────┘    └────────────┘    └───────┬───────┘              │
+│                                                 │                      │
+│       ┌─────────────────────────────────────────┘                      │
+│       ▼                                                                │
+│  ┌──────────────┐    ┌───────────────┐    ┌────────────┐              │
+│  │ image-result │───►│ generating-3d │───►│  3d-result │              │
+│  └──────────────┘    └───────────────┘    └────────────┘              │
+│       │                                                                │
+│       └─── Save to Assets / Start Over                                 │
+│                                                                        │
+└───────────────────────────────────────────────────────────────────────┘
+```
 
 ### State Machine
 
@@ -267,6 +340,97 @@ Review Image → Continue → Step 2 Progress → 3D Model → Download
 │                 └─────────────┘    └────────────┘    └───────────┘   │
 │                                                                        │
 └───────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Journey 4b: Two-Step Pipeline Tool (Crystal Memory - Photo to 3D Point Cloud)
+
+### Flow
+
+```
+Tool Page → Upload Photo → Auto: Background Remove → Auto: VGGT → Point Cloud Viewer
+```
+
+### Steps
+
+1. **Access Tool**
+   - Navigate to `/tools/crystal-memory`
+   - Server Component checks `tool.isActive`
+   - View tool description (automatic 2-step pipeline)
+   - See total credit cost (step 1 + step 2)
+
+2. **Upload Photo**
+   - Upload image with clear subject
+   - Works best with objects that have distinct edges
+   - File stored in state with preview
+
+3. **Submit (Triggers Pipeline)**
+   - Click "Create 3D Point Cloud"
+   - `useSubmitUpload` uploads to S3 → gets `storageKey`
+   - `createBgRemoveTaskAction` starts step 1
+   - Step indicator shows progress
+
+4. **Step 1: Background Removal (Automatic)**
+   - Progress: "Removing Background"
+   - Uses fal.ai background removal
+   - On complete: Automatically triggers step 2
+
+5. **Step 2: VGGT Point Cloud (Automatic)**
+   - Progress: "Generating 3D Point Cloud"
+   - Uses VGGT model via Replicate
+   - Generates point cloud data with colors and confidence
+
+6. **View Result**
+   - Interactive 3D point cloud viewer (Three.js)
+   - Controls:
+     - Rotate with mouse
+     - Zoom with scroll
+     - Pan with right-click
+     - Point size slider
+     - Confidence threshold filter
+     - Auto-rotate toggle
+
+7. **Download**
+   - Download as PLY format
+   - Compatible with 3D software (Blender, MeshLab)
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│            Crystal Memory Colocated Route Structure               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  app/[locale]/tools/crystal-memory/                              │
+│  ├── page.tsx              # Server Component                    │
+│  ├── actions.ts            # Colocated Server Actions            │
+│  │   ├── createBgRemoveTaskAction() - stepId: 'background-remove'│
+│  │   └── createVGGTTaskAction()     - stepId: 'vggt'            │
+│  ├── crystal-memory-client.tsx  # Client with auto-pipeline     │
+│  └── point-cloud-viewer.tsx     # Three.js point cloud render   │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Pipeline Flow (Automatic)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                  Automatic Pipeline Execution                     │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  Upload    ┌──────────────┐    ┌─────────────┐    ┌──────────┐  │
+│  Image ───►│ BG Remove    │───►│   VGGT      │───►│ 3D View  │  │
+│            │ (5 credits)  │    │ (15 credits)│    │ + PLY    │  │
+│            └──────────────┘    └─────────────┘    └──────────┘  │
+│                  │                    │                          │
+│                  │  On step 1 complete,                          │
+│                  │  automatically triggers step 2                │
+│                  │  with bgRemovedImageUrl                       │
+│                  └────────────────────┘                          │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---

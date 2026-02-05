@@ -555,6 +555,128 @@ task:{taskId}:output    # Final output storage
 5. Output stored in `task_payloads.output`
 6. Credits confirmed on success, released on failure
 
+## Tool Page Architecture
+
+### Colocated Route Structure
+
+Each tool has its own dedicated route with colocated components and actions:
+
+```
+app/[locale]/tools/
+├── page.tsx                    # Tools listing
+├── [slug]/page.tsx             # Fallback for unmigrated tools
+├── figme/
+│   ├── page.tsx                # Server Component - fetches tool, checks isActive
+│   ├── actions.ts              # Server Actions (colocated with tool)
+│   ├── figme-client.tsx        # Client Component - handles user journey
+│   ├── style-selector.tsx      # Style selection UI
+│   ├── result-display.tsx      # Image result display
+│   └── three-d-viewer.tsx      # 3D model viewer
+├── background-remove/
+│   ├── page.tsx
+│   ├── actions.ts
+│   ├── background-remove-client.tsx
+│   └── before-after-comparison.tsx
+└── crystal-memory/
+    ├── page.tsx
+    ├── actions.ts
+    ├── crystal-memory-client.tsx
+    └── point-cloud-viewer.tsx
+```
+
+### Benefits
+
+1. **Code organization** - All tool-related code in one folder (including actions)
+2. **Easier to understand** - Clear ownership of code per tool
+3. **No executor dispatcher** - Direct imports, no runtime switching
+4. **Custom metadata** - Each tool page can have custom loading states, error handling
+5. **Follows Next.js conventions** - App Router best practices
+6. **Colocated actions** - Server Actions live with their tool
+
+### Tool Page Pattern
+
+Each tool's `page.tsx` follows this pattern:
+
+```tsx
+import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
+import { setRequestLocale } from 'next-intl/server'
+import { getToolBySlug } from '@/lib/queries/tools'
+import { MyToolClient } from './my-tool-client'
+import type { SupportedLocale } from '@funmagic/shared'
+
+export default async function MyToolPage({ params }) {
+  // Defer to runtime to avoid build-time locale issues
+  await connection()
+
+  const { locale } = await params
+  setRequestLocale(locale)
+
+  const tool = await getToolBySlug('my-tool', locale as SupportedLocale)
+
+  // Check if tool exists AND is active (admin can disable tools)
+  if (!tool || !tool.isActive) {
+    notFound()
+  }
+
+  return <MyToolClient tool={tool} />
+}
+```
+
+### Colocated Actions Pattern
+
+Each tool has its own `actions.ts` with hardcoded `toolSlug`:
+
+```tsx
+'use server'
+
+import { api } from '@/lib/api'
+import { auth } from '@funmagic/auth/server'
+import { headers, cookies } from 'next/headers'
+import { revalidateTag } from 'next/cache'
+
+export async function createTaskAction(input: { imageStorageKey: string }) {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return { success: false, error: 'Not authenticated', code: 'UNAUTHORIZED' }
+  }
+
+  const { data, error } = await api.POST('/api/tasks', {
+    body: {
+      toolSlug: 'my-tool',  // Hardcoded - no need to pass from client
+      stepId: 'step-id',
+      input: { imageStorageKey: input.imageStorageKey },
+    },
+    headers: { cookie: (await cookies()).toString() },
+  })
+
+  if (error) {
+    return { success: false, error: error.error, code: 'UNKNOWN' }
+  }
+
+  revalidateTag(`user-credits-${session.user.id}`, 'default')
+
+  return { success: true, taskId: data!.task.id }
+}
+```
+
+### Storage Key vs URL Pattern
+
+Workers accept both `imageUrl` (direct URL) and `imageStorageKey` (S3 key):
+
+```typescript
+// In worker
+let imageUrl = input.imageUrl;
+if (!imageUrl && input.imageStorageKey) {
+  imageUrl = await getDownloadUrl(input.imageStorageKey);
+}
+```
+
+This allows:
+- Client uploads to S3 via presigned URL → gets storage key
+- Client passes storage key to server action
+- Worker converts storage key to presigned URL for API calls
+
 ## Security
 
 ### Authentication

@@ -303,7 +303,212 @@ const toolWorkers: Record<string, ToolWorker> = {
 // ... rest of file
 ```
 
-### Step 7: Regenerate API Types
+### Step 7: Create Colocated Tool Route (Frontend)
+
+Create a dedicated route for your tool with colocated components and actions:
+
+```bash
+mkdir -p apps/funmagic-web/src/app/\[locale\]/tools/my-new-tool
+```
+
+**Create `page.tsx` (Server Component):**
+
+```tsx
+// apps/funmagic-web/src/app/[locale]/tools/my-new-tool/page.tsx
+import { Suspense } from 'react'
+import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
+import { setRequestLocale } from 'next-intl/server'
+import { getToolBySlug } from '@/lib/queries/tools'
+import { MyNewToolClient } from './my-new-tool-client'
+import type { SupportedLocale } from '@funmagic/shared'
+
+interface PageProps {
+  params: Promise<{ locale: string }>
+}
+
+async function MyNewToolContent({ params }: { params: Promise<{ locale: string }> }) {
+  // Defer to runtime to avoid build-time locale issues
+  await connection()
+
+  const { locale } = await params
+  setRequestLocale(locale)
+
+  const tool = await getToolBySlug('my-new-tool', locale as SupportedLocale)
+
+  // Check if tool exists AND is active (admin can disable tools)
+  if (!tool || !tool.isActive) {
+    notFound()
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto py-12 px-4">
+      <h1 className="text-4xl font-bold mb-4">{tool.title}</h1>
+      {tool.description && (
+        <p className="text-muted-foreground mb-8">{tool.description}</p>
+      )}
+      <MyNewToolClient tool={tool} />
+    </div>
+  )
+}
+
+export default async function MyNewToolPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={<div className="animate-pulse" />}>
+      <MyNewToolContent params={params} />
+    </Suspense>
+  )
+}
+```
+
+**Create `actions.ts` (Colocated Server Actions):**
+
+```tsx
+// apps/funmagic-web/src/app/[locale]/tools/my-new-tool/actions.ts
+'use server'
+
+import { api } from '@/lib/api'
+import { auth } from '@funmagic/auth/server'
+import { headers, cookies } from 'next/headers'
+import { revalidateTag } from 'next/cache'
+
+type CreateTaskResult =
+  | { success: true; taskId: string; creditsCost: number }
+  | { success: false; error: string; code: string }
+
+export async function createTaskAction(input: {
+  imageStorageKey: string
+}): Promise<CreateTaskResult> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session) {
+    return { success: false, error: 'Not authenticated', code: 'UNAUTHORIZED' }
+  }
+
+  const { data, error } = await api.POST('/api/tasks', {
+    body: {
+      toolSlug: 'my-new-tool',  // Hardcoded - no need to pass from client
+      stepId: 'step-id',        // Your step ID
+      input: {
+        imageStorageKey: input.imageStorageKey,
+      },
+    },
+    headers: { cookie: (await cookies()).toString() },
+  })
+
+  if (error) {
+    if (error.error?.includes('Insufficient credits')) {
+      return { success: false, error: error.error, code: 'INSUFFICIENT_CREDITS' }
+    }
+    return { success: false, error: error.error || 'Unknown error', code: 'UNKNOWN' }
+  }
+
+  revalidateTag(`user-credits-${session.user.id}`, 'default')
+
+  return {
+    success: true,
+    taskId: data!.task.id,
+    creditsCost: data!.task.creditsCost ?? 0,
+  }
+}
+
+// Re-export shared actions
+export { getTaskStatusAction, saveTaskOutputAction } from '@/app/actions/tools'
+```
+
+**Create `my-new-tool-client.tsx` (Client Component):**
+
+```tsx
+// apps/funmagic-web/src/app/[locale]/tools/my-new-tool/my-new-tool-client.tsx
+'use client'
+
+import { useState, useCallback } from 'react'
+import { useSessionContext } from '@/components/providers/session-provider'
+import { useSubmitUpload } from '@/hooks/useSubmitUpload'
+import { useTaskProgress } from '@/hooks/useTaskProgress'
+import { createTaskAction } from './actions'
+import { ImagePicker } from '@/components/upload/ImagePicker'
+import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
+import type { ToolDetail } from '@/lib/types/tool-configs'
+
+export function MyNewToolClient({ tool }: { tool: ToolDetail }) {
+  const { session } = useSessionContext()
+  const [step, setStep] = useState<'upload' | 'processing' | 'result'>('upload')
+  const [taskId, setTaskId] = useState<string | null>(null)
+  const [result, setResult] = useState<unknown>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const upload = useSubmitUpload({
+    route: 'my-new-tool',
+    onError: (err) => setError(err),
+  })
+
+  useTaskProgress({
+    taskId,
+    onComplete: (output) => {
+      setResult(output)
+      setStep('result')
+      setTaskId(null)
+    },
+    onFailed: (err) => {
+      setError(err)
+      setStep('upload')
+      setTaskId(null)
+    },
+  })
+
+  const handleSubmit = useCallback(async () => {
+    if (!upload.pendingFile) return
+    setError(null)
+
+    const storageKey = await upload.uploadOnSubmit()
+    if (!storageKey) {
+      setError('Upload failed')
+      return
+    }
+
+    const taskResult = await createTaskAction({ imageStorageKey: storageKey })
+    if (!taskResult.success) {
+      setError(taskResult.error)
+      return
+    }
+
+    setTaskId(taskResult.taskId)
+    setStep('processing')
+  }, [upload])
+
+  if (!session) {
+    return <div>Please sign in to use this tool</div>
+  }
+
+  return (
+    <div className="bg-card p-6 rounded-xl shadow-sm border">
+      {error && <div className="text-red-500 mb-4">{error}</div>}
+
+      {step === 'upload' && (
+        <>
+          <ImagePicker
+            onFileSelect={upload.setFile}
+            preview={upload.preview}
+          />
+          <button onClick={handleSubmit} disabled={!upload.pendingFile}>
+            Process Image
+          </button>
+        </>
+      )}
+
+      {step === 'processing' && taskId && (
+        <TaskProgressDisplay taskId={taskId} />
+      )}
+
+      {step === 'result' && result && (
+        <div>Result: {JSON.stringify(result)}</div>
+      )}
+    </div>
+  )
+}
+```
+
+### Step 8: Regenerate API Types
 
 After updating the backend, regenerate types:
 
@@ -315,10 +520,10 @@ bun run dev:backend
 bun run api:generate
 ```
 
-### Step 8: Test Your Tool
+### Step 9: Test Your Tool
 
 1. Create the tool via Admin UI
-2. Navigate to the tool in the web app
+2. Navigate to `/tools/my-new-tool`
 3. Submit a task and verify:
    - Task appears in queue
    - Worker picks up the job
@@ -336,19 +541,35 @@ bun run api:generate
 ```
 src/
 ├── app/                      # Next.js App Router
-│   ├── (auth)/               # Auth route group
-│   │   ├── login/page.tsx
-│   │   └── register/page.tsx
-│   ├── api/auth/[...all]/    # Auth API passthrough
-│   ├── tools/
-│   │   ├── page.tsx          # Tools listing
-│   │   └── [slug]/page.tsx   # Tool detail + usage
-│   ├── layout.tsx            # Root layout
-│   ├── page.tsx              # Homepage
+│   ├── [locale]/             # Locale-aware routes (next-intl)
+│   │   ├── (auth)/           # Auth route group
+│   │   │   ├── login/page.tsx
+│   │   │   └── register/page.tsx
+│   │   ├── tools/
+│   │   │   ├── page.tsx          # Tools listing
+│   │   │   ├── [slug]/page.tsx   # Fallback for unmigrated tools
+│   │   │   ├── figme/            # Colocated tool route
+│   │   │   │   ├── page.tsx      # Server Component
+│   │   │   │   ├── actions.ts    # Colocated Server Actions
+│   │   │   │   ├── figme-client.tsx
+│   │   │   │   └── *.tsx         # Tool-specific components
+│   │   │   ├── background-remove/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── actions.ts
+│   │   │   │   └── *.tsx
+│   │   │   └── crystal-memory/
+│   │   │       ├── page.tsx
+│   │   │       ├── actions.ts
+│   │   │       └── *.tsx
+│   │   ├── layout.tsx
+│   │   └── page.tsx              # Homepage
+│   ├── actions/              # Shared server actions
+│   │   └── tools.ts          # Shared tool actions (getTaskStatus, etc.)
 │   └── globals.css
 ├── components/
 │   ├── ui/                   # shadcn/ui components
-│   ├── tools/                # Tool-specific components
+│   ├── tools/                # Shared tool components (TaskProgressDisplay, etc.)
+│   ├── upload/               # Upload components (ImagePicker, etc.)
 │   ├── auth/                 # Auth forms
 │   └── layout/               # Header, footer, nav
 └── lib/
