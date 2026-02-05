@@ -31,7 +31,7 @@ export function PackageGeneralForm() {
 
   return (
     <form action={formAction}>
-      <div className="mx-auto max-w-2xl grid gap-6">
+      <div className="mx-auto max-w-4xl grid gap-4 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -78,7 +78,7 @@ export function PackageGeneralForm() {
             <CardDescription>Configure credit amounts and price</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="credits">
                   Credits <span className="text-destructive">*</span>
@@ -116,7 +116,7 @@ export function PackageGeneralForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="price">
                   Price (USD) <span className="text-destructive">*</span>

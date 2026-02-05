@@ -1,0 +1,207 @@
+'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import {
+  LayoutDashboard,
+  Wrench,
+  Users,
+  ListTodo,
+  CreditCard,
+  Server,
+  Layers,
+  Image,
+  Activity,
+  LogOut,
+  Menu,
+  type LucideIcon,
+} from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { ThemeSwitcher } from '@/components/theme/theme-switcher';
+import { signOut } from '@/lib/auth-client';
+
+interface MobileHeaderProps {
+  user: {
+    id: string;
+    name?: string | null;
+    email: string;
+    image?: string | null;
+    role: string;
+  };
+}
+
+type NavItem = {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  requiredRole?: 'admin' | 'super_admin';
+};
+
+type NavGroup = {
+  label: string;
+  items: NavItem[];
+};
+
+const navigationGroups: NavGroup[] = [
+  {
+    label: 'Overview',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Operations',
+    items: [
+      { name: 'Tools', href: '/dashboard/tools', icon: Wrench },
+      { name: 'Users', href: '/dashboard/users', icon: Users },
+      { name: 'Tasks', href: '/dashboard/tasks', icon: ListTodo },
+    ],
+  },
+  {
+    label: 'Content & Billing',
+    items: [
+      { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
+      { name: 'Content', href: '/dashboard/content', icon: Image },
+    ],
+  },
+  {
+    label: 'System',
+    items: [
+      { name: 'Providers', href: '/dashboard/providers', icon: Server, requiredRole: 'super_admin' },
+      { name: 'Tool Types', href: '/dashboard/tool-types', icon: Layers, requiredRole: 'super_admin' },
+      { name: 'Queue', href: '/dashboard/queue', icon: Activity, requiredRole: 'super_admin' },
+    ],
+  },
+];
+
+function hasAccess(userRole: string, requiredRole?: 'admin' | 'super_admin'): boolean {
+  if (!requiredRole || requiredRole === 'admin') {
+    return userRole === 'admin' || userRole === 'super_admin';
+  }
+  if (requiredRole === 'super_admin') {
+    return userRole === 'super_admin';
+  }
+  return false;
+}
+
+export function MobileHeader({ user }: MobileHeaderProps) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = '/login';
+  };
+
+  return (
+    <header className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center justify-between border-b bg-sidebar px-4 md:hidden">
+      <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <Wrench className="h-4 w-4" />
+        </div>
+        <span className="text-sidebar-foreground">Funmagic Admin</span>
+      </Link>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Toggle menu</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-64 p-0">
+          <SheetHeader className="flex h-16 items-center border-b px-4">
+            <SheetTitle className="flex items-center gap-2 font-semibold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Wrench className="h-4 w-4" />
+              </div>
+              <span>Funmagic Admin</span>
+            </SheetTitle>
+          </SheetHeader>
+
+          <nav className="flex-1 overflow-y-auto p-4">
+            {navigationGroups.map((group) => {
+              const visibleItems = group.items.filter((item) =>
+                hasAccess(user.role, item.requiredRole)
+              );
+
+              if (visibleItems.length === 0) return null;
+
+              return (
+                <div key={group.label} className="mb-6">
+                  <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </h3>
+                  <div className="space-y-1">
+                    {visibleItems.map((item) => {
+                      const isActive =
+                        item.href === '/dashboard'
+                          ? pathname === '/dashboard'
+                          : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={() => setOpen(false)}
+                          className={cn(
+                            'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                            isActive
+                              ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                              : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                          )}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </nav>
+
+          <Separator />
+
+          <div className="p-4 space-y-3">
+            <ThemeSwitcher />
+            <Separator />
+            <div className="flex items-center gap-3">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={user.image ?? undefined} alt={user.name ?? user.email} />
+                <AvatarFallback>
+                  {(user.name ?? user.email).slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 overflow-hidden">
+                <p className="truncate text-sm font-medium text-sidebar-foreground">
+                  {user.name ?? user.email}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{user.role}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </header>
+  );
+}

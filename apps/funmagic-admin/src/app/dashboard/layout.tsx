@@ -6,6 +6,7 @@ import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Sidebar } from '@/components/layout/sidebar';
 import { SidebarSkeleton } from '@/components/layout/sidebar-skeleton';
+import { MobileHeader } from '@/components/layout/mobile-header';
 
 async function requireAdmin() {
   const session = await auth.api.getSession({
@@ -19,16 +20,18 @@ async function requireAdmin() {
 
 async function SidebarWithAuth() {
   const session = await requireAdmin();
+  const user = {
+    id: session.user.id,
+    name: session.user.name,
+    email: session.user.email,
+    image: session.user.image,
+    role: session.user.role,
+  };
   return (
-    <Sidebar
-      user={{
-        id: session.user.id,
-        name: session.user.name,
-        email: session.user.email,
-        image: session.user.image,
-        role: session.user.role,
-      }}
-    />
+    <>
+      <MobileHeader user={user} />
+      <Sidebar user={user} />
+    </>
   );
 }
 
@@ -40,11 +43,11 @@ export default async function DashboardLayout({
   await connection();
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background md:flex-row">
       <Suspense fallback={<SidebarSkeleton />}>
         <SidebarWithAuth />
       </Suspense>
-      <main className="ml-64 flex-1 overflow-auto p-8">
+      <main className="ml-0 flex-1 overflow-auto px-4 pb-4 pt-16 md:ml-64 md:px-8 md:pb-8 md:pt-8">
         <div className="mx-auto max-w-7xl">
           {children}
         </div>

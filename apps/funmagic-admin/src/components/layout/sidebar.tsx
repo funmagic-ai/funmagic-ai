@@ -95,7 +95,7 @@ export function Sidebar({ user }: SidebarProps) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r bg-sidebar">
+    <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r bg-sidebar md:flex">
       <div className="flex h-16 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
@@ -121,7 +121,9 @@ export function Sidebar({ user }: SidebarProps) {
               <div className="space-y-1">
                 {visibleItems.map((item) => {
                   const isActive =
-                    pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    item.href === '/dashboard'
+                      ? pathname === '/dashboard'
+                      : pathname === item.href || pathname.startsWith(`${item.href}/`);
                   return (
                     <Link
                       key={item.name}

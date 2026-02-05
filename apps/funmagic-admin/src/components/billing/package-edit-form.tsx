@@ -48,7 +48,7 @@ export function PackageEditForm({ pkg }: PackageEditFormProps) {
   return (
     <form action={formAction}>
       <input type="hidden" name="id" value={pkg.id} />
-      <div className="mx-auto max-w-2xl grid gap-6">
+      <div className="mx-auto max-w-4xl grid gap-4 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
@@ -97,7 +97,7 @@ export function PackageEditForm({ pkg }: PackageEditFormProps) {
             <CardDescription>Configure credit amounts and price</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="credits">
                   Credits <span className="text-destructive">*</span>
@@ -135,7 +135,7 @@ export function PackageEditForm({ pkg }: PackageEditFormProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div className="grid gap-2">
                 <Label htmlFor="price">
                   Price (USD) <span className="text-destructive">*</span>

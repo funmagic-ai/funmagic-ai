@@ -16,9 +16,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, CreditCard, ListTodo, User } from 'lucide-react';
+import { ArrowLeft, CreditCard, ListTodo, User, Receipt } from 'lucide-react';
 import { UserRoleSelect } from '@/components/users/user-role-select';
 import { UserCreditAdjust } from '@/components/users/user-credit-adjust';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -216,7 +223,17 @@ async function UserDetailContent({ id }: { id: string }) {
             </CardHeader>
             <CardContent>
               {recentTransactions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No transactions yet</p>
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <Receipt />
+                    </EmptyMedia>
+                    <EmptyTitle>No transactions yet</EmptyTitle>
+                    <EmptyDescription>
+                      This user has no credit transactions.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : (
                 <Table>
                   <TableHeader>
@@ -266,7 +283,17 @@ async function UserDetailContent({ id }: { id: string }) {
             </CardHeader>
             <CardContent>
               {recentTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No tasks yet</p>
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <ListTodo />
+                    </EmptyMedia>
+                    <EmptyTitle>No tasks yet</EmptyTitle>
+                    <EmptyDescription>
+                      This user hasn't created any tasks.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
               ) : (
                 <Table>
                   <TableHeader>

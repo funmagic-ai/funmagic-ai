@@ -3,7 +3,7 @@ import { Separator } from '@/components/ui/separator';
 
 export function SidebarSkeleton() {
   return (
-    <aside className="fixed left-0 top-0 flex h-screen w-64 flex-col border-r bg-sidebar">
+    <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r bg-sidebar md:flex">
       <div className="flex h-16 items-center border-b px-4">
         <div className="flex items-center gap-2">
           <Skeleton className="h-8 w-8 rounded-lg" />

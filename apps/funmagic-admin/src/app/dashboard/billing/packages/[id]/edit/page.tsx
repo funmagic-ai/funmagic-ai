@@ -18,7 +18,7 @@ export default async function EditPackagePage({ params }: EditPackagePageProps) 
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/billing">
@@ -26,7 +26,7 @@ export default async function EditPackagePage({ params }: EditPackagePageProps) 
           </Link>
         </Button>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Edit Package</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Edit Package</h1>
           <p className="text-muted-foreground">Update package details</p>
         </div>
       </div>

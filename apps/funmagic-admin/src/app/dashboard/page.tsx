@@ -11,15 +11,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Users, ListTodo, CreditCard, DollarSign } from 'lucide-react';
+import { Users, ListTodo, CreditCard, DollarSign, Receipt } from 'lucide-react';
 import { StatsSkeleton } from '@/components/shared/stats-skeleton';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 md:space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Dashboard</h1>
         <p className="text-muted-foreground">
           Overview of your platform statistics
         </p>
@@ -29,7 +36,7 @@ export default function DashboardPage() {
         <StatsCards />
       </Suspense>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Recent Transactions</CardTitle>
@@ -120,42 +127,56 @@ async function RecentTransactions() {
   });
 
   if (transactions.length === 0) {
-    return <p className="text-sm text-muted-foreground">No transactions yet</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Receipt />
+          </EmptyMedia>
+          <EmptyTitle>No transactions yet</EmptyTitle>
+          <EmptyDescription>
+            Recent credit transactions will appear here.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead className="text-right">Date</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {transactions.map((tx) => (
-          <TableRow key={tx.id}>
-            <TableCell className="font-medium">
-              {tx.user?.name ?? tx.user?.email ?? 'Unknown'}
-            </TableCell>
-            <TableCell>
-              <Badge variant={tx.type === 'purchase' ? 'default' : 'secondary'}>
-                {tx.type}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                {tx.amount > 0 ? '+' : ''}{tx.amount}
-              </span>
-            </TableCell>
-            <TableCell className="text-right text-muted-foreground">
-              {new Date(tx.createdAt).toLocaleDateString()}
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>User</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">Date</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((tx) => (
+            <TableRow key={tx.id}>
+              <TableCell className="font-medium">
+                {tx.user?.name ?? tx.user?.email ?? 'Unknown'}
+              </TableCell>
+              <TableCell>
+                <Badge variant={tx.type === 'purchase' ? 'default' : 'secondary'}>
+                  {tx.type}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                  {tx.amount > 0 ? '+' : ''}{tx.amount}
+                </span>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {new Date(tx.createdAt).toLocaleDateString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -167,7 +188,19 @@ async function RecentTasks() {
   });
 
   if (recentTasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No tasks yet</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ListTodo />
+          </EmptyMedia>
+          <EmptyTitle>No tasks yet</EmptyTitle>
+          <EmptyDescription>
+            Recent task activity will appear here.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   const statusColors: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -179,33 +212,35 @@ async function RecentTasks() {
   };
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Tool</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Date</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {recentTasks.map((task) => (
-          <TableRow key={task.id}>
-            <TableCell className="font-medium">
-              {task.user?.name ?? task.user?.email ?? 'Unknown'}
-            </TableCell>
-            <TableCell>{task.tool?.title ?? 'Unknown'}</TableCell>
-            <TableCell>
-              <Badge variant={statusColors[task.status] ?? 'secondary'}>
-                {task.status}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-right text-muted-foreground">
-              {new Date(task.createdAt).toLocaleDateString()}
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>User</TableHead>
+            <TableHead>Tool</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Date</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {recentTasks.map((task) => (
+            <TableRow key={task.id}>
+              <TableCell className="font-medium">
+                {task.user?.name ?? task.user?.email ?? 'Unknown'}
+              </TableCell>
+              <TableCell>{task.tool?.title ?? 'Unknown'}</TableCell>
+              <TableCell>
+                <Badge variant={statusColors[task.status] ?? 'secondary'}>
+                  {task.status}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {new Date(task.createdAt).toLocaleDateString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

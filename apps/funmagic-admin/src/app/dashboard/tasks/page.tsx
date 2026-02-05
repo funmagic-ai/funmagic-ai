@@ -14,7 +14,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { Eye } from 'lucide-react';
+import { Eye, ListTodo } from 'lucide-react';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 interface TasksPageProps {
   searchParams: Promise<{ status?: string }>;
@@ -24,9 +31,9 @@ export default async function TasksPage({ searchParams }: TasksPageProps) {
   const { status: statusFilter } = await searchParams;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Tasks</h1>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Tasks</h1>
         <p className="text-muted-foreground">Monitor and manage user tasks</p>
       </div>
 
@@ -91,9 +98,17 @@ async function TaskTableData({ statusFilter }: { statusFilter?: string }) {
 
   if (allTasks.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-        <p className="text-muted-foreground">No tasks found</p>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ListTodo />
+          </EmptyMedia>
+          <EmptyTitle>No tasks found</EmptyTitle>
+          <EmptyDescription>
+            No tasks match the selected filter.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -113,16 +128,16 @@ async function TaskTableData({ statusFilter }: { statusFilter?: string }) {
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
             <TableHead>Tool</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead className="text-right">Credits</TableHead>
-            <TableHead className="text-right">Duration</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Credits</TableHead>
+            <TableHead className="hidden text-right md:table-cell">Duration</TableHead>
+            <TableHead className="hidden sm:table-cell">Created</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -136,11 +151,11 @@ async function TaskTableData({ statusFilter }: { statusFilter?: string }) {
               <TableCell>
                 <Badge variant={statusColors[task.status] ?? 'secondary'}>{task.status}</Badge>
               </TableCell>
-              <TableCell className="text-right">{task.creditsCost}</TableCell>
-              <TableCell className="text-right text-muted-foreground">
+              <TableCell className="hidden text-right sm:table-cell">{task.creditsCost}</TableCell>
+              <TableCell className="hidden text-right text-muted-foreground md:table-cell">
                 {formatDuration(task.startedAt, task.completedAt)}
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
                 {new Date(task.createdAt).toLocaleString()}
               </TableCell>
               <TableCell>

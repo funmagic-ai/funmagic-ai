@@ -13,15 +13,23 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { Plus } from 'lucide-react';
+import { Plus, ImageIcon } from 'lucide-react';
 import { BannerActions } from '@/components/content/banner-actions';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 
 export default function ContentPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Content</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Content</h1>
           <p className="text-muted-foreground">Manage banners and promotional content</p>
         </div>
         <Button size="sm" asChild>
@@ -69,30 +77,40 @@ async function BannersTable() {
 
   if (allBanners.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-        <p className="text-muted-foreground">No banners configured</p>
-        <Button size="sm" className="mt-4" asChild>
-          <Link href="/dashboard/content/banners/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Banner
-          </Link>
-        </Button>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ImageIcon />
+          </EmptyMedia>
+          <EmptyTitle>No banners configured</EmptyTitle>
+          <EmptyDescription>
+            Create promotional banners to display on your site.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button size="sm" asChild>
+            <Link href="/dashboard/content/banners/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Banner
+            </Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 
   const now = new Date();
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Thumbnail</TableHead>
+            <TableHead className="hidden sm:table-cell">Thumbnail</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Type</TableHead>
-            <TableHead>Position</TableHead>
-            <TableHead>Schedule</TableHead>
+            <TableHead className="hidden sm:table-cell">Position</TableHead>
+            <TableHead className="hidden md:table-cell">Schedule</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
@@ -105,7 +123,7 @@ async function BannersTable() {
 
             return (
               <TableRow key={banner.id}>
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   {banner.thumbnail ? (
                     <img
                       src={banner.thumbnail}
@@ -120,8 +138,8 @@ async function BannersTable() {
                 <TableCell>
                   <Badge variant="outline">{banner.type}</Badge>
                 </TableCell>
-                <TableCell>{banner.position}</TableCell>
-                <TableCell className="text-muted-foreground">
+                <TableCell className="hidden sm:table-cell">{banner.position}</TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
                   {banner.startsAt || banner.endsAt ? (
                     <div className="text-xs">
                       {banner.startsAt && (

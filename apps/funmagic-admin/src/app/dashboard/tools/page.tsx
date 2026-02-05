@@ -22,7 +22,7 @@ import { getAllToolDefinitions } from '@funmagic/shared';
 
 export default function ToolsPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <Suspense fallback={<ToolsPageSkeleton />}>
         <ToolsPageContent />
       </Suspense>
@@ -47,9 +47,9 @@ async function ToolsPageContent() {
 
   return (
     <>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tools</h1>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Tools</h1>
           <p className="text-muted-foreground">Manage AI tools and their configurations</p>
         </div>
         {allToolsAdded ? (
@@ -110,12 +110,12 @@ async function ToolsPageContent() {
           </Button>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
-                <TableHead>Slug</TableHead>
+                <TableHead className="hidden sm:table-cell">Slug</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Active</TableHead>
                 <TableHead>Featured</TableHead>
@@ -127,7 +127,7 @@ async function ToolsPageContent() {
               {allTools.map((tool) => (
                 <TableRow key={tool.id}>
                   <TableCell className="font-medium">{tool.title}</TableCell>
-                  <TableCell className="text-muted-foreground">{tool.slug}</TableCell>
+                  <TableCell className="hidden text-muted-foreground sm:table-cell">{tool.slug}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{tool.toolType?.displayName ?? 'Unknown'}</Badge>
                   </TableCell>

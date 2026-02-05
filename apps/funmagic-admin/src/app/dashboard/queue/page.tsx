@@ -13,6 +13,13 @@ import {
 } from '@/components/ui/table';
 import { StatsSkeleton } from '@/components/shared/stats-skeleton';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 import { Clock, Play, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export default function QueuePage() {
@@ -144,7 +151,19 @@ async function ActiveJobsTable() {
   });
 
   if (activeTasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No active jobs</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Loader2 />
+          </EmptyMedia>
+          <EmptyTitle>No active jobs</EmptyTitle>
+          <EmptyDescription>
+            No tasks are currently being processed.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
@@ -186,7 +205,19 @@ async function QueuedJobsTable() {
   });
 
   if (queuedTasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No queued jobs</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Clock />
+          </EmptyMedia>
+          <EmptyTitle>No queued jobs</EmptyTitle>
+          <EmptyDescription>
+            No tasks are waiting to be processed.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
@@ -228,7 +259,19 @@ async function FailedJobsTable() {
   });
 
   if (failedTasks.length === 0) {
-    return <p className="text-sm text-muted-foreground">No failures in the last 24 hours</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <XCircle />
+          </EmptyMedia>
+          <EmptyTitle>No failures</EmptyTitle>
+          <EmptyDescription>
+            No tasks have failed in the last 24 hours.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (

@@ -13,8 +13,16 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { Plus } from 'lucide-react';
+import { Plus, Layers } from 'lucide-react';
 import { ToolTypeActions } from '@/components/tool-types/tool-type-actions';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 
 export default function ToolTypesPage() {
   return (
@@ -48,15 +56,25 @@ async function ToolTypesTable() {
 
   if (allToolTypes.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-        <p className="text-muted-foreground">No tool types configured</p>
-        <Button size="sm" className="mt-4" asChild>
-          <Link href="/dashboard/tool-types/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Tool Type
-          </Link>
-        </Button>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Layers />
+          </EmptyMedia>
+          <EmptyTitle>No tool types configured</EmptyTitle>
+          <EmptyDescription>
+            Create categories to organize your tools.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button size="sm" asChild>
+            <Link href="/dashboard/tool-types/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Tool Type
+            </Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 

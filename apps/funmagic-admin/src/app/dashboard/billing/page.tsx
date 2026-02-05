@@ -6,7 +6,7 @@ import { desc, eq, sum, count } from 'drizzle-orm';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -15,58 +15,55 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatsSkeleton } from '@/components/shared/stats-skeleton';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { DollarSign, CreditCard, TrendingUp, Users, Plus } from 'lucide-react';
+import { DollarSign, CreditCard, TrendingUp, Users, Plus, Package, Receipt } from 'lucide-react';
 import { PackageActions } from '@/components/billing/package-actions';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 export default function BillingPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
-        <p className="text-muted-foreground">Manage credit packages and view revenue</p>
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Billing</h1>
+          <p className="text-muted-foreground">Manage credit packages and view revenue</p>
+        </div>
+        <Button asChild>
+          <Link href="/dashboard/billing/packages/new">
+            <Plus className="mr-2 h-4 w-4" />
+            Add Package
+          </Link>
+        </Button>
       </div>
 
       <Suspense fallback={<StatsSkeleton />}>
         <BillingStats />
       </Suspense>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Credit Packages</CardTitle>
-                <CardDescription>Available credit packages for purchase</CardDescription>
-              </div>
-              <Button size="sm" asChild>
-                <Link href="/dashboard/billing/packages/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add Package
-                </Link>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
-              <PackagesTable />
-            </Suspense>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Transactions</CardTitle>
-            <CardDescription>Latest credit transactions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Suspense fallback={<TableSkeleton columns={4} rows={10} />}>
-              <TransactionsTable />
-            </Suspense>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="packages">
+        <TabsList>
+          <TabsTrigger value="packages">Credit Packages</TabsTrigger>
+          <TabsTrigger value="transactions">Recent Transactions</TabsTrigger>
+        </TabsList>
+        <TabsContent value="packages" className="mt-4">
+          <Suspense fallback={<TableSkeleton columns={6} rows={5} />}>
+            <PackagesTable />
+          </Suspense>
+        </TabsContent>
+        <TabsContent value="transactions" className="mt-4">
+          <Suspense fallback={<TableSkeleton columns={4} rows={10} />}>
+            <TransactionsTable />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -158,51 +155,65 @@ async function PackagesTable() {
   const packages = data?.packages ?? [];
 
   if (packages.length === 0) {
-    return <p className="text-sm text-muted-foreground">No packages configured</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Package />
+          </EmptyMedia>
+          <EmptyTitle>No packages configured</EmptyTitle>
+          <EmptyDescription>
+            Create your first credit package to start selling credits.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead className="text-right">Credits</TableHead>
-          <TableHead className="text-right">Bonus</TableHead>
-          <TableHead className="text-right">Price</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="w-[100px]">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {packages.map((pkg) => (
-          <TableRow key={pkg.id}>
-            <TableCell className="font-medium">
-              {pkg.name}
-              {pkg.isPopular && (
-                <Badge variant="secondary" className="ml-2">
-                  Popular
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-right">{pkg.credits.toLocaleString()}</TableCell>
-            <TableCell className="text-right text-green-600">
-              {pkg.bonusCredits ? `+${pkg.bonusCredits}` : '-'}
-            </TableCell>
-            <TableCell className="text-right">
-              ${Number(pkg.price).toFixed(2)} {pkg.currency}
-            </TableCell>
-            <TableCell>
-              <Badge variant={pkg.isActive ? 'default' : 'secondary'}>
-                {pkg.isActive ? 'Active' : 'Inactive'}
-              </Badge>
-            </TableCell>
-            <TableCell>
-              <PackageActions pkg={pkg} />
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+            <TableHead className="text-right">Credits</TableHead>
+            <TableHead className="hidden text-right sm:table-cell">Bonus</TableHead>
+            <TableHead className="text-right">Price</TableHead>
+            <TableHead className="hidden sm:table-cell">Status</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {packages.map((pkg) => (
+            <TableRow key={pkg.id}>
+              <TableCell className="font-medium">
+                {pkg.name}
+                {pkg.isPopular && (
+                  <Badge variant="secondary" className="ml-2">
+                    Popular
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell className="text-right">{pkg.credits.toLocaleString()}</TableCell>
+              <TableCell className="hidden text-right text-green-600 sm:table-cell">
+                {pkg.bonusCredits ? `+${pkg.bonusCredits}` : '-'}
+              </TableCell>
+              <TableCell className="text-right">
+                ${Number(pkg.price).toFixed(2)} {pkg.currency}
+              </TableCell>
+              <TableCell className="hidden sm:table-cell">
+                <Badge variant={pkg.isActive ? 'default' : 'secondary'}>
+                  {pkg.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <PackageActions pkg={pkg} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -214,40 +225,54 @@ async function TransactionsTable() {
   });
 
   if (transactions.length === 0) {
-    return <p className="text-sm text-muted-foreground">No transactions yet</p>;
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Receipt />
+          </EmptyMedia>
+          <EmptyTitle>No transactions yet</EmptyTitle>
+          <EmptyDescription>
+            Transactions will appear here when users purchase credits.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Type</TableHead>
-          <TableHead className="text-right">Amount</TableHead>
-          <TableHead className="text-right">Date</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {transactions.map((tx) => (
-          <TableRow key={tx.id}>
-            <TableCell className="font-medium">
-              {tx.user?.name ?? tx.user?.email ?? 'Unknown'}
-            </TableCell>
-            <TableCell>
-              <Badge variant={tx.type === 'purchase' ? 'default' : 'secondary'}>{tx.type}</Badge>
-            </TableCell>
-            <TableCell className="text-right">
-              <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
-                {tx.amount > 0 ? '+' : ''}
-                {tx.amount}
-              </span>
-            </TableCell>
-            <TableCell className="text-right text-muted-foreground">
-              {new Date(tx.createdAt).toLocaleDateString()}
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>User</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
+            <TableHead className="text-right">Date</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {transactions.map((tx) => (
+            <TableRow key={tx.id}>
+              <TableCell className="font-medium">
+                {tx.user?.name ?? tx.user?.email ?? 'Unknown'}
+              </TableCell>
+              <TableCell>
+                <Badge variant={tx.type === 'purchase' ? 'default' : 'secondary'}>{tx.type}</Badge>
+              </TableCell>
+              <TableCell className="text-right">
+                <span className={tx.amount > 0 ? 'text-green-600' : 'text-red-600'}>
+                  {tx.amount > 0 ? '+' : ''}
+                  {tx.amount}
+                </span>
+              </TableCell>
+              <TableCell className="text-right text-muted-foreground">
+                {new Date(tx.createdAt).toLocaleDateString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

@@ -13,7 +13,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TableSkeleton } from '@/components/shared/table-skeleton';
-import { Eye } from 'lucide-react';
+import { Eye, Users as UsersIcon } from 'lucide-react';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+} from '@/components/ui/empty';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -34,9 +41,9 @@ interface UserWithCredits {
 
 export default function UsersPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Users</h1>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">Users</h1>
         <p className="text-muted-foreground">Manage user accounts and permissions</p>
       </div>
 
@@ -59,9 +66,17 @@ async function UserTableData() {
 
   if (allUsers.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-        <p className="text-muted-foreground">No users found</p>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <UsersIcon />
+          </EmptyMedia>
+          <EmptyTitle>No users found</EmptyTitle>
+          <EmptyDescription>
+            Users will appear here once they sign up.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
     );
   }
 
@@ -72,15 +87,15 @@ async function UserTableData() {
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>User</TableHead>
-            <TableHead>Email</TableHead>
+            <TableHead className="hidden md:table-cell">Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead className="text-right">Credits</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead className="hidden sm:table-cell">Created</TableHead>
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -88,7 +103,7 @@ async function UserTableData() {
           {allUsers.map((user) => (
             <TableRow key={user.id}>
               <TableCell>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user.image ?? undefined} />
                     <AvatarFallback>
@@ -98,14 +113,14 @@ async function UserTableData() {
                   <span className="font-medium">{user.name ?? 'No name'}</span>
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">{user.email}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">{user.email}</TableCell>
               <TableCell>
                 <Badge variant={roleColors[user.role] ?? 'secondary'}>{user.role}</Badge>
               </TableCell>
               <TableCell className="text-right font-medium">
                 {(user.credits?.balance ?? 0).toLocaleString()}
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden text-muted-foreground sm:table-cell">
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>
               <TableCell>

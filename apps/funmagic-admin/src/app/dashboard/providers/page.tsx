@@ -15,7 +15,15 @@ import {
 import { TableSkeleton } from '@/components/shared/table-skeleton';
 import { ProviderActiveSwitch } from '@/components/providers/provider-active-switch';
 import { ProviderActions } from '@/components/providers/provider-actions';
-import { Plus } from 'lucide-react';
+import { Plus, Server } from 'lucide-react';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from '@/components/ui/empty';
 
 export default function ProvidersPage() {
   return (
@@ -49,15 +57,25 @@ async function ProvidersTable() {
 
   if (allProviders.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-        <p className="text-muted-foreground">No providers configured</p>
-        <Button size="sm" className="mt-4" asChild>
-          <Link href="/dashboard/providers/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Provider
-          </Link>
-        </Button>
-      </div>
+      <Empty className="border border-dashed">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Server />
+          </EmptyMedia>
+          <EmptyTitle>No providers configured</EmptyTitle>
+          <EmptyDescription>
+            Add an AI service provider to get started.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button size="sm" asChild>
+            <Link href="/dashboard/providers/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Provider
+            </Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
     );
   }
 
