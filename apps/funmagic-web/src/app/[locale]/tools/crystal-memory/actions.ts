@@ -5,16 +5,19 @@ import { auth } from '@funmagic/auth/server'
 import { headers, cookies } from 'next/headers'
 import { revalidateTag } from 'next/cache'
 
+import type { ToolErrorCode, ToolErrorData } from '@/lib/tool-errors'
+import { parseInsufficientCreditsError } from '@/lib/tool-errors'
+
 type CreateTaskResult =
   | { success: true; taskId: string; creditsCost: number }
-  | { success: false; error: string; code: 'UNAUTHORIZED' | 'INSUFFICIENT_CREDITS' | 'TOOL_NOT_FOUND' | 'UNKNOWN' }
+  | { success: false; code: ToolErrorCode; errorData?: ToolErrorData }
 
 export async function createBgRemoveTaskAction(input: {
   imageStorageKey: string
 }): Promise<CreateTaskResult> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
-    return { success: false, error: 'Not authenticated', code: 'UNAUTHORIZED' }
+    return { success: false, code: 'UNAUTHORIZED' }
   }
 
   const { data, error } = await api.POST('/api/tasks', {
@@ -30,12 +33,16 @@ export async function createBgRemoveTaskAction(input: {
 
   if (error) {
     if (error.error?.includes('Insufficient credits')) {
-      return { success: false, error: error.error, code: 'INSUFFICIENT_CREDITS' }
+      return {
+        success: false,
+        code: 'INSUFFICIENT_CREDITS',
+        errorData: parseInsufficientCreditsError(error.error),
+      }
     }
     if (error.error?.includes('not found')) {
-      return { success: false, error: error.error, code: 'TOOL_NOT_FOUND' }
+      return { success: false, code: 'TOOL_NOT_FOUND' }
     }
-    return { success: false, error: error.error || 'Unknown error', code: 'UNKNOWN' }
+    return { success: false, code: 'UNKNOWN' }
   }
 
   revalidateTag(`user-credits-${session.user.id}`, 'default')
@@ -54,7 +61,7 @@ export async function createVGGTTaskAction(input: {
 }): Promise<CreateTaskResult> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session) {
-    return { success: false, error: 'Not authenticated', code: 'UNAUTHORIZED' }
+    return { success: false, code: 'UNAUTHORIZED' }
   }
 
   const { data, error } = await api.POST('/api/tasks', {
@@ -72,9 +79,13 @@ export async function createVGGTTaskAction(input: {
 
   if (error) {
     if (error.error?.includes('Insufficient credits')) {
-      return { success: false, error: error.error, code: 'INSUFFICIENT_CREDITS' }
+      return {
+        success: false,
+        code: 'INSUFFICIENT_CREDITS',
+        errorData: parseInsufficientCreditsError(error.error),
+      }
     }
-    return { success: false, error: error.error || 'Unknown error', code: 'UNKNOWN' }
+    return { success: false, code: 'UNKNOWN' }
   }
 
   revalidateTag(`user-credits-${session.user.id}`, 'default')

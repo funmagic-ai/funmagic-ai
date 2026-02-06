@@ -1,4 +1,13 @@
 {
+  "toolErrors": {
+    "insufficientCredits": "Insufficient credits. Available: {available}, Required: {required}",
+    "uploadFailed": "Upload failed",
+    "notAuthenticated": "Not authenticated",
+    "toolNotFound": "Tool not found",
+    "taskFailed": "Task failed",
+    "saveFailed": "Failed to save",
+    "unknownError": "An unknown error occurred"
+  },
   "pricing": {
     "title": "Simple, Transparent Pricing",
     "subtitle": "Choose the credit package that fits your needs. No subscriptions, no hidden fees.",

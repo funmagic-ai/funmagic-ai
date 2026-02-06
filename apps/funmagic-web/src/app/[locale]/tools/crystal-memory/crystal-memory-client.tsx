@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useMemo, Suspense } from 'react'
+import { useState, useCallback, Suspense } from 'react'
 import dynamic from 'next/dynamic'
+import { useTranslations } from 'next-intl'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
@@ -13,9 +14,10 @@ import { ImagePicker } from '@/components/upload/ImagePicker'
 import { ImageCropper } from '@/components/upload/ImageCropper'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Stepper } from '@/components/ui/stepper'
-import type { ToolDetail, CrystalMemoryConfig } from '@/lib/types/tool-configs'
+import { formatToolError } from '@/lib/tool-errors'
+import type { ToolErrorCode, ToolErrorData } from '@/lib/tool-errors'
+import type { ToolDetail } from '@/lib/types/tool-configs'
+import type { SavedToolConfig } from '@funmagic/shared'
 
 // Dynamically import PointCloudViewer to avoid SSR issues with Three.js
 const PointCloudViewer = dynamic(
@@ -51,9 +53,12 @@ interface VGGTOutput {
   conf: number[]
 }
 
+type ErrorState = { code: ToolErrorCode; data?: ToolErrorData } | null
+
 export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
-  const config = (tool.config || {}) as Partial<CrystalMemoryConfig>
+  const t = useTranslations('toolErrors')
+  const config = (tool.config || { steps: [] }) as SavedToolConfig
 
   const [step, setStep] = useState<ExecutorStep>('upload')
   const [bgRemoveTaskId, setBgRemoveTaskId] = useState<string | null>(null)
@@ -62,7 +67,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const [bgRemovedPreview, setBgRemovedPreview] = useState<string | null>(null)
   const [bgRemoveOutput, setBgRemoveOutput] = useState<BgRemoveOutput | null>(null)
   const [vggtOutput, setVggtOutput] = useState<VGGTOutput | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ErrorState>(null)
 
   // State for raw file before cropping
   const [rawFile, setRawFile] = useState<File | null>(null)
@@ -70,7 +75,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
   const upload = useSubmitUpload({
     route: 'crystal-memory',
-    onError: (err) => setError(err),
+    onError: () => setError({ code: 'UPLOAD_FAILED' }),
   })
 
   // Track background removal task
@@ -89,7 +94,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
       })
 
       if (!vggtResult.success) {
-        setError(vggtResult.error)
+        setError({ code: vggtResult.code, data: vggtResult.errorData })
         setStep('upload')
         return
       }
@@ -98,8 +103,8 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
       setStep('generating-cloud')
       setBgRemoveTaskId(null)
     },
-    onFailed: (err) => {
-      setError(err)
+    onFailed: () => {
+      setError({ code: 'TASK_FAILED' })
       setStep('upload')
       setBgRemoveTaskId(null)
     },
@@ -113,8 +118,8 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
       setStep('result')
       setVggtTaskId(null)
     },
-    onFailed: (err) => {
-      setError(err)
+    onFailed: () => {
+      setError({ code: 'TASK_FAILED' })
       setStep('upload')
       setVggtTaskId(null)
     },
@@ -157,7 +162,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
       img.onerror = () => {
         URL.revokeObjectURL(objectUrl)
-        setError('Failed to load image')
+        setError({ code: 'UPLOAD_FAILED' })
       }
 
       img.src = objectUrl
@@ -200,7 +205,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
     const storageKey = await upload.uploadOnSubmit()
     if (!storageKey) {
-      setError('Upload failed')
+      setError({ code: 'UPLOAD_FAILED' })
       return
     }
 
@@ -209,7 +214,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
     })
 
     if (!taskResult.success) {
-      setError(taskResult.error)
+      setError({ code: taskResult.code, data: taskResult.errorData })
       return
     }
 
@@ -235,48 +240,25 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
     upload.reset()
   }, [originalPreview, rawPreview, upload])
 
-  const steps = useMemo(
-    () => [
-      { id: 'upload', label: 'Upload' },
-      { id: 'cropping', label: 'Crop' },
-      { id: 'removing-bg', label: 'Remove BG' },
-      { id: 'generating-cloud', label: 'Generate 3D' },
-      { id: 'result', label: 'View' },
-    ],
-    []
-  )
-
-  const completedSteps = useMemo(() => {
-    if (step === 'upload') return []
-    if (step === 'cropping') return ['upload']
-    if (step === 'removing-bg') return ['upload', 'cropping']
-    if (step === 'generating-cloud') return ['upload', 'cropping', 'removing-bg']
-    if (step === 'result') return ['upload', 'cropping', 'removing-bg', 'generating-cloud']
-    return []
-  }, [step])
-
   if (!session) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-          <a
-            href="/login"
-            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-          >
-            Sign In
-          </a>
-        </CardContent>
-      </Card>
+      <div className="glass-panel rounded-xl p-6 py-8 text-center">
+        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+        <a
+          href="/login"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+        >
+          Sign In
+        </a>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardContent className="space-y-6">
-        {error && (
+    <div className="glass-panel rounded-xl p-6 space-y-6">
+      {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
-            {error}
+            {formatToolError(t, error.code, error.data)}
             <button
               type="button"
               onClick={() => setError(null)}
@@ -286,9 +268,6 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
             </button>
           </div>
         )}
-
-        {/* Step indicator */}
-        <Stepper steps={steps} currentStep={step} completedSteps={completedSteps} />
 
         {step === 'upload' && (
           <>
@@ -386,7 +365,6 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
             </Suspense>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

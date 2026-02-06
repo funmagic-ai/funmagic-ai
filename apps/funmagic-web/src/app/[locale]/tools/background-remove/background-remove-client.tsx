@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
@@ -9,9 +10,11 @@ import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { BeforeAfterComparison } from './before-after-comparison'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { X } from 'lucide-react'
-import type { ToolDetail, BackgroundRemoveConfig } from '@/lib/types/tool-configs'
+import { formatToolError } from '@/lib/tool-errors'
+import type { ToolErrorCode, ToolErrorData } from '@/lib/tool-errors'
+import type { ToolDetail } from '@/lib/types/tool-configs'
+import type { SavedToolConfig } from '@funmagic/shared'
 
 type ExecutorStep = 'upload' | 'processing' | 'result'
 
@@ -22,19 +25,22 @@ interface TaskOutput {
   originalUrl?: string
 }
 
+type ErrorState = { code: ToolErrorCode; data?: ToolErrorData } | null
+
 export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
-  const config = (tool.config || {}) as Partial<BackgroundRemoveConfig>
+  const t = useTranslations('toolErrors')
+  const config = (tool.config || { steps: [] }) as SavedToolConfig
 
   const [step, setStep] = useState<ExecutorStep>('upload')
   const [taskId, setTaskId] = useState<string | null>(null)
   const [originalPreview, setOriginalPreview] = useState<string | null>(null)
   const [result, setResult] = useState<TaskOutput | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ErrorState>(null)
 
   const upload = useSubmitUpload({
     route: 'background-remove',
-    onError: (err) => setError(err),
+    onError: () => setError({ code: 'UPLOAD_FAILED' }),
   })
 
   useTaskProgress({
@@ -44,8 +50,8 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
       setStep('result')
       setTaskId(null)
     },
-    onFailed: (err) => {
-      setError(err)
+    onFailed: () => {
+      setError({ code: 'TASK_FAILED' })
       setStep('upload')
       setTaskId(null)
     },
@@ -61,7 +67,7 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
 
     const storageKey = await upload.uploadOnSubmit()
     if (!storageKey) {
-      setError('Upload failed')
+      setError({ code: 'UPLOAD_FAILED' })
       return
     }
 
@@ -70,7 +76,7 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
     })
 
     if (!taskResult.success) {
-      setError(taskResult.error)
+      setError({ code: taskResult.code, data: taskResult.errorData })
       return
     }
 
@@ -91,26 +97,23 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-          <a
-            href="/login"
-            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-          >
-            Sign In
-          </a>
-        </CardContent>
-      </Card>
+      <div className="glass-panel rounded-xl p-6 py-8 text-center">
+        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+        <a
+          href="/login"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+        >
+          Sign In
+        </a>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardContent className="space-y-6">
-        {error && (
+    <div className="glass-panel rounded-xl p-6 space-y-6">
+      {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
-            <span>{error}</span>
+            <span>{formatToolError(t, error.code, error.data)}</span>
             <Button
               variant="ghost"
               size="icon-xs"
@@ -156,7 +159,6 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
             onReset={handleReset}
           />
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }

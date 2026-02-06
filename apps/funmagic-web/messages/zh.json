@@ -1,4 +1,13 @@
 {
+  "toolErrors": {
+    "insufficientCredits": "积分不足。可用: {available}, 需要: {required}",
+    "uploadFailed": "上传失败",
+    "notAuthenticated": "未登录",
+    "toolNotFound": "工具未找到",
+    "taskFailed": "任务失败",
+    "saveFailed": "保存失败",
+    "unknownError": "发生未知错误"
+  },
   "pricing": {
     "title": "简单透明的定价",
     "subtitle": "选择适合您需求的积分套餐。无需订阅，无隐藏费用。",

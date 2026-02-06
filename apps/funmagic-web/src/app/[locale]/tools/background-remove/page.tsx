@@ -13,7 +13,7 @@ interface PageProps {
 
 function ToolPageSkeleton() {
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4 animate-pulse">
+    <div className="max-w-[1200px] mx-auto py-12 px-4 sm:px-6 lg:px-8 animate-pulse">
       <div className="h-10 w-3/4 bg-muted rounded mb-4" />
       <div className="h-6 w-full bg-muted rounded mb-8" />
       <div className="h-64 w-full bg-muted rounded" />
@@ -49,7 +49,7 @@ async function BackgroundRemoveContent({ params }: { params: Promise<{ locale: s
   }
 
   return (
-    <div className="max-w-4xl mx-auto py-12 px-4">
+    <div className="max-w-[1200px] mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <h1 className="text-4xl font-bold mb-4">{tool.title}</h1>
       {tool.description && (
         <p className="text-muted-foreground mb-8">{tool.description}</p>

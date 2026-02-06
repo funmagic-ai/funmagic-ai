@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
 import { useTaskProgress } from '@/hooks/useTaskProgress'
@@ -11,12 +12,15 @@ import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { StyleSelector } from './style-selector'
 import { ResultDisplay } from './result-display'
 import { ThreeDViewer } from './three-d-viewer'
-import { Card, CardContent } from '@/components/ui/card'
-import type { ToolDetail, FigMeConfig, StyleReference } from '@/lib/types/tool-configs'
+import { Button } from '@/components/ui/button'
+import { X } from 'lucide-react'
+import { formatToolError } from '@/lib/tool-errors'
+import type { ToolErrorCode, ToolErrorData } from '@/lib/tool-errors'
+import type { ToolDetail, StyleReference } from '@/lib/types/tool-configs'
+import type { SavedToolConfig } from '@funmagic/shared'
 
 type ExecutorStep =
-  | 'select-style'
-  | 'upload-image'
+  | 'style-upload'
   | 'generating-image'
   | 'image-result'
   | 'generating-3d'
@@ -30,22 +34,25 @@ interface TaskOutput {
   modelStorageKey?: string
 }
 
+type ErrorState = { code: ToolErrorCode; data?: ToolErrorData } | null
+
 export function FigMeClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
-  const config = (tool.config || {}) as Partial<FigMeConfig>
+  const t = useTranslations('toolErrors')
+  const config = (tool.config || { steps: [] }) as SavedToolConfig
 
-  const [step, setStep] = useState<ExecutorStep>('select-style')
+  const [step, setStep] = useState<ExecutorStep>('style-upload')
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null)
   const [taskId, setTaskId] = useState<string | null>(null)
   const [parentTaskId, setParentTaskId] = useState<string | null>(null)
   const [imageResult, setImageResult] = useState<TaskOutput | null>(null)
   const [threeDResult, setThreeDResult] = useState<TaskOutput | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<ErrorState>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const upload = useSubmitUpload({
     route: 'figme',
-    onError: (err) => setError(err),
+    onError: () => setError({ code: 'UPLOAD_FAILED' }),
   })
 
   useTaskProgress({
@@ -62,20 +69,27 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
       }
       setTaskId(null)
     },
-    onFailed: (err) => {
-      setError(err)
-      setStep('select-style')
+    onFailed: () => {
+      setError({ code: 'TASK_FAILED' })
+      setStep('style-upload')
       setTaskId(null)
     },
   })
 
-  const styles: StyleReference[] = config.styleReferences || []
-  const imageGenCost = config.steps?.[0]?.cost ?? 20
+  const imageGenStep = config.steps?.[0]
+  const rawStyles = (imageGenStep?.styleReferences as Partial<StyleReference>[] | undefined) || []
+  // Normalize styles with fallback id/name for backward compatibility
+  const styles: StyleReference[] = rawStyles.map((s, i) => ({
+    id: s.id || `style-${i}`,
+    name: s.name || `Style ${i + 1}`,
+    imageUrl: s.imageUrl || '',
+    prompt: s.prompt,
+  }))
+  const imageGenCost = imageGenStep?.cost ?? 20
   const threeDGenCost = config.steps?.[1]?.cost ?? 30
 
   const handleStyleSelect = useCallback((styleId: string) => {
     setSelectedStyleId(styleId)
-    setStep('upload-image')
     setError(null)
   }, [])
 
@@ -85,7 +99,7 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
 
     const storageKey = await upload.uploadOnSubmit()
     if (!storageKey) {
-      setError('Upload failed')
+      setError({ code: 'UPLOAD_FAILED' })
       return
     }
 
@@ -95,7 +109,7 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
     })
 
     if (!result.success) {
-      setError(result.error)
+      setError({ code: result.code, data: result.errorData })
       return
     }
 
@@ -114,7 +128,7 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
     })
 
     if (!result.success) {
-      setError(result.error)
+      setError({ code: result.code, data: result.errorData })
       return
     }
 
@@ -128,14 +142,14 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
 
     const result = await saveTaskOutputAction(parentTaskId)
     if (!result.success) {
-      setError(result.error || 'Failed to save')
+      setError({ code: 'SAVE_FAILED' })
     }
 
     setIsSaving(false)
   }, [parentTaskId])
 
   const handleReset = useCallback(() => {
-    setStep('select-style')
+    setStep('style-upload')
     setSelectedStyleId(null)
     setTaskId(null)
     setParentTaskId(null)
@@ -147,74 +161,78 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-          <a
-            href="/login"
-            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-          >
-            Sign In
-          </a>
-        </CardContent>
-      </Card>
+      <div className="glass-panel rounded-xl p-6 py-8 text-center">
+        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+        <a
+          href="/login"
+          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+        >
+          Sign In
+        </a>
+      </div>
     )
   }
 
   return (
-    <Card>
-      <CardContent className="space-y-6">
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
-            {error}
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="float-right text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
-        {(step === 'select-style' || step === 'upload-image') && (
-          <>
+    <div className="space-y-6">
+      {step === 'style-upload' && (
+        <>
+          {/* Section 1: Style Selection */}
+          <div className="glass-panel rounded-xl p-6 space-y-4">
+            <h3 className="font-medium text-foreground">Choose a Style</h3>
             <StyleSelector
               styles={styles}
               selectedStyleId={selectedStyleId}
               onSelect={handleStyleSelect}
-              disabled={step === 'upload-image' && upload.isUploading}
+              disabled={upload.isUploading}
+            />
+          </div>
+
+          {/* Section 2: Upload Your Image */}
+          <div className="glass-panel rounded-xl p-6 space-y-4">
+            <h3 className="font-medium text-foreground">Upload Your Image</h3>
+            <ImagePicker
+              onFileSelect={upload.setFile}
+              preview={upload.preview}
+              disabled={upload.isUploading}
             />
 
-            {selectedStyleId && step === 'upload-image' && (
-              <div className="border-t pt-6 space-y-4">
-                <h3 className="font-medium text-foreground">Upload Your Image</h3>
-                <ImagePicker
-                  onFileSelect={upload.setFile}
-                  preview={upload.preview}
-                  disabled={upload.isUploading}
-                />
+            <button
+              type="button"
+              onClick={handleGenerateImage}
+              disabled={!selectedStyleId || !upload.pendingFile || upload.isUploading}
+              className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {upload.isUploading
+                ? 'Uploading...'
+                : `Generate Image (${imageGenCost} credits)`}
+            </button>
 
-                <button
-                  type="button"
-                  onClick={handleGenerateImage}
-                  disabled={!upload.pendingFile || upload.isUploading}
-                  className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
+                <span>{formatToolError(t, error.code, error.data)}</span>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={() => setError(null)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
                 >
-                  {upload.isUploading
-                    ? 'Uploading...'
-                    : `Generate Image (${imageGenCost} credits)`}
-                </button>
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
             )}
-          </>
-        )}
+          </div>
+        </>
+      )}
 
-        {step === 'generating-image' && taskId && (
+      {step === 'generating-image' && taskId && (
+        <div className="glass-panel rounded-xl p-6">
           <TaskProgressDisplay taskId={taskId} />
-        )}
+        </div>
+      )}
 
-        {step === 'image-result' && imageResult && (
+      {step === 'image-result' && imageResult && (
+        <div className="glass-panel rounded-xl p-6">
           <ResultDisplay
             imageUrl={imageResult.imageUrl || ''}
             onSave={handleSave}
@@ -223,20 +241,24 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
             isSaving={isSaving}
             threeDCost={threeDGenCost}
           />
-        )}
+        </div>
+      )}
 
-        {step === 'generating-3d' && taskId && (
+      {step === 'generating-3d' && taskId && (
+        <div className="glass-panel rounded-xl p-6">
           <TaskProgressDisplay taskId={taskId} />
-        )}
+        </div>
+      )}
 
-        {step === '3d-result' && threeDResult && (
+      {step === '3d-result' && threeDResult && (
+        <div className="glass-panel rounded-xl p-6">
           <ThreeDViewer
             modelUrl={threeDResult.modelUrl || ''}
             onDownload={() => window.open(threeDResult.modelUrl, '_blank')}
             onReset={handleReset}
           />
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </div>
   )
 }

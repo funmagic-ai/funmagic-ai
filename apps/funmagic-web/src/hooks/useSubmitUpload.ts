@@ -34,8 +34,8 @@ export function useSubmitUpload({ route, onSuccess, onError }: UseSubmitUploadOp
     route: config.route,
     api: config.api,
     credentials: 'include',
-    onUploadComplete: ({ file, metadata }) => {
-      const key = (metadata as { key?: string } | undefined)?.key || ''
+    onUploadComplete: ({ file }) => {
+      const key = file.objectInfo?.key || ''
       setUploadedKey(key)
       onSuccess?.({ key, name: file.name, size: file.size })
     },
@@ -68,8 +68,8 @@ export function useSubmitUpload({ route, onSuccess, onError }: UseSubmitUploadOp
 
     try {
       const result = await uploadAsync(pendingFile)
-      if (result?.metadata) {
-        const key = (result.metadata as { key?: string }).key || ''
+      if (result?.file?.objectInfo?.key) {
+        const key = result.file.objectInfo.key
         setUploadedKey(key)
         return key
       }

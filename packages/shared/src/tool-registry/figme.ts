@@ -44,13 +44,27 @@ export const figmeDefinition: ToolDefinition = {
         styleReferences: {
           type: 'array',
           maxItems: 8,
-          description: 'Style reference images (upload URLs)',
+          description: 'Style reference images',
           itemFields: {
+            id: {
+              type: 'string',
+              required: true,
+              description: 'Unique identifier for this style',
+            },
+            name: {
+              type: 'string',
+              required: true,
+              description: 'Display name for this style',
+            },
             imageUrl: {
               type: 'string',
               required: true,
               upload: true,
               description: 'Reference image for this style',
+            },
+            prompt: {
+              type: 'string',
+              description: 'Optional style-specific prompt override',
             },
           },
         },
