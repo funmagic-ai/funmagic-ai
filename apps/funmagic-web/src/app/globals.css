@@ -152,14 +152,14 @@
 }
 
 .neon-hover:hover {
-  border-color: rgba(55, 19, 236, 0.5);
-  box-shadow: 0 0 20px rgba(55, 19, 236, 0.25);
+  border-color: color-mix(in srgb, var(--primary) 50%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--primary) 25%, transparent);
   transform: translateY(-2px);
 }
 
 /* Primary glow */
 .primary-glow {
-  box-shadow: 0 0 15px rgba(55, 19, 236, 0.6);
+  box-shadow: 0 0 15px color-mix(in srgb, var(--primary) 60%, transparent);
 }
 
 /* Primary button hover (only buttons with bg-primary class) */

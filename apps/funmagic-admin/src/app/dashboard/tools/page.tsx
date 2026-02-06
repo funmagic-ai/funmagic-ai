@@ -132,7 +132,7 @@ async function ToolsPageContent() {
                     <Badge variant="outline">{tool.toolType?.displayName ?? 'Unknown'}</Badge>
                   </TableCell>
                   <TableCell>
-                    <ToolActiveToggle toolId={tool.id} isActive={tool.isActive} />
+                    <ToolActiveToggle toolId={tool.id} toolName={tool.title} isActive={tool.isActive} />
                   </TableCell>
                   <TableCell>
                     <ToolFeaturedToggle toolId={tool.id} isFeatured={tool.isFeatured} />

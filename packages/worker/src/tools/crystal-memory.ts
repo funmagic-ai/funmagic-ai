@@ -400,17 +400,34 @@ async function executeVGGTStep(params: {
  * Reshape world_points from (H, W, 3) to (N, 3) flat array
  */
 function reshapePoints(worldPoints: number[][][]): { points: number[][]; height: number; width: number } {
+  // Validate input array
+  if (!Array.isArray(worldPoints) || worldPoints.length === 0) {
+    throw new Error('Invalid world_points: array is empty or not an array');
+  }
+
   const height = worldPoints.length;
-  const width = worldPoints[0]?.length || 0;
+  const width = worldPoints[0]?.length;
+
+  if (!width || width === 0) {
+    throw new Error('Invalid world_points: first row is empty');
+  }
+
   const points: number[][] = [];
 
   for (let y = 0; y < height; y++) {
+    const row = worldPoints[y];
+    if (!row) continue;
+
     for (let x = 0; x < width; x++) {
-      const point = worldPoints[y][x];
+      const point = row[x];
       if (point && point.length === 3) {
         points.push([point[0], point[1], point[2]]);
       }
     }
+  }
+
+  if (points.length === 0) {
+    throw new Error('Invalid world_points: no valid 3D points found');
   }
 
   return { points, height, width };
@@ -493,16 +510,23 @@ async function extractColorsWithSharp(params: {
   // Map each point to its color
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      // Map point coordinates to image coordinates
-      const imgX = Math.floor((x / width) * info.width);
-      const imgY = Math.floor((y / height) * info.height);
+      // Map point coordinates to image coordinates with bounds clamping
+      const imgX = Math.min(Math.floor((x / width) * info.width), info.width - 1);
+      const imgY = Math.min(Math.floor((y / height) * info.height), info.height - 1);
 
       const pixelIndex = (imgY * info.width + imgX) * 3;
-      colors.push({
-        r: data[pixelIndex] ?? 0,
-        g: data[pixelIndex + 1] ?? 0,
-        b: data[pixelIndex + 2] ?? 0,
-      });
+
+      // Validate pixel index is within bounds
+      if (pixelIndex >= 0 && pixelIndex + 2 < data.length) {
+        colors.push({
+          r: data[pixelIndex]!,
+          g: data[pixelIndex + 1]!,
+          b: data[pixelIndex + 2]!,
+        });
+      } else {
+        // Fallback for out-of-bounds (should not happen with clamping)
+        colors.push({ r: 0, g: 0, b: 0 });
+      }
     }
   }
 

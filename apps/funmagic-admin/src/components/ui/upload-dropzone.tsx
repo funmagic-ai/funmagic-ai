@@ -19,8 +19,8 @@ type UploadDropzoneProps = {
   uploadOverride?: (
     ...args: Parameters<UploadHookControl<true>['upload']>
   ) => void;
-  /** Callback for deferred upload mode - file is selected but not uploaded immediately */
-  onFileSelect?: (file: File) => void;
+  /** Callback for deferred upload mode - files are selected but not uploaded immediately */
+  onFileSelect?: (files: File[]) => void;
 };
 
 export function UploadDropzone({
@@ -41,9 +41,9 @@ export function UploadDropzone({
   const { getRootProps, getInputProps, isDragActive, inputRef } = useDropzone({
     onDrop: (files) => {
       if (files.length > 0 && !isPending) {
-        // Deferred upload mode: just call onFileSelect callback
+        // Deferred upload mode: pass all files to callback
         if (onFileSelect) {
-          onFileSelect(files[0]);
+          onFileSelect(files);
         } else if (uploadOverride) {
           uploadOverride(files, { metadata });
         } else if (upload) {

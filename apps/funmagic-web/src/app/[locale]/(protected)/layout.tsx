@@ -3,5 +3,9 @@ export default function ProtectedLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return (
+    <div className="max-w-7xl mx-auto py-12 px-4">
+      {children}
+    </div>
+  )
 }

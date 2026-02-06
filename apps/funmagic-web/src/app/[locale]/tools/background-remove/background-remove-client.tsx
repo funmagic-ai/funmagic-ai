@@ -9,6 +9,7 @@ import { ImagePicker } from '@/components/upload/ImagePicker'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { BeforeAfterComparison } from './before-after-comparison'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 import { X } from 'lucide-react'
 import type { ToolDetail, BackgroundRemoveConfig } from '@/lib/types/tool-configs'
 
@@ -90,68 +91,72 @@ export function BackgroundRemoveClient({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <div className="bg-card p-8 rounded-xl shadow-sm border text-center">
-        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-        <a
-          href="/login"
-          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-        >
-          Sign In
-        </a>
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+          <a
+            href="/login"
+            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+          >
+            Sign In
+          </a>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border space-y-6">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
-          <span>{error}</span>
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 hover:bg-red-100"
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
+    <Card>
+      <CardContent className="space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
+            <span>{error}</span>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={() => setError(null)}
+              className="text-red-500 hover:text-red-700 hover:bg-red-100 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
 
-      {step === 'upload' && (
-        <>
-          <h3 className="font-medium text-foreground">Upload Your Image</h3>
-          <ImagePicker
-            onFileSelect={upload.setFile}
-            preview={upload.preview}
-            disabled={upload.isUploading}
+        {step === 'upload' && (
+          <>
+            <h3 className="font-medium text-foreground">Upload Your Image</h3>
+            <ImagePicker
+              onFileSelect={upload.setFile}
+              preview={upload.preview}
+              disabled={upload.isUploading}
+            />
+
+            <Button
+              onClick={handleGenerate}
+              disabled={!upload.pendingFile || upload.isUploading}
+              className="w-full"
+              size="lg"
+            >
+              {upload.isUploading
+                ? 'Uploading...'
+                : `Remove Background (${cost} credits)`}
+            </Button>
+          </>
+        )}
+
+        {step === 'processing' && taskId && (
+          <TaskProgressDisplay taskId={taskId} />
+        )}
+
+        {step === 'result' && result && originalPreview && (
+          <BeforeAfterComparison
+            beforeUrl={originalPreview}
+            afterUrl={result.processedUrl || ''}
+            onDownload={() => window.open(result.processedUrl, '_blank')}
+            onReset={handleReset}
           />
-
-          <Button
-            onClick={handleGenerate}
-            disabled={!upload.pendingFile || upload.isUploading}
-            className="w-full"
-            size="lg"
-          >
-            {upload.isUploading
-              ? 'Uploading...'
-              : `Remove Background (${cost} credits)`}
-          </Button>
-        </>
-      )}
-
-      {step === 'processing' && taskId && (
-        <TaskProgressDisplay taskId={taskId} />
-      )}
-
-      {step === 'result' && result && originalPreview && (
-        <BeforeAfterComparison
-          beforeUrl={originalPreview}
-          afterUrl={result.processedUrl || ''}
-          onDownload={() => window.open(result.processedUrl, '_blank')}
-          onReset={handleReset}
-        />
-      )}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

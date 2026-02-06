@@ -159,9 +159,11 @@ export function BannerEditForm({ banner }: BannerEditFormProps) {
     });
   };
 
-  const handleFileSelect = (selectedFile: File) => {
-    setFile(selectedFile);
-    setExistingUrl(''); // Clear existing URL when new file is selected
+  const handleFileSelect = (files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+      setExistingUrl(''); // Clear existing URL when new file is selected
+    }
   };
 
   const handleRemoveFile = () => {

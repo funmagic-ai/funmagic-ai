@@ -12,4 +12,5 @@ export {
   removePendingFile,
   clearPendingFiles,
   isPendingUrl,
+  registerPendingFile,
 } from './pending-files-registry';

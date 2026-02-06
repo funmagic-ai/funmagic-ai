@@ -12,7 +12,6 @@ import {
   formatRatio,
   getImageDimensionsFromUrl,
   getStatusColor,
-  getStatusIndicator,
   getRatioValue,
 } from '@/lib/image-ratio';
 import { Trash2, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
@@ -24,6 +23,8 @@ interface AspectRatioPreviewProps {
   onRemove?: () => void;
   className?: string;
   showSideBannerNote?: boolean;
+  /** Show pending indicator for deferred uploads (blob URLs) */
+  isPending?: boolean;
 }
 
 export function AspectRatioPreview({
@@ -32,6 +33,7 @@ export function AspectRatioPreview({
   onRemove,
   className,
   showSideBannerNote,
+  isPending,
 }: AspectRatioPreviewProps) {
   const [dimensions, setDimensions] = useState<ImageDimensions | null>(null);
   const [ratioCheck, setRatioCheck] = useState<RatioCheckResult | null>(null);
@@ -71,7 +73,7 @@ export function AspectRatioPreview({
       <div
         className={cn(
           'relative overflow-hidden rounded-lg border-2',
-          statusColors?.border ?? 'border-muted'
+          isPending ? 'border-dashed border-primary/50' : (statusColors?.border ?? 'border-muted')
         )}
         style={{ aspectRatio: `${ratio.width}/${ratio.height}` }}
       >
@@ -113,7 +115,6 @@ export function AspectRatioPreview({
             <div className={cn('flex items-center gap-2 font-medium', statusColors?.text)}>
               <StatusIcon className="h-4 w-4" />
               <span>
-                {getStatusIndicator(ratioCheck.status)}{' '}
                 {ratioCheck.status === 'perfect'
                   ? 'Perfect match'
                   : ratioCheck.status === 'close'

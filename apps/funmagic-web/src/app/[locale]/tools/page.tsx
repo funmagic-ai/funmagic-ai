@@ -29,7 +29,7 @@ export default async function ToolsPage({ params, searchParams }: ToolsPageProps
   const t = await getTranslations('tools')
 
   return (
-    <div className="max-w-7xl mx-auto py-12 px-4">
+    <div className="max-w-[1200px] mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <h1 className="text-4xl font-bold mb-8">{t('allTools')}</h1>
 
       <Suspense fallback={<SearchSkeleton />}>
@@ -96,12 +96,12 @@ async function ToolsGrid({
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
         {tools.map((tool) => (
           <Link
             key={tool.id}
             href={`/tools/${tool.slug}`}
-            className="glass-panel p-6 rounded-xl neon-hover group"
+            className="glass-panel p-5 rounded-xl neon-hover group"
           >
             {tool.thumbnail && (
               <div className="aspect-video bg-muted rounded-lg mb-4 overflow-hidden">

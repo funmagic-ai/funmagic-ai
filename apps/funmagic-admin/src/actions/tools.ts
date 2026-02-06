@@ -7,6 +7,21 @@ import { ToolInputSchema, type ToolTranslations } from '@funmagic/shared/schemas
 import { parseFormData } from '@/lib/validate';
 import type { FormState } from '@/lib/form-types';
 
+/**
+ * Extract error message from API error response.
+ * The error.error can be a string or an object with {name, message}.
+ */
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback;
+  const err = error as { error?: unknown };
+  if (typeof err.error === 'string') return err.error;
+  if (err.error && typeof err.error === 'object') {
+    const errObj = err.error as { message?: string };
+    if (typeof errObj.message === 'string') return errObj.message;
+  }
+  return fallback;
+}
+
 interface CreateFormState extends FormState {
   toolId?: string;
 }
@@ -59,7 +74,7 @@ export async function createTool(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to create tool' };
+      return { success: false, message: getErrorMessage(error, 'Failed to create tool') };
     }
 
     revalidatePath('/dashboard/tools');
@@ -99,7 +114,7 @@ export async function updateToolGeneral(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to update tool' };
+      return { success: false, message: getErrorMessage(error, 'Failed to update tool') };
     }
 
     revalidatePath('/dashboard/tools');
@@ -139,7 +154,7 @@ export async function updateToolConfig(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to save configuration' };
+      return { success: false, message: getErrorMessage(error, 'Failed to save configuration') };
     }
 
     revalidatePath('/dashboard/tools');
@@ -207,7 +222,7 @@ export async function updateTool(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to update tool' };
+      return { success: false, message: getErrorMessage(error, 'Failed to update tool') };
     }
 
     revalidatePath('/dashboard/tools');
@@ -232,7 +247,7 @@ export async function toggleToolStatus(id: string, field: 'isActive' | 'isFeatur
   });
 
   if (error) {
-    throw new Error(error.error ?? `Failed to toggle ${field}`);
+    throw new Error(getErrorMessage(error, `Failed to toggle ${field}`));
   }
 
   revalidatePath('/dashboard/tools');
@@ -246,7 +261,7 @@ export async function deleteTool(id: string) {
   });
 
   if (error) {
-    throw new Error(error.error ?? 'Failed to delete tool');
+    throw new Error(getErrorMessage(error, 'Failed to delete tool'));
   }
 
   revalidatePath('/dashboard/tools');

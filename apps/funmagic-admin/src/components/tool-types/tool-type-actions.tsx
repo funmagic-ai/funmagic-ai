@@ -1,13 +1,14 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
-import { deleteToolType, toggleToolTypeStatus } from '@/actions/tool-types';
+import { DeactivateConfirmDialog } from '@/components/ui/deactivate-confirm-dialog';
+import { deleteToolType, getActiveToolsCountForToolType, toggleToolTypeStatus } from '@/actions/tool-types';
 
 interface ToolType {
   id: string;
@@ -22,6 +23,9 @@ interface ToolTypeActionsProps {
 export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [isToggling, startToggleTransition] = useTransition();
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [activeToolsCount, setActiveToolsCount] = useState(0);
+  const [isFetchingCount, setIsFetchingCount] = useState(false);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -34,15 +38,43 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
     });
   };
 
-  const handleToggle = () => {
+  const performToggle = () => {
     startToggleTransition(async () => {
       try {
         await toggleToolTypeStatus(toolType.id);
-        toast.success(toolType.isActive ? 'Tool type deactivated' : 'Tool type activated');
+        const message = toolType.isActive
+          ? activeToolsCount > 0
+            ? `Tool type and ${activeToolsCount} tool${activeToolsCount > 1 ? 's' : ''} deactivated`
+            : 'Tool type deactivated'
+          : 'Tool type activated';
+        toast.success(message);
+        setShowDeactivateDialog(false);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to toggle status');
       }
     });
+  };
+
+  const handleToggle = async () => {
+    if (toolType.isActive) {
+      setIsFetchingCount(true);
+      try {
+        const count = await getActiveToolsCountForToolType(toolType.id);
+        setActiveToolsCount(count);
+        setShowDeactivateDialog(true);
+      } finally {
+        setIsFetchingCount(false);
+      }
+    } else {
+      performToggle();
+    }
+  };
+
+  const getDeactivateDescription = () => {
+    if (activeToolsCount > 0) {
+      return `This will deactivate "${toolType.name}" and ${activeToolsCount} active tool${activeToolsCount > 1 ? 's' : ''} that use${activeToolsCount === 1 ? 's' : ''} this type. Tools will no longer be available to users.`;
+    }
+    return `Are you sure you want to deactivate "${toolType.name}"? This tool type will no longer be available.`;
   };
 
   return (
@@ -50,7 +82,7 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
       <Switch
         checked={toolType.isActive}
         onCheckedChange={handleToggle}
-        disabled={isToggling}
+        disabled={isToggling || isFetchingCount}
         aria-label="Toggle active status"
       />
       <Button variant="ghost" size="icon" asChild>
@@ -63,6 +95,14 @@ export function ToolTypeActions({ toolType }: ToolTypeActionsProps) {
         description={`Are you sure you want to delete "${toolType.name}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         isPending={isPending}
+      />
+      <DeactivateConfirmDialog
+        open={showDeactivateDialog}
+        onOpenChange={setShowDeactivateDialog}
+        onConfirm={performToggle}
+        title={activeToolsCount > 0 ? 'Deactivate tool type and tools?' : 'Deactivate tool type?'}
+        description={getDeactivateDescription()}
+        isPending={isToggling}
       />
     </div>
   );

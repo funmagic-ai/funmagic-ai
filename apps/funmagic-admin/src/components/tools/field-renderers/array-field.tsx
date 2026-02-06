@@ -188,34 +188,58 @@ function ImageGalleryField({
   canAddMore,
 }: ImageGalleryFieldProps) {
   // Handle file selection - show local preview, store for deferred upload
-  const handleFileSelect = useCallback((file: File) => {
+  const handleFileSelect = useCallback((files: File[]) => {
     const remainingSlots = field.maxItems ? field.maxItems - items.length : Infinity;
     if (remainingSlots <= 0) return;
 
-    // Check for duplicate file by name and size
+    const filesToProcess = files.slice(0, remainingSlots);
+
+    // Collect existing pending files for duplicate check
     const existingPendingFiles = items
       .map(item => item[imageFieldName] as string)
       .filter(url => isPendingUrl(url))
       .map(url => getPendingFile(url))
       .filter((f): f is File => f !== undefined);
 
-    const isDuplicate = existingPendingFiles.some(
-      existingFile => existingFile.name === file.name && existingFile.size === file.size
-    );
+    const newItems: Record<string, unknown>[] = [];
+    let duplicateCount = 0;
 
-    if (isDuplicate) {
-      toast.error('This file has already been added');
-      return;
+    for (const file of filesToProcess) {
+      // Check for duplicate file by name and size
+      const isDuplicate = existingPendingFiles.some(
+        existingFile => existingFile.name === file.name && existingFile.size === file.size
+      );
+
+      if (isDuplicate) {
+        duplicateCount++;
+        continue;
+      }
+
+      // Create blob URL for local preview
+      const blobUrl = URL.createObjectURL(file);
+
+      // Register file for deferred upload
+      registerPendingFile(blobUrl, file);
+
+      // Add to items with blob URL (will be replaced with real URL on submit)
+      newItems.push({ [imageFieldName]: blobUrl });
+
+      // Track this file for subsequent duplicate checks within same batch
+      existingPendingFiles.push(file);
     }
 
-    // Create blob URL for local preview
-    const blobUrl = URL.createObjectURL(file);
+    if (newItems.length > 0) {
+      onChange([...items, ...newItems]);
+    }
 
-    // Register file for deferred upload
-    registerPendingFile(blobUrl, file);
+    // Show notifications
+    if (duplicateCount > 0) {
+      toast.error(`${duplicateCount} duplicate file(s) skipped`);
+    }
 
-    // Add to items with blob URL (will be replaced with real URL on submit)
-    onChange([...items, { [imageFieldName]: blobUrl }]);
+    if (filesToProcess.length < files.length) {
+      toast.info(`Only ${filesToProcess.length} of ${files.length} files added (max limit reached)`);
+    }
   }, [field.maxItems, items, onChange, imageFieldName]);
 
   const removeItem = (index: number) => {

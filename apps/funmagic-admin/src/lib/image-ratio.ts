@@ -166,16 +166,3 @@ export function getStatusColor(status: RatioStatus): {
   }
 }
 
-/**
- * Get status icon indicator
- */
-export function getStatusIndicator(status: RatioStatus): string {
-  switch (status) {
-    case 'perfect':
-      return '✓';
-    case 'close':
-      return '⚠';
-    case 'mismatch':
-      return '✗';
-  }
-}

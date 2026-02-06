@@ -50,7 +50,7 @@ export const ToolInputSchema = z.object({
   thumbnail: z.string().optional(),
   isActive: z.boolean().default(true),
   isFeatured: z.boolean().default(false),
-  translations: ToolTranslationsSchema.optional(),
+  // translations handled separately via manual JSON.parse (FormData sends as string)
 })
 
 export const ToolSchema = z.object({

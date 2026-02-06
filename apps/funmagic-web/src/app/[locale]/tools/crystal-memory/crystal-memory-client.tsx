@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, Suspense } from 'react'
+import { useState, useCallback, useMemo, Suspense } from 'react'
 import dynamic from 'next/dynamic'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
@@ -10,8 +10,11 @@ import {
   createVGGTTaskAction,
 } from './actions'
 import { ImagePicker } from '@/components/upload/ImagePicker'
+import { ImageCropper } from '@/components/upload/ImageCropper'
 import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Stepper } from '@/components/ui/stepper'
 import type { ToolDetail, CrystalMemoryConfig } from '@/lib/types/tool-configs'
 
 // Dynamically import PointCloudViewer to avoid SSR issues with Three.js
@@ -30,7 +33,7 @@ const PointCloudViewer = dynamic(
   }
 )
 
-type ExecutorStep = 'upload' | 'removing-bg' | 'generating-cloud' | 'result'
+type ExecutorStep = 'upload' | 'cropping' | 'removing-bg' | 'generating-cloud' | 'result'
 
 interface BgRemoveOutput {
   assetId: string
@@ -60,6 +63,10 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const [bgRemoveOutput, setBgRemoveOutput] = useState<BgRemoveOutput | null>(null)
   const [vggtOutput, setVggtOutput] = useState<VGGTOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // State for raw file before cropping
+  const [rawFile, setRawFile] = useState<File | null>(null)
+  const [rawPreview, setRawPreview] = useState<string | null>(null)
 
   const upload = useSubmitUpload({
     route: 'crystal-memory',
@@ -117,6 +124,74 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const vggtCost = config.steps?.[1]?.cost ?? 15
   const totalCost = bgRemoveCost + vggtCost
 
+  // Handle file selection - go to cropping step for non-square images
+  const handleFileSelect = useCallback(
+    (file: File | null) => {
+      if (!file) {
+        setRawFile(null)
+        if (rawPreview) {
+          URL.revokeObjectURL(rawPreview)
+        }
+        setRawPreview(null)
+        upload.setFile(null)
+        return
+      }
+
+      // Check if image is square
+      const img = new Image()
+      const objectUrl = URL.createObjectURL(file)
+
+      img.onload = () => {
+        const isSquare = img.width === img.height
+        if (isSquare) {
+          // Square image - skip cropping
+          upload.setFile(file)
+          URL.revokeObjectURL(objectUrl)
+        } else {
+          // Non-square image - go to cropping step
+          setRawFile(file)
+          setRawPreview(objectUrl)
+          setStep('cropping')
+        }
+      }
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl)
+        setError('Failed to load image')
+      }
+
+      img.src = objectUrl
+    },
+    [rawPreview, upload]
+  )
+
+  // Handle crop confirmation
+  const handleCropComplete = useCallback(
+    (blob: Blob) => {
+      const croppedFile = new File([blob], rawFile?.name || 'cropped.png', { type: 'image/png' })
+      upload.setFile(croppedFile)
+
+      // Clean up raw preview
+      if (rawPreview) {
+        URL.revokeObjectURL(rawPreview)
+      }
+      setRawPreview(null)
+      setRawFile(null)
+      setStep('upload')
+    },
+    [rawFile, rawPreview, upload]
+  )
+
+  // Handle crop cancellation
+  const handleCropCancel = useCallback(() => {
+    if (rawPreview) {
+      URL.revokeObjectURL(rawPreview)
+    }
+    setRawPreview(null)
+    setRawFile(null)
+    setStep('upload')
+  }, [rawPreview])
+
   const handleGenerate = useCallback(async () => {
     if (!upload.pendingFile) return
     setError(null)
@@ -146,205 +221,172 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
     if (originalPreview) {
       URL.revokeObjectURL(originalPreview)
     }
+    if (rawPreview) {
+      URL.revokeObjectURL(rawPreview)
+    }
     setStep('upload')
     setBgRemoveOutput(null)
     setVggtOutput(null)
     setOriginalPreview(null)
     setBgRemovedPreview(null)
+    setRawFile(null)
+    setRawPreview(null)
     setError(null)
     upload.reset()
-  }, [originalPreview, upload])
+  }, [originalPreview, rawPreview, upload])
+
+  const steps = useMemo(
+    () => [
+      { id: 'upload', label: 'Upload' },
+      { id: 'cropping', label: 'Crop' },
+      { id: 'removing-bg', label: 'Remove BG' },
+      { id: 'generating-cloud', label: 'Generate 3D' },
+      { id: 'result', label: 'View' },
+    ],
+    []
+  )
+
+  const completedSteps = useMemo(() => {
+    if (step === 'upload') return []
+    if (step === 'cropping') return ['upload']
+    if (step === 'removing-bg') return ['upload', 'cropping']
+    if (step === 'generating-cloud') return ['upload', 'cropping', 'removing-bg']
+    if (step === 'result') return ['upload', 'cropping', 'removing-bg', 'generating-cloud']
+    return []
+  }, [step])
 
   if (!session) {
     return (
-      <div className="bg-card p-8 rounded-xl shadow-sm border text-center">
-        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-        <a
-          href="/login"
-          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-        >
-          Sign In
-        </a>
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+          <a
+            href="/login"
+            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+          >
+            Sign In
+          </a>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border space-y-6">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="float-right text-red-500 hover:text-red-700"
-          >
-            &times;
-          </button>
-        </div>
-      )}
-
-      {/* Step indicator */}
-      <div className="flex items-center gap-2 text-sm">
-        <StepIndicator
-          number={1}
-          label="Upload"
-          isActive={step === 'upload'}
-          isComplete={step !== 'upload'}
-        />
-        <div className="flex-1 h-px bg-border" />
-        <StepIndicator
-          number={2}
-          label="Remove BG"
-          isActive={step === 'removing-bg'}
-          isComplete={step === 'generating-cloud' || step === 'result'}
-        />
-        <div className="flex-1 h-px bg-border" />
-        <StepIndicator
-          number={3}
-          label="Generate 3D"
-          isActive={step === 'generating-cloud'}
-          isComplete={step === 'result'}
-        />
-        <div className="flex-1 h-px bg-border" />
-        <StepIndicator
-          number={4}
-          label="View"
-          isActive={step === 'result'}
-          isComplete={false}
-        />
-      </div>
-
-      {step === 'upload' && (
-        <>
-          <h3 className="font-medium text-foreground">Upload Your Image</h3>
-          <p className="text-sm text-muted-foreground">
-            Upload a photo to transform it into a 3D point cloud. Works best with objects
-            that have clear edges and distinct colors.
-          </p>
-
-          <ImagePicker
-            onFileSelect={upload.setFile}
-            preview={upload.preview}
-            disabled={upload.isUploading}
-          />
-
-          <Button
-            onClick={handleGenerate}
-            disabled={!upload.pendingFile || upload.isUploading}
-            className="w-full"
-            size="lg"
-          >
-            {upload.isUploading
-              ? 'Uploading...'
-              : `Create 3D Point Cloud (${totalCost} credits)`}
-          </Button>
-
-          <p className="text-xs text-muted-foreground text-center">
-            Cost breakdown: {bgRemoveCost} credits (background removal) + {vggtCost} credits (3D generation)
-          </p>
-        </>
-      )}
-
-      {step === 'removing-bg' && bgRemoveTaskId && (
-        <div className="space-y-4">
-          <h3 className="font-medium text-foreground">Step 1: Removing Background</h3>
-          {originalPreview && (
-            <div className="flex justify-center">
-              <img
-                src={originalPreview}
-                alt="Original"
-                className="max-h-48 rounded-lg opacity-50"
-              />
-            </div>
-          )}
-          <TaskProgressDisplay taskId={bgRemoveTaskId} />
-        </div>
-      )}
-
-      {step === 'generating-cloud' && vggtTaskId && (
-        <div className="space-y-4">
-          <h3 className="font-medium text-foreground">Step 2: Generating 3D Point Cloud</h3>
-          {bgRemovedPreview && (
-            <div className="flex justify-center">
-              <img
-                src={bgRemovedPreview}
-                alt="Background Removed"
-                className="max-h-48 rounded-lg"
-              />
-            </div>
-          )}
-          <TaskProgressDisplay taskId={vggtTaskId} />
-        </div>
-      )}
-
-      {step === 'result' && vggtOutput && (
-        <div className="space-y-4">
-          <h3 className="font-medium text-foreground">Your 3D Point Cloud</h3>
-          <p className="text-sm text-muted-foreground">
-            Generated {vggtOutput.pointCount.toLocaleString()} points. Use your mouse to rotate,
-            scroll to zoom, and right-click to pan.
-          </p>
-
-          <Suspense
-            fallback={
-              <div className="bg-zinc-900 rounded-lg h-[500px] flex items-center justify-center">
-                <div className="text-muted-foreground">Loading viewer...</div>
-              </div>
-            }
-          >
-            <PointCloudViewer
-              data={{ txt: vggtOutput.txt, conf: vggtOutput.conf }}
-              onReset={handleReset}
-            />
-          </Suspense>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function StepIndicator({
-  number,
-  label,
-  isActive,
-  isComplete,
-}: {
-  number: number
-  label: string
-  isActive: boolean
-  isComplete: boolean
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div
-        className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
-          isComplete
-            ? 'bg-green-500 text-white'
-            : isActive
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-muted-foreground'
-        }`}
-      >
-        {isComplete ? (
-          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-            <path
-              fillRule="evenodd"
-              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-              clipRule="evenodd"
-            />
-          </svg>
-        ) : (
-          number
+    <Card>
+      <CardContent className="space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
+            {error}
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="float-right text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            >
+              &times;
+            </button>
+          </div>
         )}
-      </div>
-      <span
-        className={`hidden sm:inline ${
-          isActive ? 'text-foreground font-medium' : 'text-muted-foreground'
-        }`}
-      >
-        {label}
-      </span>
-    </div>
+
+        {/* Step indicator */}
+        <Stepper steps={steps} currentStep={step} completedSteps={completedSteps} />
+
+        {step === 'upload' && (
+          <>
+            <h3 className="font-medium text-foreground">Upload Your Image</h3>
+            <p className="text-sm text-muted-foreground">
+              Upload a photo to transform it into a 3D point cloud. Works best with objects
+              that have clear edges and distinct colors.
+            </p>
+
+            <ImagePicker
+              onFileSelect={handleFileSelect}
+              preview={upload.preview}
+              disabled={upload.isUploading}
+            />
+
+            <Button
+              onClick={handleGenerate}
+              disabled={!upload.pendingFile || upload.isUploading}
+              className="w-full"
+              size="lg"
+            >
+              {upload.isUploading
+                ? 'Uploading...'
+                : `Create 3D Point Cloud (${totalCost} credits)`}
+            </Button>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Cost breakdown: {bgRemoveCost} credits (background removal) + {vggtCost} credits (3D generation)
+            </p>
+          </>
+        )}
+
+        {step === 'cropping' && rawPreview && (
+          <>
+            <h3 className="font-medium text-foreground">Crop to Square</h3>
+            <ImageCropper
+              imageSrc={rawPreview}
+              onCropComplete={handleCropComplete}
+              onCancel={handleCropCancel}
+            />
+          </>
+        )}
+
+        {step === 'removing-bg' && bgRemoveTaskId && (
+          <div className="space-y-4">
+            <h3 className="font-medium text-foreground">Step 1: Removing Background</h3>
+            {originalPreview && (
+              <div className="flex justify-center">
+                <img
+                  src={originalPreview}
+                  alt="Original"
+                  className="max-h-48 rounded-lg opacity-50"
+                />
+              </div>
+            )}
+            <TaskProgressDisplay taskId={bgRemoveTaskId} />
+          </div>
+        )}
+
+        {step === 'generating-cloud' && vggtTaskId && (
+          <div className="space-y-4">
+            <h3 className="font-medium text-foreground">Step 2: Generating 3D Point Cloud</h3>
+            {bgRemovedPreview && (
+              <div className="flex justify-center">
+                <img
+                  src={bgRemovedPreview}
+                  alt="Background Removed"
+                  className="max-h-48 rounded-lg"
+                />
+              </div>
+            )}
+            <TaskProgressDisplay taskId={vggtTaskId} />
+          </div>
+        )}
+
+        {step === 'result' && vggtOutput && (
+          <div className="space-y-4">
+            <h3 className="font-medium text-foreground">Your 3D Point Cloud</h3>
+            <p className="text-sm text-muted-foreground">
+              Generated {vggtOutput.pointCount.toLocaleString()} points. Use your mouse to rotate,
+              scroll to zoom, and right-click to pan.
+            </p>
+
+            <Suspense
+              fallback={
+                <div className="bg-zinc-900 rounded-lg h-[500px] flex items-center justify-center">
+                  <div className="text-muted-foreground">Loading viewer...</div>
+                </div>
+              }
+            >
+              <PointCloudViewer
+                data={{ txt: vggtOutput.txt, conf: vggtOutput.conf }}
+                onReset={handleReset}
+              />
+            </Suspense>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

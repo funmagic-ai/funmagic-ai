@@ -11,6 +11,7 @@ import { TaskProgressDisplay } from '@/components/tools/TaskProgressDisplay'
 import { StyleSelector } from './style-selector'
 import { ResultDisplay } from './result-display'
 import { ThreeDViewer } from './three-d-viewer'
+import { Card, CardContent } from '@/components/ui/card'
 import type { ToolDetail, FigMeConfig, StyleReference } from '@/lib/types/tool-configs'
 
 type ExecutorStep =
@@ -146,92 +147,96 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
 
   if (!session) {
     return (
-      <div className="bg-card p-8 rounded-xl shadow-sm border text-center">
-        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
-        <a
-          href="/login"
-          className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
-        >
-          Sign In
-        </a>
-      </div>
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+          <a
+            href="/login"
+            className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
+          >
+            Sign In
+          </a>
+        </CardContent>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm border space-y-6">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-          <button
-            type="button"
-            onClick={() => setError(null)}
-            className="float-right text-red-500 hover:text-red-700"
-          >
-            &times;
-          </button>
-        </div>
-      )}
+    <Card>
+      <CardContent className="space-y-6">
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
+            {error}
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="float-right text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+            >
+              &times;
+            </button>
+          </div>
+        )}
 
-      {(step === 'select-style' || step === 'upload-image') && (
-        <>
-          <StyleSelector
-            styles={styles}
-            selectedStyleId={selectedStyleId}
-            onSelect={handleStyleSelect}
-            disabled={step === 'upload-image' && upload.isUploading}
+        {(step === 'select-style' || step === 'upload-image') && (
+          <>
+            <StyleSelector
+              styles={styles}
+              selectedStyleId={selectedStyleId}
+              onSelect={handleStyleSelect}
+              disabled={step === 'upload-image' && upload.isUploading}
+            />
+
+            {selectedStyleId && step === 'upload-image' && (
+              <div className="border-t pt-6 space-y-4">
+                <h3 className="font-medium text-foreground">Upload Your Image</h3>
+                <ImagePicker
+                  onFileSelect={upload.setFile}
+                  preview={upload.preview}
+                  disabled={upload.isUploading}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleGenerateImage}
+                  disabled={!upload.pendingFile || upload.isUploading}
+                  className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {upload.isUploading
+                    ? 'Uploading...'
+                    : `Generate Image (${imageGenCost} credits)`}
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {step === 'generating-image' && taskId && (
+          <TaskProgressDisplay taskId={taskId} />
+        )}
+
+        {step === 'image-result' && imageResult && (
+          <ResultDisplay
+            imageUrl={imageResult.imageUrl || ''}
+            onSave={handleSave}
+            onGenerate3D={handleGenerate3D}
+            onReset={handleReset}
+            isSaving={isSaving}
+            threeDCost={threeDGenCost}
           />
+        )}
 
-          {selectedStyleId && step === 'upload-image' && (
-            <div className="border-t pt-6 space-y-4">
-              <h3 className="font-medium text-foreground">Upload Your Image</h3>
-              <ImagePicker
-                onFileSelect={upload.setFile}
-                preview={upload.preview}
-                disabled={upload.isUploading}
-              />
+        {step === 'generating-3d' && taskId && (
+          <TaskProgressDisplay taskId={taskId} />
+        )}
 
-              <button
-                type="button"
-                onClick={handleGenerateImage}
-                disabled={!upload.pendingFile || upload.isUploading}
-                className="w-full bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {upload.isUploading
-                  ? 'Uploading...'
-                  : `Generate Image (${imageGenCost} credits)`}
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {step === 'generating-image' && taskId && (
-        <TaskProgressDisplay taskId={taskId} />
-      )}
-
-      {step === 'image-result' && imageResult && (
-        <ResultDisplay
-          imageUrl={imageResult.imageUrl || ''}
-          onSave={handleSave}
-          onGenerate3D={handleGenerate3D}
-          onReset={handleReset}
-          isSaving={isSaving}
-          threeDCost={threeDGenCost}
-        />
-      )}
-
-      {step === 'generating-3d' && taskId && (
-        <TaskProgressDisplay taskId={taskId} />
-      )}
-
-      {step === '3d-result' && threeDResult && (
-        <ThreeDViewer
-          modelUrl={threeDResult.modelUrl || ''}
-          onDownload={() => window.open(threeDResult.modelUrl, '_blank')}
-          onReset={handleReset}
-        />
-      )}
-    </div>
+        {step === '3d-result' && threeDResult && (
+          <ThreeDViewer
+            modelUrl={threeDResult.modelUrl || ''}
+            onDownload={() => window.open(threeDResult.modelUrl, '_blank')}
+            onReset={handleReset}
+          />
+        )}
+      </CardContent>
+    </Card>
   )
 }

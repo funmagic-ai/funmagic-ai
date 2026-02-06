@@ -88,24 +88,37 @@ function parsePointCloudData(data: PointCloudData, confidenceThreshold: number):
   const positions = new Float32Array(pointCount * 3)
   const colors = new Float32Array(pointCount * 3)
 
-  filteredIndices.forEach((originalIndex, newIndex) => {
+  let validCount = 0
+  filteredIndices.forEach((originalIndex) => {
     const line = lines[originalIndex]
     const parts = line.split(',')
 
     if (parts.length >= 7) {
-      const [, x, y, z, r, g, b] = parts.map(Number)
+      const x = parseFloat(parts[1])
+      const y = parseFloat(parts[2])
+      const z = parseFloat(parts[3])
+      const r = parseInt(parts[4], 10)
+      const g = parseInt(parts[5], 10)
+      const b = parseInt(parts[6], 10)
 
-      positions[newIndex * 3] = x
-      positions[newIndex * 3 + 1] = y
-      positions[newIndex * 3 + 2] = z
+      // Skip points with invalid (NaN) coordinates
+      if (isNaN(x) || isNaN(y) || isNaN(z)) return
 
-      colors[newIndex * 3] = r / 255
-      colors[newIndex * 3 + 1] = g / 255
-      colors[newIndex * 3 + 2] = b / 255
+      positions[validCount * 3] = x
+      positions[validCount * 3 + 1] = y
+      positions[validCount * 3 + 2] = z
+
+      // Clamp RGB values to valid range [0, 255] and normalize
+      colors[validCount * 3] = Math.max(0, Math.min(255, isNaN(r) ? 0 : r)) / 255
+      colors[validCount * 3 + 1] = Math.max(0, Math.min(255, isNaN(g) ? 0 : g)) / 255
+      colors[validCount * 3 + 2] = Math.max(0, Math.min(255, isNaN(b) ? 0 : b)) / 255
+
+      validCount++
     }
   })
 
-  return { positions, colors, pointCount }
+  // Return the actual valid count (may be less than filteredIndices.length due to NaN filtering)
+  return { positions, colors, pointCount: validCount }
 }
 
 export function PointCloudViewer({

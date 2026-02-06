@@ -1,12 +1,13 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { DeleteConfirmDialog } from '@/components/delete-confirm-dialog';
+import { DeactivateConfirmDialog } from '@/components/ui/deactivate-confirm-dialog';
 import { deleteBanner, toggleBannerStatus } from '@/actions/banners';
 
 interface Banner {
@@ -22,6 +23,7 @@ interface BannerActionsProps {
 export function BannerActions({ banner }: BannerActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [isToggling, startToggleTransition] = useTransition();
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -34,15 +36,24 @@ export function BannerActions({ banner }: BannerActionsProps) {
     });
   };
 
-  const handleToggle = () => {
+  const performToggle = () => {
     startToggleTransition(async () => {
       try {
         await toggleBannerStatus(banner.id);
         toast.success(banner.isActive ? 'Banner deactivated' : 'Banner activated');
+        setShowDeactivateDialog(false);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to toggle status');
       }
     });
+  };
+
+  const handleToggle = () => {
+    if (banner.isActive) {
+      setShowDeactivateDialog(true);
+    } else {
+      performToggle();
+    }
   };
 
   return (
@@ -63,6 +74,14 @@ export function BannerActions({ banner }: BannerActionsProps) {
         description={`Are you sure you want to delete "${banner.title}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         isPending={isPending}
+      />
+      <DeactivateConfirmDialog
+        open={showDeactivateDialog}
+        onOpenChange={setShowDeactivateDialog}
+        onConfirm={performToggle}
+        title="Deactivate banner?"
+        description={`Are you sure you want to deactivate "${banner.title}"? This banner will no longer be visible to users.`}
+        isPending={isToggling}
       />
     </div>
   );

@@ -59,14 +59,12 @@ export function UserSettings() {
   }
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm p-6">
-      <h2 className="text-lg font-semibold text-foreground mb-6">
-        {t('accountSettings')}
-      </h2>
+    <div className="glass-panel rounded-xl p-6">
+      <h2 className="text-lg font-semibold mb-6">{t('accountSettings')}</h2>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
+          <label className="block text-sm font-medium text-foreground mb-2">
             {t('settings.name')}
           </label>
           {isEditingName ? (
@@ -90,7 +88,7 @@ export function UserSettings() {
                   size="icon"
                   onClick={handleSaveName}
                   disabled={isPending}
-                  className="text-green-600 hover:bg-green-50 dark:hover:bg-green-950"
+                  className="text-green-600 hover:bg-green-500/10"
                 >
                   {isPending ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -126,7 +124,7 @@ export function UserSettings() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1">
+          <label className="block text-sm font-medium text-foreground mb-2">
             {t('settings.email')}
           </label>
           <p className="text-foreground">{session.user.email}</p>
@@ -135,12 +133,12 @@ export function UserSettings() {
           </p>
         </div>
 
-        <div className="pt-4 border-t">
-          <h3 className="text-sm font-medium text-foreground mb-3">
+        <div className="pt-6 border-t border-border/50">
+          <h3 className="text-sm font-medium text-foreground mb-4">
             {t('settings.preferences')}
           </h3>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">
                 {t('settings.emailNotifications')}

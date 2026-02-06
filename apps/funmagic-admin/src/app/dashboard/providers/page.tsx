@@ -104,6 +104,7 @@ async function ProvidersTable() {
               <TableCell>
                 <ProviderActiveSwitch
                   providerId={provider.id}
+                  providerName={provider.displayName}
                   isActive={provider.isActive}
                 />
               </TableCell>

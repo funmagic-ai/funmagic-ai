@@ -137,6 +137,47 @@
     "transactionHistory": "交易历史",
     "noTransactions": "暂无交易",
     "accountSettings": "账户设置",
+    "tabs": {
+      "overview": "概览",
+      "account": "账户",
+      "transactions": "交易记录"
+    },
+    "overview": {
+      "title": "账户概览"
+    },
+    "credits": {
+      "title": "积分",
+      "available": "可用",
+      "total": "总计",
+      "lifetimeUsed": "累计使用"
+    },
+    "transactions": {
+      "title": "交易记录",
+      "recent": "最近活动",
+      "noTransactions": "暂无交易记录"
+    },
+    "security": {
+      "title": "安全设置",
+      "password": "密码",
+      "passwordDescription": "修改密码以保护您的账户安全。",
+      "changePassword": "修改密码",
+      "twoFactor": "两步验证",
+      "twoFactorDescription": "为您的账户添加额外的安全保护。",
+      "status": "状态",
+      "notEnabled": "未启用",
+      "sessions": "活跃会话",
+      "sessionsDescription": "管理您在各设备上的登录会话。",
+      "manageSessions": "管理会话"
+    },
+    "notifications": {
+      "title": "通知设置",
+      "email": "邮件通知",
+      "emailDescription": "接收账户和任务的更新通知。",
+      "marketing": "营销邮件",
+      "marketingDescription": "获取使用技巧、产品更新和特别优惠。",
+      "updates": "产品更新",
+      "updatesDescription": "了解新功能和改进。"
+    },
     "settings": {
       "name": "姓名",
       "email": "邮箱",

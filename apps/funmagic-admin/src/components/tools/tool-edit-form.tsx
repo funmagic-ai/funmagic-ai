@@ -24,7 +24,13 @@ import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
 import { getToolDefinition, type SavedToolConfig, type StepConfig, type ToolTranslations } from '@funmagic/shared';
 import { ConfigFieldsSection } from './config-fields-section';
-import { getPendingFile, removePendingFile, isPendingUrl, clearPendingFiles } from './field-renderers';
+import {
+  getPendingFile,
+  removePendingFile,
+  isPendingUrl,
+  clearPendingFiles,
+  registerPendingFile,
+} from './field-renderers';
 import type { Provider } from './field-renderers';
 
 interface Tool {
@@ -93,8 +99,10 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
     errors: {},
   });
 
-  // Thumbnail state
-  const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool.thumbnail ?? ''));
+  // Thumbnail state - store the raw key/URL, show display URL in preview
+  const [thumbnailUrl, setThumbnailUrl] = useState(tool.thumbnail ?? '');
+  // Pending thumbnail file for deferred upload
+  const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
 
   // Translations state
   const [translations, setTranslations] = useState<ToolTranslations>(
@@ -151,36 +159,40 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
 
   // Upload control for config files (style references, etc.)
   const configUploadControl = useUploadFiles({
-    route: 'tool-config',
-    api: '/api/admin/tools/tool-config/upload',
+    route: 'styles',
+    api: '/api/admin/tools/figme/styles/upload',
   });
 
   const thumbnailUploadControl = useUploadFiles({
     route: 'thumbnails',
     api: '/api/admin/tools/thumbnails/upload',
-    onUploadComplete: ({ files }) => {
-      if (files.length > 0) {
-        const file = files[0];
-        const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
-        const imageUrl = s3BaseUrl ? `${s3BaseUrl}/${file.objectInfo.key}` : file.objectInfo.key;
-        setThumbnailUrl(imageUrl);
-      }
-    },
   });
+
+  // Handle thumbnail file selection (deferred upload)
+  const handleThumbnailSelect = (files: File[]) => {
+    if (files.length > 0) {
+      const file = files[0];
+      const blobUrl = URL.createObjectURL(file);
+      setPendingThumbnailFile(file);
+      setThumbnailUrl(blobUrl); // Show local preview
+    }
+  };
 
   // Sync thumbnail URL when tool prop changes
   useEffect(() => {
-    setThumbnailUrl(getS3PublicUrl(tool.thumbnail ?? ''));
+    setThumbnailUrl(tool.thumbnail ?? '');
+    setPendingThumbnailFile(null);
   }, [tool.thumbnail]);
 
-  // Upload a single pending file
+  // Upload a single pending file using uploadAsync which returns a Promise
+  // Returns only the S3 key (not full URL) for CloudFront compatibility
   const uploadSingleFile = async (file: File): Promise<string> => {
-    const result = await configUploadControl.upload([file], {});
+    const result = await configUploadControl.uploadAsync([file], {});
 
-    if (result && typeof result === 'object' && 'objectInfo' in result) {
-      const objectInfo = result.objectInfo as { key: string };
-      const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
-      return s3BaseUrl ? `${s3BaseUrl}/${objectInfo.key}` : objectInfo.key;
+    if (result && result.files && result.files.length > 0) {
+      const key = result.files[0].objectInfo.key;
+      // Return ONLY the key, not full URL - getS3PublicUrl will prepend base URL at display time
+      return key;
     }
 
     throw new Error('Upload failed');
@@ -236,26 +248,49 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
     setIsUploading(true);
 
     try {
-      // First, upload any pending files
+      // First, upload any pending files in config
       const processedConfig = await processPendingUploads(config);
 
       // Update the config state with processed URLs
       setConfig(processedConfig);
 
+      // Upload pending thumbnail if exists
+      let finalThumbnailUrl = thumbnailUrl;
+      if (pendingThumbnailFile && thumbnailUrl.startsWith('blob:')) {
+        const result = await thumbnailUploadControl.uploadAsync([pendingThumbnailFile], {});
+        if (result?.files?.length > 0) {
+          // Return ONLY the key for CloudFront compatibility
+          finalThumbnailUrl = result.files[0].objectInfo.key;
+        }
+        URL.revokeObjectURL(thumbnailUrl);
+        setPendingThumbnailFile(null);
+        setThumbnailUrl(finalThumbnailUrl);
+      }
+
       // Now submit the form
-      formData.set('thumbnail', thumbnailUrl);
+      formData.set('thumbnail', finalThumbnailUrl);
       formData.set('config', JSON.stringify(processedConfig));
       formData.set('translations', JSON.stringify(translations));
 
       startTransition(async () => {
-        const result = await updateTool(formState, formData);
+        try {
+          const result = await updateTool(formState, formData);
 
-        if (result.success) {
-          toast.success(result.message || 'Tool updated successfully');
-          clearPendingFiles();
+          if (result.success) {
+            toast.success(result.message || 'Tool updated successfully');
+            clearPendingFiles();
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            router.push('/dashboard/tools');
+          } else {
+            // Show error toast for failed case
+            toast.error(result.message || 'Failed to update tool');
+          }
+
+          setFormState(result);
+        } catch (error) {
+          console.error('Failed to update tool:', error);
+          toast.error('Server error: ' + (error instanceof Error ? error.message : 'Unknown error'));
         }
-
-        setFormState(result);
       });
     } catch (error) {
       console.error('Upload failed:', error);
@@ -271,6 +306,9 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
     <form onSubmit={handleSubmit}>
       <input type="hidden" name="id" value={tool.id} />
       <input type="hidden" name="slug" value={tool.slug} />
+      {/* Preserve isActive and isFeatured values - hidden inputs only sent when value is "on" */}
+      {tool.isActive && <input type="hidden" name="isActive" value="on" />}
+      {tool.isFeatured && <input type="hidden" name="isFeatured" value="on" />}
 
       <div className="mx-auto max-w-4xl grid gap-6">
         {/* Basic Information Section */}
@@ -384,13 +422,20 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
               </p>
               {thumbnailUrl ? (
                 <AspectRatioPreview
-                  imageUrl={thumbnailUrl}
+                  imageUrl={isPendingUrl(thumbnailUrl) ? thumbnailUrl : getS3PublicUrl(thumbnailUrl)}
                   ratioType="THUMBNAIL"
-                  onRemove={() => setThumbnailUrl('')}
+                  onRemove={() => {
+                    if (isPendingUrl(thumbnailUrl)) {
+                      URL.revokeObjectURL(thumbnailUrl);
+                      setPendingThumbnailFile(null);
+                    }
+                    setThumbnailUrl('');
+                  }}
+                  isPending={isPendingUrl(thumbnailUrl)}
                 />
               ) : (
                 <UploadDropzone
-                  control={thumbnailUploadControl}
+                  onFileSelect={handleThumbnailSelect}
                   accept="image/jpeg,image/png,image/webp,image/gif"
                   description={{
                     fileTypes: 'JPEG, PNG, WebP, GIF',

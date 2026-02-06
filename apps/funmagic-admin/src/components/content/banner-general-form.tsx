@@ -126,8 +126,10 @@ export function BannerGeneralForm() {
     });
   };
 
-  const handleFileSelect = (selectedFile: File) => {
-    setFile(selectedFile);
+  const handleFileSelect = (files: File[]) => {
+    if (files.length > 0) {
+      setFile(files[0]);
+    }
   };
 
   const handleRemoveFile = () => {

@@ -147,8 +147,27 @@ const toggleActiveRoute = createRoute({
   },
   responses: {
     200: {
-      content: { 'application/json': { schema: z.object({ isActive: z.boolean() }).openapi('ToggleToolTypeActiveResponse') } },
+      content: { 'application/json': { schema: z.object({ isActive: z.boolean(), deactivatedToolsCount: z.number().optional() }).openapi('ToggleToolTypeActiveResponse') } },
       description: 'Tool type active status toggled',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Tool type not found',
+    },
+  },
+});
+
+const getActiveToolsCountRoute = createRoute({
+  method: 'get',
+  path: '/{id}/active-tools-count',
+  tags: ['Admin - Tool Types'],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ count: z.number() }).openapi('ActiveToolsCountResponse') } },
+      description: 'Count of active tools for this tool type',
     },
     404: {
       content: { 'application/json': { schema: ErrorSchema } },
@@ -310,6 +329,28 @@ export const toolTypesRoutes = new OpenAPIHono()
 
     return c.json({ success: true }, 200);
   })
+  .openapi(getActiveToolsCountRoute, async (c) => {
+    const { id } = c.req.valid('param');
+
+    const existing = await db.query.toolTypes.findFirst({
+      where: and(eq(toolTypes.id, id), isNull(toolTypes.deletedAt)),
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Tool type not found' }, 404);
+    }
+
+    const [{ count: activeToolsCount }] = await db
+      .select({ count: count() })
+      .from(tools)
+      .where(and(
+        eq(tools.toolTypeId, id),
+        eq(tools.isActive, true),
+        isNull(tools.deletedAt)
+      ));
+
+    return c.json({ count: Number(activeToolsCount) }, 200);
+  })
   .openapi(toggleActiveRoute, async (c) => {
     const { id } = c.req.valid('param');
 
@@ -321,10 +362,27 @@ export const toolTypesRoutes = new OpenAPIHono()
       return c.json({ error: 'Tool type not found' }, 404);
     }
 
+    const newIsActive = !existing.isActive;
+
     const [updated] = await db.update(toolTypes)
-      .set({ isActive: !existing.isActive })
+      .set({ isActive: newIsActive })
       .where(eq(toolTypes.id, id))
       .returning();
 
-    return c.json({ isActive: updated.isActive }, 200);
+    // When deactivating, also deactivate all related active tools
+    let deactivatedToolsCount: number | undefined;
+    if (!newIsActive) {
+      const result = await db.update(tools)
+        .set({ isActive: false })
+        .where(and(
+          eq(tools.toolTypeId, id),
+          eq(tools.isActive, true),
+          isNull(tools.deletedAt)
+        ))
+        .returning({ id: tools.id });
+
+      deactivatedToolsCount = result.length;
+    }
+
+    return c.json({ isActive: updated.isActive, deactivatedToolsCount }, 200);
   });

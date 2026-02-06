@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { createProvider } from '@/actions/providers';
 import type { FormState } from '@/lib/form-types';
@@ -220,24 +219,6 @@ export function ProviderGeneralForm() {
               <p className="text-muted-foreground text-xs">
                 Custom endpoint for self-hosted or proxy instances
               </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Status</CardTitle>
-            <CardDescription>Control provider availability</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <Label htmlFor="isActive">
-                  Active <span className="text-muted-foreground text-xs">(optional)</span>
-                </Label>
-                <p className="text-sm text-muted-foreground">Enable this provider</p>
-              </div>
-              <Switch id="isActive" name="isActive" defaultChecked />
             </div>
           </CardContent>
         </Card>

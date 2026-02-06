@@ -137,6 +137,47 @@
     "transactionHistory": "Transaction History",
     "noTransactions": "No transactions yet",
     "accountSettings": "Account Settings",
+    "tabs": {
+      "overview": "Overview",
+      "account": "Account",
+      "transactions": "Transactions"
+    },
+    "overview": {
+      "title": "Account Overview"
+    },
+    "credits": {
+      "title": "Credits",
+      "available": "Available",
+      "total": "Total",
+      "lifetimeUsed": "Lifetime Used"
+    },
+    "transactions": {
+      "title": "Transactions",
+      "recent": "Recent Activity",
+      "noTransactions": "No transactions yet"
+    },
+    "security": {
+      "title": "Security",
+      "password": "Password",
+      "passwordDescription": "Change your password to keep your account secure.",
+      "changePassword": "Change Password",
+      "twoFactor": "Two-Factor Authentication",
+      "twoFactorDescription": "Add an extra layer of security to your account.",
+      "status": "Status",
+      "notEnabled": "Not enabled",
+      "sessions": "Active Sessions",
+      "sessionsDescription": "Manage your active sessions across devices.",
+      "manageSessions": "Manage Sessions"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": "Email Notifications",
+      "emailDescription": "Receive updates about your account and tasks.",
+      "marketing": "Marketing Emails",
+      "marketingDescription": "Get tips, product updates, and special offers.",
+      "updates": "Product Updates",
+      "updatesDescription": "Be notified about new features and improvements."
+    },
     "settings": {
       "name": "Name",
       "email": "Email",

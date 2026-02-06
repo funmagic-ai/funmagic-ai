@@ -135,6 +135,20 @@ export async function deleteToolType(id: string) {
   revalidatePath('/dashboard/tool-types');
 }
 
+export async function getActiveToolsCountForToolType(id: string): Promise<number> {
+  const cookieHeader = (await cookies()).toString();
+  const { data, error } = await api.GET('/api/admin/tool-types/{id}/active-tools-count' as '/api/admin/tool-types/{id}', {
+    params: { path: { id } },
+    headers: { cookie: cookieHeader },
+  });
+
+  if (error || !data) {
+    return 0;
+  }
+
+  return (data as unknown as { count: number }).count;
+}
+
 export async function toggleToolTypeStatus(id: string) {
   const cookieHeader = (await cookies()).toString();
   const { error } = await api.PATCH('/api/admin/tool-types/{id}/toggle-active' as '/api/admin/tools/{id}/toggle-active', {
@@ -147,4 +161,5 @@ export async function toggleToolTypeStatus(id: string) {
   }
 
   revalidatePath('/dashboard/tool-types');
+  revalidatePath('/dashboard/tools');
 }

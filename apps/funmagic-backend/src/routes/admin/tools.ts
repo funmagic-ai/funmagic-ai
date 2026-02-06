@@ -38,7 +38,7 @@ const CreateToolSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   shortDescription: z.string().optional(),
-  thumbnail: z.string().url().optional(),
+  thumbnail: z.string().optional(),
   toolTypeId: z.string().uuid('Tool type ID must be a valid UUID'),
   config: z.any().default({}),
   translations: ToolTranslationsSchema.optional(),

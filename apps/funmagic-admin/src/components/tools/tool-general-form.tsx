@@ -181,7 +181,10 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
     if (formState.success && formState.toolId) {
       toast.success('Tool created successfully');
       clearPendingFiles();
-      router.push(`/dashboard/tools/${formState.toolId}`);
+      const timer = setTimeout(() => {
+        router.push('/dashboard/tools');
+      }, 1500);
+      return () => clearTimeout(timer);
     }
   }, [formState.success, formState.toolId, router]);
 
@@ -277,6 +280,8 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
 
   return (
     <form onSubmit={handleSubmit}>
+      {/* New tools should be active by default */}
+      <input type="hidden" name="isActive" value="on" />
 
       <div className="mx-auto max-w-4xl grid gap-6">
         <Card>

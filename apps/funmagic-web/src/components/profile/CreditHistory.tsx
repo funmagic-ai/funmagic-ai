@@ -48,7 +48,21 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
       case 'reservation':
         return 'text-red-600'
       default:
-        return 'text-gray-600'
+        return 'text-muted-foreground'
+    }
+  }
+
+  const getTypeBgColor = (type: string) => {
+    switch (type) {
+      case 'purchase':
+      case 'bonus':
+      case 'refund':
+        return 'bg-green-500/10'
+      case 'usage':
+      case 'reservation':
+        return 'bg-red-500/10'
+      default:
+        return 'bg-muted'
     }
   }
 
@@ -71,8 +85,8 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
 
   if (transactions.length === 0) {
     return (
-      <div className="bg-card rounded-xl border shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Transaction History</h2>
+      <div className="glass-panel rounded-xl p-6">
+        <h2 className="text-lg font-semibold mb-6">Transaction History</h2>
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -89,28 +103,20 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
   }
 
   return (
-    <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
-      <div className="p-6 border-b">
-        <h2 className="text-lg font-semibold text-foreground">Transaction History</h2>
+    <div className="glass-panel rounded-xl overflow-hidden">
+      <div className="p-6 border-b border-border/50">
+        <h2 className="text-lg font-semibold">Transaction History</h2>
       </div>
 
-      <div className="divide-y">
+      <div className="divide-y divide-border/50">
         {transactions.map((transaction) => (
-          <div key={transaction.id} className="p-4 hover:bg-accent">
+          <div key={transaction.id} className="p-4 hover:bg-muted/30 transition-colors">
             <div className="flex items-center justify-between">
               <div>
                 <span
                   className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeColor(
                     transaction.type
-                  )} bg-opacity-10`}
-                  style={{
-                    backgroundColor:
-                      transaction.type === 'purchase' ||
-                      transaction.type === 'bonus' ||
-                      transaction.type === 'refund'
-                        ? 'rgb(220 252 231)'
-                        : 'rgb(254 226 226)',
-                  }}
+                  )} ${getTypeBgColor(transaction.type)}`}
                 >
                   {getTypeLabel(transaction.type)}
                 </span>
@@ -131,7 +137,7 @@ export function CreditHistory({ transactions, pagination }: CreditHistoryProps) 
       </div>
 
       {pagination.total > pagination.limit && (
-        <div className="p-4 border-t text-center">
+        <div className="p-4 border-t border-border/50 text-center">
           <p className="text-sm text-muted-foreground">
             Showing {transactions.length} of {pagination.total} transactions
           </p>
