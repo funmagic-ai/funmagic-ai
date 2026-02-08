@@ -82,6 +82,11 @@ function DefinitionBasedForm({ tool, providers, definition }: DefinitionBasedFor
         stepConfig.providerOptions = existingStep.providerOptions;
       }
 
+      // Preserve provider config if it exists
+      if (existingStep?.provider) {
+        stepConfig.provider = existingStep.provider;
+      }
+
       return stepConfig;
     });
   };

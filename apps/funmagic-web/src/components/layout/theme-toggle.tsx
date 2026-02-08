@@ -70,7 +70,7 @@ export function ThemeToggle() {
           type="button"
           onClick={() => setTheme(value)}
           className={cn(
-            'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
+            'flex h-9 w-9 items-center justify-center rounded-md transition-colors',
             theme === value
               ? 'bg-card text-foreground shadow-sm'
               : 'text-muted-foreground hover:text-foreground'

@@ -114,6 +114,8 @@ export function ProviderEditForm({ provider }: ProviderEditFormProps) {
         toast.success(result.message || 'Provider updated successfully');
         await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/providers');
+      } else if (!result.success) {
+        toast.error(result.message || 'Failed to update provider');
       }
 
       return result;

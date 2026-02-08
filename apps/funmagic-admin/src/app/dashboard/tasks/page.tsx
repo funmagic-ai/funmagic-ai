@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { db, tasks } from '@/lib/db';
 import { desc, eq, sql } from 'drizzle-orm';
+import { formatDate } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -156,7 +157,7 @@ async function TaskTableData({ statusFilter }: { statusFilter?: string }) {
                 {formatDuration(task.startedAt, task.completedAt)}
               </TableCell>
               <TableCell className="hidden text-muted-foreground sm:table-cell">
-                {new Date(task.createdAt).toLocaleString()}
+                {formatDate(task.createdAt, 'datetime')}
               </TableCell>
               <TableCell>
                 <Button variant="ghost" size="icon" asChild>

@@ -66,7 +66,9 @@
     "menu": "Menu",
     "viewAll": "Xem tất cả",
     "loadMore": "Tải thêm",
-    "copyright": "Đã đăng ký bản quyền."
+    "copyright": "Đã đăng ký bản quyền.",
+    "skipToContent": "Chuyển đến nội dung chính",
+    "notifications": "Thông báo"
   },
   "footer": {
     "privacy": "Quyền riêng tư",
@@ -123,6 +125,21 @@
       "audio": "Âm thanh",
       "productivity": "Năng suất",
       "research": "Nghiên cứu"
+    },
+    "crystalMemory": {
+      "signInRequired": "Vui lòng đăng nhập để sử dụng công cụ này",
+      "signIn": "Đăng nhập",
+      "uploadTitle": "Tải lên hình ảnh",
+      "uploadDescription": "Tải lên ảnh để chuyển đổi thành đám mây điểm 3D. Hoạt động tốt nhất với các vật thể có cạnh rõ ràng và màu sắc riêng biệt.",
+      "cropTitle": "Cắt thành hình vuông",
+      "uploading": "Đang tải lên...",
+      "createButton": "Tạo đám mây điểm 3D ({cost} tín dụng)",
+      "costBreakdown": "Chi tiết chi phí: {bgCost} tín dụng (xóa nền) + {vggtCost} tín dụng (tạo 3D)",
+      "step1Title": "Bước 1: Đang xóa nền",
+      "step2Title": "Bước 2: Đang tạo đám mây điểm 3D",
+      "resultTitle": "Đám mây điểm 3D của bạn",
+      "resultDescription": "Đã tạo {pointCount} điểm. Dùng chuột để xoay, cuộn để phóng to và nhấp chuột phải để di chuyển.",
+      "loadingViewer": "Đang tải trình xem..."
     }
   },
   "assets": {

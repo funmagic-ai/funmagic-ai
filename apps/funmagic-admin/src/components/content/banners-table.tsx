@@ -1,6 +1,7 @@
 'use client';
 
 import { Fragment, useState } from 'react';
+import { formatDate } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -73,11 +74,13 @@ export function BannersTable({ banners }: BannersTableProps) {
                       size="icon"
                       className="h-6 w-6"
                       onClick={() => toggleRow(banner.id)}
+                      aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
+                      aria-expanded={isExpanded}
                     >
                       {isExpanded ? (
-                        <ChevronDown className="h-4 w-4" />
+                        <ChevronDown className="h-4 w-4" aria-hidden="true" />
                       ) : (
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
                       )}
                     </Button>
                   </TableCell>
@@ -90,10 +93,10 @@ export function BannersTable({ banners }: BannersTableProps) {
                     {banner.startsAt || banner.endsAt ? (
                       <div className="text-xs">
                         {banner.startsAt && (
-                          <p>Start: {new Date(banner.startsAt).toLocaleDateString()}</p>
+                          <p>Start: {formatDate(banner.startsAt)}</p>
                         )}
                         {banner.endsAt && (
-                          <p>End: {new Date(banner.endsAt).toLocaleDateString()}</p>
+                          <p>End: {formatDate(banner.endsAt)}</p>
                         )}
                       </div>
                     ) : (
@@ -111,7 +114,7 @@ export function BannersTable({ banners }: BannersTableProps) {
                         {/* Row 1: Link Settings */}
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <Link2 className="h-4 w-4" />
+                            <Link2 className="h-4 w-4" aria-hidden="true" />
                             Link Settings
                           </div>
                           <div className="grid gap-4 text-sm sm:grid-cols-3">
@@ -137,7 +140,7 @@ export function BannersTable({ banners }: BannersTableProps) {
                         {/* Row 2: Display Settings */}
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <Settings2 className="h-4 w-4" />
+                            <Settings2 className="h-4 w-4" aria-hidden="true" />
                             Display Settings
                           </div>
                           <div className="grid gap-4 text-sm sm:grid-cols-3">
@@ -169,7 +172,7 @@ export function BannersTable({ banners }: BannersTableProps) {
                         {/* Row 3: Thumbnail */}
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                            <ImageIcon className="h-4 w-4" />
+                            <ImageIcon className="h-4 w-4" aria-hidden="true" />
                             Thumbnail
                           </div>
                           {banner.thumbnail ? (

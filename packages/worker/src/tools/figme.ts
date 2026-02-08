@@ -153,17 +153,20 @@ export const figmeWorker: ToolWorker = {
         throw new Error(`Step "${currentStepId}" not found in tool config`);
       }
 
-      if (!step.providerId) {
+      // Get provider name from step config
+      const providerName = step.provider?.name;
+      if (!providerName) {
         throw new Error(`No provider configured for step "${step.name}"`);
       }
 
-      // Get provider credentials
-      const provider = await db.query.providers.findFirst({
-        where: eq(providers.id, step.providerId),
-      });
+      // Look up provider by name (case-insensitive)
+      const allProviders = await db.query.providers.findMany();
+      const provider = allProviders.find(
+        (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
+      );
 
       if (!provider) {
-        throw new Error(`Provider not found for step "${step.name}"`);
+        throw new Error(`Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
@@ -239,6 +242,11 @@ async function executeImageGenStep(params: {
     throw new Error(`Style "${input.styleReferenceId}" not found in tool config`);
   }
 
+  // Validate style has an image URL for image edit mode
+  if (sourceImageUrl && !style.imageUrl) {
+    throw new Error(`Style "${style.name}" is missing a reference image (imageUrl)`);
+  }
+
   // Use prompt from style, fallback to default prompt
   const prompt = style.prompt || config.defaultPrompt || 'Transform this image into a stylized artistic representation';
 
@@ -255,26 +263,38 @@ async function executeImageGenStep(params: {
   let resultImageUrl: string;
 
   if (sourceImageUrl) {
-    // Image edit mode - transform existing image
-    await progress.updateProgress(30, 'Fetching source image');
+    // Image edit mode - transform existing image with style reference
+    await progress.updateProgress(25, 'Fetching style reference image');
 
-    // Fetch the source image as a file
-    const imageResponse = await fetch(sourceImageUrl);
-    const imageBlob = await imageResponse.blob();
+    // Fetch style reference image FIRST (for higher fidelity preservation)
+    const styleImageResponse = await fetch(style.imageUrl);
+    if (!styleImageResponse.ok) {
+      throw new Error(`Failed to fetch style reference image: ${styleImageResponse.status}`);
+    }
+    const styleImageBlob = await styleImageResponse.blob();
+    const styleImageFile = new File([styleImageBlob], 'style.png', { type: 'image/png' });
 
-    // Convert blob to File for OpenAI SDK
-    const imageFile = new File([imageBlob], 'source.png', { type: 'image/png' });
+    await progress.updateProgress(35, 'Fetching source image');
 
-    await progress.updateProgress(50, 'Sending to OpenAI for image editing');
+    // Fetch user uploaded image SECOND
+    const userImageResponse = await fetch(sourceImageUrl);
+    if (!userImageResponse.ok) {
+      throw new Error(`Failed to fetch source image: ${userImageResponse.status}`);
+    }
+    const userImageBlob = await userImageResponse.blob();
+    const userImageFile = new File([userImageBlob], 'source.png', { type: 'image/png' });
+
+    await progress.updateProgress(50, 'Sending to OpenAI for style transfer');
 
     // Image edit has more limited size options - map to valid sizes
     const editSize = (['256x256', '512x512', '1024x1024', '1536x1024', '1024x1536', 'auto'].includes(configuredSize)
       ? configuredSize
       : '1024x1024') as OpenAIEditSize;
 
+    // Pass as array: style reference FIRST (higher fidelity), user image SECOND
     const response = await openai.images.edit({
       model,
-      image: imageFile,
+      image: [styleImageFile, userImageFile],
       prompt,
       n: 1,
       size: editSize,

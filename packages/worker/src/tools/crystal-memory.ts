@@ -18,7 +18,7 @@ import sharp from 'sharp';
  *       "name": "Remove Background",
  *       "type": "background-remove",
  *       "providerId": "uuid-fal",
- *       "providerModel": "fal-ai/bria-rmbg",
+ *       "providerModel": "fal-ai/bria/background/remove",
  *       "cost": 5
  *     },
  *     {
@@ -124,17 +124,20 @@ export const crystalMemoryWorker: ToolWorker = {
         throw new Error(`Step "${currentStepId}" not configured`);
       }
 
-      if (!stepConfig.providerId) {
+      // Get provider name from step config
+      const providerName = stepConfig.provider?.name;
+      if (!providerName) {
         throw new Error(`No provider configured for step "${currentStepId}"`);
       }
 
-      // Get provider credentials
-      const provider = await db.query.providers.findFirst({
-        where: eq(providers.id, stepConfig.providerId),
-      });
+      // Look up provider by name (case-insensitive)
+      const allProviders = await db.query.providers.findMany();
+      const provider = allProviders.find(
+        (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
+      );
 
       if (!provider) {
-        throw new Error('Provider not found');
+        throw new Error(`Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
@@ -206,22 +209,33 @@ async function executeBackgroundRemoveStep(params: {
     throw new Error('Image URL or storage key is required');
   }
 
-  await progress.updateProgress(10, 'Starting background removal');
+  await progress.updateProgress(5, 'Preparing image');
 
   // Configure FAL client with API key
   fal.config({ credentials: apiKey });
 
+  // Upload image to fal.ai storage first (required for non-public URLs like S3 presigned URLs)
+  await progress.updateProgress(10, 'Uploading to processing server');
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+  }
+  const imageBlob = await imageResponse.blob();
+  const falImageUrl = await fal.storage.upload(imageBlob);
+
+  await progress.updateProgress(20, 'Starting background removal');
+
   // Get model from step config or default
-  const modelId = getProviderModel(stepConfig, 'fal-ai/bria-rmbg');
+  const modelId = getProviderModel(stepConfig, 'fal-ai/bria/background/remove');
 
   // Use fal.subscribe for async operation with progress updates
   const result = await fal.subscribe(modelId, {
-    input: { image_url: imageUrl },
+    input: { image_url: falImageUrl },
     logs: true,
     onQueueUpdate: (update) => {
       if (update.status === 'IN_PROGRESS') {
         const logsCount = update.logs?.length ?? 0;
-        const progressPercent = Math.min(20 + logsCount * 10, 80);
+        const progressPercent = Math.min(30 + logsCount * 10, 80);
         progress.updateProgress(progressPercent, 'Processing background removal...');
       }
     },
@@ -291,7 +305,19 @@ async function executeVGGTStep(params: {
     scaleExtent: config.vggtOptions?.scaleExtent || 10,
   };
 
-  await progress.updateProgress(5, 'Initializing Replicate client');
+  await progress.updateProgress(5, 'Preparing image for VGGT');
+
+  // Fetch image and convert to base64 data URI (like Python reference)
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+  }
+  const imageBuffer = await imageResponse.arrayBuffer();
+  const contentType = imageResponse.headers.get('content-type') || 'image/png';
+  const base64Image = Buffer.from(imageBuffer).toString('base64');
+  const imageDataUri = `data:${contentType};base64,${base64Image}`;
+
+  await progress.updateProgress(10, 'Initializing Replicate client');
 
   // Initialize Replicate SDK
   const replicate = new Replicate({ auth: apiKey });
@@ -299,41 +325,41 @@ async function executeVGGTStep(params: {
   // Get model from step config or default
   const modelId = getProviderModel(stepConfig, 'vufinder/vggt-1b:770898f053ca56571e8a49d71f27fc695b6d203e0691baa30d8fbb6954599f2b');
 
-  await progress.updateProgress(10, 'Calling VGGT API');
+  await progress.updateProgress(15, 'Calling VGGT API');
 
   // Run VGGT prediction using Replicate SDK - it handles polling automatically
   const output = await replicate.run(modelId as `${string}/${string}:${string}`, {
     input: {
-      image_path: imageUrl,
+      images: [imageDataUri],
       pcd_source: vggtOptions.pcdSource,
       return_pcd: vggtOptions.returnPcd,
     },
   }) as {
-    world_points?: string;
-    world_points_conf?: string;
+    data?: string[];
   };
 
   await progress.updateProgress(70, 'Processing VGGT output');
 
-  if (!output.world_points) {
-    throw new Error('No world_points in VGGT output');
+  if (!output.data || output.data.length === 0) {
+    throw new Error('No data in VGGT output');
   }
 
-  // Fetch world_points JSON
-  const worldPointsResponse = await fetch(output.world_points);
-  if (!worldPointsResponse.ok) {
-    throw new Error('Failed to fetch world_points data');
+  // Fetch the data JSON file (contains world_points and world_points_conf)
+  const dataResponse = await fetch(output.data[0]);
+  if (!dataResponse.ok) {
+    throw new Error('Failed to fetch VGGT data file');
   }
-  const worldPoints = await worldPointsResponse.json() as number[][][];
+  const vggtData = await dataResponse.json() as {
+    world_points?: number[][][];
+    world_points_conf?: number[][];
+  };
 
-  // Fetch confidence data if available
-  let confidence: number[][] = [];
-  if (output.world_points_conf) {
-    const confResponse = await fetch(output.world_points_conf);
-    if (confResponse.ok) {
-      confidence = await confResponse.json() as number[][];
-    }
+  if (!vggtData.world_points) {
+    throw new Error('No world_points in VGGT data');
   }
+
+  const worldPoints = vggtData.world_points;
+  const confidence = vggtData.world_points_conf ?? [];
 
   await progress.updateProgress(85, 'Processing point cloud data');
 
@@ -341,7 +367,7 @@ async function executeVGGTStep(params: {
   const { points: rawPoints, height, width } = reshapePoints(worldPoints);
 
   // Rotate 180 degrees around Y axis
-  const rotatedPoints = rotateAroundY(rawPoints);
+  const rotatedPoints = rotateAroundZ(rawPoints);
 
   // Center and scale to [-extent, extent]
   const scaledPoints = centerAndScale(rotatedPoints, vggtOptions.scaleExtent);
@@ -434,10 +460,11 @@ function reshapePoints(worldPoints: number[][][]): { points: number[][]; height:
 }
 
 /**
- * Rotate points 180 degrees around Y axis
+ * Rotate points 180 degrees around Z axis (matches Python reference)
+ * Transform: (x, y, z) → (-x, -y, z)
  */
-function rotateAroundY(points: number[][]): number[][] {
-  return points.map(([x, y, z]) => [-x, y, -z]);
+function rotateAroundZ(points: number[][]): number[][] {
+  return points.map(([x, y, z]) => [-x, -y, z]);
 }
 
 /**

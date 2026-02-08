@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { db, creditTransactions, credits } from '@/lib/db';
 import { desc, eq, sum, count } from 'drizzle-orm';
 import { api } from '@/lib/api';
+import { formatDate } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -261,7 +262,7 @@ async function TransactionsTable() {
                 </span>
               </TableCell>
               <TableCell className="text-right text-muted-foreground">
-                {new Date(tx.createdAt).toLocaleDateString()}
+                {formatDate(tx.createdAt)}
               </TableCell>
             </TableRow>
           ))}

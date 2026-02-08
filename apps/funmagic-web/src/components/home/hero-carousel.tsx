@@ -39,9 +39,14 @@ export function HeroCarousel({ slides, featuredLabel }: HeroCarouselProps) {
     }
   }, [emblaApi, onSelect])
 
-  // Auto-scroll
+  // Auto-scroll (respects reduced motion preference)
   useEffect(() => {
     if (!emblaApi) return
+
+    // Check for reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReducedMotion) return
+
     const interval = setInterval(() => {
       emblaApi.scrollNext()
     }, 5000)
@@ -113,16 +118,25 @@ export function HeroCarousel({ slides, featuredLabel }: HeroCarouselProps) {
         <ChevronRight className="h-5 w-5" />
       </button>
 
-      {/* Dots Indicator */}
-      <div className="absolute bottom-6 left-6 md:bottom-8 md:left-8 flex gap-2 mt-4">
+      {/* Dots Indicator - Large touch targets with small visual dots */}
+      <div className="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex gap-0" role="tablist" aria-label="Carousel slides">
         {slides.map((slide, index) => (
-          <div
+          <button
             key={slide.id}
-            className={cn(
-              'h-1.5 rounded-full transition-all',
-              selectedIndex === index ? 'w-8 bg-primary' : 'w-2 bg-white/20'
-            )}
-          />
+            type="button"
+            onClick={() => emblaApi?.scrollTo(index)}
+            className="flex items-center justify-center h-11 w-11 -mx-1"
+            role="tab"
+            aria-selected={selectedIndex === index}
+            aria-label={`Go to slide ${index + 1}`}
+          >
+            <span
+              className={cn(
+                'h-1.5 rounded-full transition-all',
+                selectedIndex === index ? 'w-8 bg-primary' : 'w-2 bg-white/20'
+              )}
+            />
+          </button>
         ))}
       </div>
     </div>

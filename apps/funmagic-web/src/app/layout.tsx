@@ -17,6 +17,8 @@ export default function RootLayout({
   return (
     <html lang="en" data-accent="purple" suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#131022" media="(prefers-color-scheme: dark)" />
         {/* FOUC prevention script - must be in <head> to run before first paint */}
         <script
           dangerouslySetInnerHTML={{

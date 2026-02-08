@@ -66,7 +66,9 @@
     "menu": "Menu",
     "viewAll": "Ver tudo",
     "loadMore": "Carregar mais",
-    "copyright": "Todos os direitos reservados."
+    "copyright": "Todos os direitos reservados.",
+    "skipToContent": "Pular para o conteúdo principal",
+    "notifications": "Notificações"
   },
   "footer": {
     "privacy": "Privacidade",
@@ -123,6 +125,21 @@
       "audio": "Áudio",
       "productivity": "Produtividade",
       "research": "Pesquisa"
+    },
+    "crystalMemory": {
+      "signInRequired": "Faça login para usar esta ferramenta",
+      "signIn": "Entrar",
+      "uploadTitle": "Envie sua imagem",
+      "uploadDescription": "Envie uma foto para transformá-la em uma nuvem de pontos 3D. Funciona melhor com objetos que têm bordas claras e cores distintas.",
+      "cropTitle": "Cortar para quadrado",
+      "uploading": "Enviando...",
+      "createButton": "Criar nuvem de pontos 3D ({cost} créditos)",
+      "costBreakdown": "Detalhamento de custos: {bgCost} créditos (remoção de fundo) + {vggtCost} créditos (geração 3D)",
+      "step1Title": "Etapa 1: Removendo fundo",
+      "step2Title": "Etapa 2: Gerando nuvem de pontos 3D",
+      "resultTitle": "Sua nuvem de pontos 3D",
+      "resultDescription": "Gerados {pointCount} pontos. Use o mouse para girar, scroll para zoom e clique direito para mover.",
+      "loadingViewer": "Carregando visualizador..."
     }
   },
   "assets": {

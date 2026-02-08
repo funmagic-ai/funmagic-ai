@@ -38,6 +38,8 @@ export default async function RootLayout({
   return (
     <html lang="en" data-theme={defaultTheme} suppressHydrationWarning>
       <head>
+        <meta name="theme-color" content="#f6f6f8" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#131022" media="(prefers-color-scheme: dark)" />
         <ThemeScript />
       </head>
       <body className={inter.className}>

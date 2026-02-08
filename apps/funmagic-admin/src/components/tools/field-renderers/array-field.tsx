@@ -12,6 +12,7 @@ import type { Provider } from './types';
 import { FieldRenderer } from './field-renderer';
 import { registerPendingFile, removePendingFile, isPendingUrl, getPendingFile } from './pending-files-registry';
 import { toast } from 'sonner';
+import { ALLOWED_IMAGE_MIME_TYPES, ALLOWED_IMAGE_TYPES_LABEL, MAX_IMAGE_UPLOAD_SIZE_LABEL } from '@/lib/upload-config';
 
 interface ArrayFieldRendererProps {
   name: string;
@@ -323,11 +324,11 @@ function ImageGalleryField({
       {/* Upload area */}
       {canAddMoreNow && (
         <UploadDropzone
-          accept="image/jpeg,image/png,image/webp"
+          accept={ALLOWED_IMAGE_MIME_TYPES}
           onFileSelect={handleFileSelect}
           description={{
-            fileTypes: 'JPEG, PNG, WebP',
-            maxFileSize: '5MB',
+            fileTypes: ALLOWED_IMAGE_TYPES_LABEL,
+            maxFileSize: MAX_IMAGE_UPLOAD_SIZE_LABEL,
             maxFiles: field.maxItems ? field.maxItems - totalCount : undefined,
           }}
         />

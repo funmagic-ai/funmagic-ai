@@ -60,6 +60,8 @@ export function ToolTypeGeneralForm() {
         toast.success(result.message || 'Tool type created successfully');
         await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/tool-types');
+      } else {
+        toast.error(result.message || 'Failed to create tool type');
       }
 
       setFormState(result);

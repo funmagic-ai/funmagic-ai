@@ -66,7 +66,9 @@
     "menu": "메뉴",
     "viewAll": "전체 보기",
     "loadMore": "더 보기",
-    "copyright": "모든 권리 보유."
+    "copyright": "모든 권리 보유.",
+    "skipToContent": "본문으로 건너뛰기",
+    "notifications": "알림"
   },
   "footer": {
     "privacy": "개인정보",
@@ -123,6 +125,21 @@
       "audio": "오디오",
       "productivity": "생산성",
       "research": "연구"
+    },
+    "crystalMemory": {
+      "signInRequired": "이 도구를 사용하려면 로그인하세요",
+      "signIn": "로그인",
+      "uploadTitle": "이미지 업로드",
+      "uploadDescription": "사진을 업로드하여 3D 포인트 클라우드로 변환합니다. 가장자리가 선명하고 색상이 뚜렷한 물체에 가장 적합합니다.",
+      "cropTitle": "정사각형으로 자르기",
+      "uploading": "업로드 중...",
+      "createButton": "3D 포인트 클라우드 생성 ({cost} 크레딧)",
+      "costBreakdown": "비용 상세: {bgCost} 크레딧 (배경 제거) + {vggtCost} 크레딧 (3D 생성)",
+      "step1Title": "1단계: 배경 제거 중",
+      "step2Title": "2단계: 3D 포인트 클라우드 생성 중",
+      "resultTitle": "당신의 3D 포인트 클라우드",
+      "resultDescription": "{pointCount}개의 포인트가 생성되었습니다. 마우스로 회전, 스크롤로 확대/축소, 우클릭으로 이동할 수 있습니다.",
+      "loadingViewer": "뷰어 로딩 중..."
     }
   },
   "assets": {

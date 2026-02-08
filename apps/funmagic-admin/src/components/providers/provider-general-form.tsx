@@ -81,6 +81,8 @@ export function ProviderGeneralForm() {
         toast.success(result.message || 'Provider created successfully');
         await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/providers');
+      } else if (!result.success) {
+        toast.error(result.message || 'Failed to create provider');
       }
 
       return result;
@@ -181,6 +183,7 @@ export function ProviderGeneralForm() {
                 id="apiKey"
                 name="apiKey"
                 type="password"
+                autoComplete="off"
                 placeholder="e.g., sk-..."
               />
               <p className="text-muted-foreground text-xs">
@@ -196,6 +199,7 @@ export function ProviderGeneralForm() {
                 id="apiSecret"
                 name="apiSecret"
                 type="password"
+                autoComplete="off"
                 placeholder="Leave empty if not required"
               />
               <p className="text-muted-foreground text-xs">

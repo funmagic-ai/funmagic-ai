@@ -57,7 +57,8 @@ type ErrorState = { code: ToolErrorCode; data?: ToolErrorData } | null
 
 export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
-  const t = useTranslations('toolErrors')
+  const tErrors = useTranslations('toolErrors')
+  const t = useTranslations('tools.crystalMemory')
   const config = (tool.config || { steps: [] }) as SavedToolConfig
 
   const [step, setStep] = useState<ExecutorStep>('upload')
@@ -103,8 +104,8 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
       setStep('generating-cloud')
       setBgRemoveTaskId(null)
     },
-    onFailed: () => {
-      setError({ code: 'TASK_FAILED' })
+    onFailed: (errorMessage) => {
+      setError({ code: 'TASK_FAILED', data: { message: errorMessage } })
       setStep('upload')
       setBgRemoveTaskId(null)
     },
@@ -118,8 +119,8 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
       setStep('result')
       setVggtTaskId(null)
     },
-    onFailed: () => {
-      setError({ code: 'TASK_FAILED' })
+    onFailed: (errorMessage) => {
+      setError({ code: 'TASK_FAILED', data: { message: errorMessage } })
       setStep('upload')
       setVggtTaskId(null)
     },
@@ -243,12 +244,12 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   if (!session) {
     return (
       <div className="glass-panel rounded-xl p-6 py-8 text-center">
-        <p className="text-muted-foreground mb-4">Please sign in to use this tool</p>
+        <p className="text-muted-foreground mb-4">{t('signInRequired')}</p>
         <a
           href="/login"
           className="inline-block bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90"
         >
-          Sign In
+          {t('signIn')}
         </a>
       </div>
     )
@@ -256,25 +257,11 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
   return (
     <div className="glass-panel rounded-xl p-6 space-y-6">
-      {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
-            {formatToolError(t, error.code, error.data)}
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="float-right text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-            >
-              &times;
-            </button>
-          </div>
-        )}
-
         {step === 'upload' && (
           <>
-            <h3 className="font-medium text-foreground">Upload Your Image</h3>
+            <h3 className="font-medium text-foreground">{t('uploadTitle')}</h3>
             <p className="text-sm text-muted-foreground">
-              Upload a photo to transform it into a 3D point cloud. Works best with objects
-              that have clear edges and distinct colors.
+              {t('uploadDescription')}
             </p>
 
             <ImagePicker
@@ -290,19 +277,32 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
               size="lg"
             >
               {upload.isUploading
-                ? 'Uploading...'
-                : `Create 3D Point Cloud (${totalCost} credits)`}
+                ? t('uploading')
+                : t('createButton', { cost: totalCost })}
             </Button>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg dark:bg-red-950/50 dark:border-red-900 dark:text-red-400">
+                {formatToolError(tErrors, error.code, error.data)}
+                <button
+                  type="button"
+                  onClick={() => setError(null)}
+                  className="float-right text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
+
             <p className="text-xs text-muted-foreground text-center">
-              Cost breakdown: {bgRemoveCost} credits (background removal) + {vggtCost} credits (3D generation)
+              {t('costBreakdown', { bgCost: bgRemoveCost, vggtCost: vggtCost })}
             </p>
           </>
         )}
 
         {step === 'cropping' && rawPreview && (
           <>
-            <h3 className="font-medium text-foreground">Crop to Square</h3>
+            <h3 className="font-medium text-foreground">{t('cropTitle')}</h3>
             <ImageCropper
               imageSrc={rawPreview}
               onCropComplete={handleCropComplete}
@@ -313,7 +313,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
         {step === 'removing-bg' && bgRemoveTaskId && (
           <div className="space-y-4">
-            <h3 className="font-medium text-foreground">Step 1: Removing Background</h3>
+            <h3 className="font-medium text-foreground">{t('step1Title')}</h3>
             {originalPreview && (
               <div className="flex justify-center">
                 <img
@@ -329,7 +329,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
         {step === 'generating-cloud' && vggtTaskId && (
           <div className="space-y-4">
-            <h3 className="font-medium text-foreground">Step 2: Generating 3D Point Cloud</h3>
+            <h3 className="font-medium text-foreground">{t('step2Title')}</h3>
             {bgRemovedPreview && (
               <div className="flex justify-center">
                 <img
@@ -345,16 +345,15 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
 
         {step === 'result' && vggtOutput && (
           <div className="space-y-4">
-            <h3 className="font-medium text-foreground">Your 3D Point Cloud</h3>
+            <h3 className="font-medium text-foreground">{t('resultTitle')}</h3>
             <p className="text-sm text-muted-foreground">
-              Generated {vggtOutput.pointCount.toLocaleString()} points. Use your mouse to rotate,
-              scroll to zoom, and right-click to pan.
+              {t('resultDescription', { pointCount: vggtOutput.pointCount.toLocaleString() })}
             </p>
 
             <Suspense
               fallback={
                 <div className="bg-zinc-900 rounded-lg h-[500px] flex items-center justify-center">
-                  <div className="text-muted-foreground">Loading viewer...</div>
+                  <div className="text-muted-foreground">{t('loadingViewer')}</div>
                 </div>
               }
             >

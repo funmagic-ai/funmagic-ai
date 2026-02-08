@@ -66,7 +66,9 @@
     "menu": "Menü",
     "viewAll": "Alle anzeigen",
     "loadMore": "Mehr laden",
-    "copyright": "Alle Rechte vorbehalten."
+    "copyright": "Alle Rechte vorbehalten.",
+    "skipToContent": "Zum Hauptinhalt springen",
+    "notifications": "Benachrichtigungen"
   },
   "footer": {
     "privacy": "Datenschutz",
@@ -123,6 +125,21 @@
       "audio": "Audio",
       "productivity": "Produktivität",
       "research": "Forschung"
+    },
+    "crystalMemory": {
+      "signInRequired": "Bitte melden Sie sich an, um dieses Tool zu nutzen",
+      "signIn": "Anmelden",
+      "uploadTitle": "Bild hochladen",
+      "uploadDescription": "Laden Sie ein Foto hoch, um es in eine 3D-Punktwolke umzuwandeln. Funktioniert am besten mit Objekten mit klaren Kanten und deutlichen Farben.",
+      "cropTitle": "Auf Quadrat zuschneiden",
+      "uploading": "Wird hochgeladen...",
+      "createButton": "3D-Punktwolke erstellen ({cost} Credits)",
+      "costBreakdown": "Kostenaufschlüsselung: {bgCost} Credits (Hintergrundentfernung) + {vggtCost} Credits (3D-Generierung)",
+      "step1Title": "Schritt 1: Hintergrund wird entfernt",
+      "step2Title": "Schritt 2: 3D-Punktwolke wird generiert",
+      "resultTitle": "Ihre 3D-Punktwolke",
+      "resultDescription": "{pointCount} Punkte generiert. Verwenden Sie die Maus zum Drehen, scrollen zum Zoomen und Rechtsklick zum Schwenken.",
+      "loadingViewer": "Viewer wird geladen..."
     }
   },
   "assets": {

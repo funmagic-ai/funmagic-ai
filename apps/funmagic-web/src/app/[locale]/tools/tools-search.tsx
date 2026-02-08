@@ -89,6 +89,8 @@ export function ToolsSearch({ q, category, categories }: ToolsSearchProps) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             type="text"
+            name="search"
+            autoComplete="off"
             value={searchValue}
             onChange={(e) => setSearchValue(e.target.value)}
             onKeyDown={(e) => {
@@ -106,8 +108,9 @@ export function ToolsSearch({ q, category, categories }: ToolsSearchProps) {
               size="icon-xs"
               onClick={handleClear}
               className="absolute right-3 top-1/2 -translate-y-1/2"
+              aria-label={t('clearSearch')}
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </Button>
           )}
         </div>

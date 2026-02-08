@@ -1,0 +1,234 @@
+# Deploy to AWS
+# Builds Docker images and deploys to App Runner and ECS
+
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  AWS_REGION: us-east-2
+
+jobs:
+  # Determine environment from branch or input
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - id: set-env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+  # Build and push Docker images
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service:
+          - name: web
+            dockerfile: apps/funmagic-web/Dockerfile
+            context: .
+          - name: admin
+            dockerfile: apps/funmagic-admin/Dockerfile
+            context: .
+          - name: backend
+            dockerfile: apps/funmagic-backend/Dockerfile
+            context: .
+          - name: worker
+            dockerfile: packages/worker/Dockerfile
+            context: .
+          - name: admin-worker
+            dockerfile: packages/worker/Dockerfile.admin
+            context: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.service.name }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.context }}
+          file: ${{ matrix.service.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/funmagic/${{ matrix.service.name }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/funmagic/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ needs.setup.outputs.environment == 'production' && 'https://api.funmagic.ai' || 'https://api-staging.funmagic.ai' }}
+            CDN_BASE_URL=${{ needs.setup.outputs.environment == 'production' && 'https://cdn.funmagic.ai' || 'https://cdn-staging.funmagic.ai' }}
+
+  # Deploy App Runner services
+  deploy-apprunner:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service: [web, admin, backend]
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy ${{ matrix.service }} to App Runner
+        run: |
+          SERVICE_NAME="funmagic-${{ matrix.service }}-${{ needs.setup.outputs.environment }}"
+
+          # Get service ARN
+          SERVICE_ARN=$(aws apprunner list-services --query "ServiceSummaryList[?ServiceName=='${SERVICE_NAME}'].ServiceArn" --output text)
+
+          if [ -n "$SERVICE_ARN" ]; then
+            echo "Triggering deployment for $SERVICE_NAME"
+            aws apprunner start-deployment --service-arn "$SERVICE_ARN"
+
+            # Wait for deployment to complete
+            echo "Waiting for deployment to complete..."
+            aws apprunner wait service-updated --service-arn "$SERVICE_ARN"
+            echo "Deployment complete!"
+          else
+            echo "Service $SERVICE_NAME not found"
+            exit 1
+          fi
+
+  # Deploy ECS workers
+  deploy-ecs:
+    needs: [setup, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service: [worker, admin-worker]
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy ${{ matrix.service }} to ECS
+        run: |
+          CLUSTER_NAME="funmagic-${{ needs.setup.outputs.environment }}"
+          SERVICE_NAME="funmagic-${{ matrix.service }}-${{ needs.setup.outputs.environment }}"
+
+          echo "Updating ECS service: $SERVICE_NAME"
+          aws ecs update-service \
+            --cluster "$CLUSTER_NAME" \
+            --service "$SERVICE_NAME" \
+            --force-new-deployment
+
+          echo "Waiting for service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER_NAME" \
+            --services "$SERVICE_NAME"
+          echo "Deployment complete!"
+
+  # Run database migrations
+  migrate:
+    needs: [setup, deploy-apprunner]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.setup.outputs.environment }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Get Database URL
+        id: get-db-url
+        run: |
+          DB_URL=$(aws secretsmanager get-secret-value \
+            --secret-id "funmagic/${{ needs.setup.outputs.environment }}/database" \
+            --query 'SecretString' \
+            --output text)
+          echo "::add-mask::$DB_URL"
+          echo "DATABASE_URL=$DB_URL" >> $GITHUB_ENV
+
+      - name: Run migrations
+        run: bun run db:migrate
+        working-directory: packages/database
+
+  # Notify on completion
+  notify:
+    needs: [setup, deploy-apprunner, deploy-ecs, migrate]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Deployment Status
+        run: |
+          if [ "${{ needs.deploy-apprunner.result }}" = "success" ] && [ "${{ needs.deploy-ecs.result }}" = "success" ]; then
+            echo "✅ Deployment to ${{ needs.setup.outputs.environment }} completed successfully!"
+          else
+            echo "❌ Deployment to ${{ needs.setup.outputs.environment }} failed"
+            exit 1
+          fi

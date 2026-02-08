@@ -14,8 +14,12 @@ import {
   Image,
   Activity,
   LogOut,
+  Sparkles,
+  Key,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { Logo } from '@/components/layout/logo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -64,12 +68,15 @@ const navigationGroups: NavGroup[] = [
     items: [
       { name: 'Billing', href: '/dashboard/billing', icon: CreditCard },
       { name: 'Content', href: '/dashboard/content', icon: Image },
+      { name: 'AI Studio', href: '/dashboard/ai-studio', icon: Sparkles },
+      { name: 'AI Tasks', href: '/dashboard/admin-tasks', icon: Zap },
     ],
   },
   {
     label: 'System',
     items: [
       { name: 'Providers', href: '/dashboard/providers', icon: Server, requiredRole: 'super_admin' },
+      { name: 'AI Providers', href: '/dashboard/admin-providers', icon: Key, requiredRole: 'super_admin' },
       { name: 'Tool Types', href: '/dashboard/tool-types', icon: Layers, requiredRole: 'super_admin' },
       { name: 'Queue', href: '/dashboard/queue', icon: Activity, requiredRole: 'super_admin' },
     ],
@@ -96,10 +103,16 @@ export function Sidebar({ user }: SidebarProps) {
 
   return (
     <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r bg-sidebar md:flex">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-background focus:px-4 focus:py-2 focus:rounded focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
       <div className="flex h-16 items-center border-b px-4">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Wrench className="h-4 w-4" />
+            <Logo className="h-4 w-4" />
           </div>
           <span className="text-sidebar-foreground">Funmagic Admin</span>
         </Link>
@@ -169,8 +182,9 @@ export function Sidebar({ user }: SidebarProps) {
             size="icon"
             onClick={handleSignOut}
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
+            aria-label="Sign out"
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
       </div>

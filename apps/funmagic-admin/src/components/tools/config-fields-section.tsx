@@ -145,10 +145,17 @@ export function ConfigFieldsSection({
               <div className="flex items-center gap-1.5">
                 <span className="text-muted-foreground">Provider:</span>
                 <Badge
-                  variant={providerStatus === 'active' ? 'secondary' : 'outline'}
-                  className={`font-normal ${providerStatus === 'inactive' ? 'text-amber-600 border-amber-600' : providerStatus === 'not_found' ? 'text-destructive border-destructive' : ''}`}
+                  variant={providerStatus === 'active' ? 'default' : 'outline'}
+                  className={`font-normal ${
+                    providerStatus === 'active'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : providerStatus === 'inactive'
+                        ? 'text-amber-600 border-amber-600'
+                        : 'text-destructive border-destructive'
+                  }`}
                 >
                   {matchedProvider?.displayName || stepDef.provider.name}
+                  {providerStatus === 'active' && ' ✓'}
                 </Badge>
                 {providerStatus === 'inactive' && (
                   <Badge variant="outline" className="text-amber-600 border-amber-600">
@@ -157,7 +164,7 @@ export function ConfigFieldsSection({
                 )}
                 {providerStatus === 'not_found' && (
                   <Badge variant="outline" className="text-destructive border-destructive">
-                    Not Available
+                    Not Configured
                   </Badge>
                 )}
               </div>

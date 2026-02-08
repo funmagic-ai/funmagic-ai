@@ -11,6 +11,7 @@
     "dev:admin": "bun --env-file=.env --cwd apps/funmagic-admin dev",
     "dev:backend": "bun --env-file=.env --cwd apps/funmagic-backend dev",
     "dev:worker": "bun --env-file=.env --cwd packages/worker dev",
+    "dev:worker:admin": "bun --env-file=.env --cwd packages/worker dev:admin",
     "build": "bun run --filter '*' build",
     "db:generate": "source .env && packages/database/node_modules/.bin/drizzle-kit generate --config=packages/database/drizzle.config.ts",
     "db:migrate": "source .env && packages/database/node_modules/.bin/drizzle-kit migrate --config=packages/database/drizzle.config.ts",

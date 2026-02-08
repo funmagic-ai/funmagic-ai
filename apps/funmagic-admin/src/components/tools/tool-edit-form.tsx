@@ -20,6 +20,7 @@ import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
 import { TranslationsEditor } from '@/components/translations';
 import { updateTool } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
+import { ALLOWED_IMAGE_MIME_TYPES, IMAGE_UPLOAD_DESCRIPTION } from '@/lib/upload-config';
 import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
 import { getToolDefinition, type SavedToolConfig, type StepConfig, type ToolTranslations } from '@funmagic/shared';
@@ -436,12 +437,8 @@ export function ToolEditForm({ tool, toolTypes, providers }: ToolEditFormProps) 
               ) : (
                 <UploadDropzone
                   onFileSelect={handleThumbnailSelect}
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  description={{
-                    fileTypes: 'JPEG, PNG, WebP, GIF',
-                    maxFileSize: '5MB',
-                    maxFiles: 1,
-                  }}
+                  accept={ALLOWED_IMAGE_MIME_TYPES}
+                  description={IMAGE_UPLOAD_DESCRIPTION}
                 />
               )}
             </div>

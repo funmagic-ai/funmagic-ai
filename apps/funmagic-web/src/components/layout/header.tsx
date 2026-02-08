@@ -34,7 +34,13 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border/40 bg-background/80 px-4 py-4 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-border bg-background/95 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-background focus:px-4 focus:py-2 focus:rounded focus:ring-2 focus:ring-ring"
+      >
+        {t('skipToContent')}
+      </a>
       <div className="flex items-center gap-4 lg:gap-8">
         {/* Mobile menu - only visible on mobile */}
         <DropdownMenu>
@@ -91,8 +97,8 @@ export function Header() {
 
         {/* Notifications - only show when logged in */}
         {session && (
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
+          <Button variant="ghost" size="icon" className="relative" aria-label={t('notifications')}>
+            <Bell className="h-5 w-5" aria-hidden="true" />
             <Badge className="absolute -right-1 -top-1 h-5 min-w-5 justify-center bg-red-500 px-1 text-xs text-white">
               3
             </Badge>
@@ -107,7 +113,7 @@ export function Header() {
                 <span className="hidden sm:inline text-sm">
                   {session.user.name || session.user.email}
                 </span>
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </Button>

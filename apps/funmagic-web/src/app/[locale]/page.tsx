@@ -26,8 +26,8 @@ export default async function HomePage({ params }: HomePageProps) {
   setRequestLocale(locale)
 
   return (
-    <main className="flex-1 flex flex-col items-center w-full px-4 sm:px-6 lg:px-8 py-8">
-      <div className="w-full max-w-[1200px] flex flex-col gap-10">
+    <main className="flex-1 flex flex-col items-center w-full px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+      <div className="w-full max-w-7xl flex flex-col gap-16">
         {/* Hero Section */}
         <Suspense fallback={<HeroSkeleton />}>
           <HeroSection locale={locale} />

@@ -20,11 +20,12 @@ import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
 import { TranslationsEditor } from '@/components/translations';
 import { createTool } from '@/actions/tools';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
+import { ALLOWED_IMAGE_MIME_TYPES, IMAGE_UPLOAD_DESCRIPTION } from '@/lib/upload-config';
 import { getS3PublicUrl } from '@/lib/s3-url';
 import type { FormState } from '@/lib/form-types';
 import { getAllToolDefinitions, getToolDefinition, type SavedToolConfig, type StepConfig, type ToolTranslations } from '@funmagic/shared';
 import { ConfigFieldsSection } from './config-fields-section';
-import { getPendingFile, removePendingFile, isPendingUrl, clearPendingFiles } from './field-renderers';
+import { getPendingFile, removePendingFile, isPendingUrl, clearPendingFiles, registerPendingFile } from './field-renderers';
 import type { Provider } from './field-renderers';
 
 interface Tool {
@@ -135,7 +136,9 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
   };
 
   const [config, setConfig] = useState<SavedToolConfig>(() => buildInitialConfig(selectedSlug));
-  const [thumbnailUrl, setThumbnailUrl] = useState(getS3PublicUrl(tool?.thumbnail ?? ''));
+  const [thumbnailUrl, setThumbnailUrl] = useState(tool?.thumbnail ?? '');
+  // Pending thumbnail file for deferred upload
+  const [pendingThumbnailFile, setPendingThumbnailFile] = useState<File | null>(null);
 
   // Initialize translations with empty English content
   const [translations, setTranslations] = useState<ToolTranslations>({
@@ -161,19 +164,22 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
   const thumbnailUploadControl = useUploadFiles({
     route: 'thumbnails',
     api: '/api/admin/tools/thumbnails/upload',
-    onUploadComplete: ({ files }) => {
-      if (files.length > 0) {
-        const file = files[0];
-        const s3BaseUrl = process.env.NEXT_PUBLIC_S3_PUBLIC_URL || '';
-        const imageUrl = s3BaseUrl ? `${s3BaseUrl}/${file.objectInfo.key}` : file.objectInfo.key;
-        setThumbnailUrl(imageUrl);
-      }
-    },
   });
+
+  // Handle thumbnail file selection (deferred upload)
+  const handleThumbnailSelect = (files: File[]) => {
+    if (files.length > 0) {
+      const file = files[0];
+      const blobUrl = URL.createObjectURL(file);
+      setPendingThumbnailFile(file);
+      setThumbnailUrl(blobUrl); // Show local preview
+    }
+  };
 
   // Sync thumbnail URL when tool prop changes (e.g., after save)
   useEffect(() => {
-    setThumbnailUrl(getS3PublicUrl(tool?.thumbnail ?? ''));
+    setThumbnailUrl(tool?.thumbnail ?? '');
+    setPendingThumbnailFile(null);
   }, [tool?.thumbnail]);
 
   // Redirect after successful creation
@@ -251,14 +257,27 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
     setIsUploading(true);
 
     try {
-      // First, upload any pending files
+      // First, upload any pending files in config
       const processedConfig = await processPendingUploads(config);
 
       // Update the config state with processed URLs
       setConfig(processedConfig);
 
+      // Upload pending thumbnail if exists
+      let finalThumbnailUrl = thumbnailUrl;
+      if (pendingThumbnailFile && thumbnailUrl.startsWith('blob:')) {
+        const result = await thumbnailUploadControl.uploadAsync([pendingThumbnailFile], {});
+        if (result?.files?.length > 0) {
+          // Return ONLY the key for CloudFront compatibility
+          finalThumbnailUrl = result.files[0].objectInfo.key;
+        }
+        URL.revokeObjectURL(thumbnailUrl);
+        setPendingThumbnailFile(null);
+        setThumbnailUrl(finalThumbnailUrl);
+      }
+
       // Now submit the form
-      formData.set('thumbnail', thumbnailUrl);
+      formData.set('thumbnail', finalThumbnailUrl);
       formData.set('translations', JSON.stringify(translations));
       if (processedConfig.steps.length > 0) {
         formData.set('config', JSON.stringify(processedConfig));
@@ -433,19 +452,22 @@ export function ToolGeneralForm({ tool, toolTypes, providers = [], usedSlugs = [
               </p>
               {thumbnailUrl ? (
                 <AspectRatioPreview
-                  imageUrl={thumbnailUrl}
+                  imageUrl={isPendingUrl(thumbnailUrl) ? thumbnailUrl : getS3PublicUrl(thumbnailUrl)}
                   ratioType="THUMBNAIL"
-                  onRemove={() => setThumbnailUrl('')}
+                  onRemove={() => {
+                    if (isPendingUrl(thumbnailUrl)) {
+                      URL.revokeObjectURL(thumbnailUrl);
+                      setPendingThumbnailFile(null);
+                    }
+                    setThumbnailUrl('');
+                  }}
+                  isPending={isPendingUrl(thumbnailUrl)}
                 />
               ) : (
                 <UploadDropzone
-                  control={thumbnailUploadControl}
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  description={{
-                    fileTypes: 'JPEG, PNG, WebP, GIF',
-                    maxFileSize: '5MB',
-                    maxFiles: 1,
-                  }}
+                  onFileSelect={handleThumbnailSelect}
+                  accept={ALLOWED_IMAGE_MIME_TYPES}
+                  description={IMAGE_UPLOAD_DESCRIPTION}
                 />
               )}
             </div>

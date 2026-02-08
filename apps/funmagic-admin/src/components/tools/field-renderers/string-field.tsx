@@ -16,6 +16,7 @@ import { getS3PublicUrl } from '@/lib/s3-url';
 import type { StringField } from '@funmagic/shared';
 import type { Provider } from './types';
 import { registerPendingFile, removePendingFile, isPendingUrl } from './pending-files-registry';
+import { ALLOWED_IMAGE_MIME_TYPES, IMAGE_UPLOAD_DESCRIPTION } from '@/lib/upload-config';
 
 interface StringFieldRendererProps {
   name: string;
@@ -188,12 +189,8 @@ function UploadFieldRenderer({
       ) : (
         <UploadDropzone
           onFileSelect={handleFileSelect}
-          accept="image/jpeg,image/png,image/webp"
-          description={{
-            fileTypes: 'JPEG, PNG, WebP',
-            maxFileSize: '5MB',
-            maxFiles: 1,
-          }}
+          accept={ALLOWED_IMAGE_MIME_TYPES}
+          description={IMAGE_UPLOAD_DESCRIPTION}
         />
       )}
       {field.description && (

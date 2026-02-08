@@ -66,7 +66,9 @@
     "menu": "Menu",
     "viewAll": "Tout voir",
     "loadMore": "Charger plus",
-    "copyright": "Tous droits réservés."
+    "copyright": "Tous droits réservés.",
+    "skipToContent": "Passer au contenu principal",
+    "notifications": "Notifications"
   },
   "footer": {
     "privacy": "Confidentialité",
@@ -123,6 +125,21 @@
       "audio": "Audio",
       "productivity": "Productivité",
       "research": "Recherche"
+    },
+    "crystalMemory": {
+      "signInRequired": "Veuillez vous connecter pour utiliser cet outil",
+      "signIn": "Se connecter",
+      "uploadTitle": "Téléchargez votre image",
+      "uploadDescription": "Téléchargez une photo pour la transformer en nuage de points 3D. Fonctionne mieux avec des objets aux bords nets et aux couleurs distinctes.",
+      "cropTitle": "Recadrer en carré",
+      "uploading": "Téléchargement...",
+      "createButton": "Créer un nuage de points 3D ({cost} crédits)",
+      "costBreakdown": "Détail des coûts : {bgCost} crédits (suppression de fond) + {vggtCost} crédits (génération 3D)",
+      "step1Title": "Étape 1 : Suppression du fond",
+      "step2Title": "Étape 2 : Génération du nuage de points 3D",
+      "resultTitle": "Votre nuage de points 3D",
+      "resultDescription": "{pointCount} points générés. Utilisez la souris pour pivoter, la molette pour zoomer et le clic droit pour déplacer.",
+      "loadingViewer": "Chargement du visualiseur..."
     }
   },
   "assets": {

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { db, tasks, taskPayloads, taskSteps } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import { formatDate } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -149,24 +150,24 @@ async function TaskDetailContent({ id }: { id: string }) {
           <div className="grid gap-4 md:grid-cols-4 text-sm">
             <div>
               <p className="text-muted-foreground">Created</p>
-              <p className="font-medium">{new Date(task.createdAt).toLocaleString()}</p>
+              <p className="font-medium">{formatDate(task.createdAt, 'datetime')}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Queued</p>
               <p className="font-medium">
-                {task.queuedAt ? new Date(task.queuedAt).toLocaleString() : 'N/A'}
+                {task.queuedAt ? formatDate(task.queuedAt, 'datetime') : 'N/A'}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground">Started</p>
               <p className="font-medium">
-                {task.startedAt ? new Date(task.startedAt).toLocaleString() : 'N/A'}
+                {task.startedAt ? formatDate(task.startedAt, 'datetime') : 'N/A'}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground">Completed</p>
               <p className="font-medium">
-                {task.completedAt ? new Date(task.completedAt).toLocaleString() : 'N/A'}
+                {task.completedAt ? formatDate(task.completedAt, 'datetime') : 'N/A'}
               </p>
             </div>
           </div>

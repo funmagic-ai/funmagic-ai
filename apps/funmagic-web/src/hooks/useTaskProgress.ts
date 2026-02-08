@@ -17,6 +17,13 @@ export interface TaskProgress {
 
 interface SSEEvent {
   type: 'connected' | 'step_started' | 'progress' | 'step_completed' | 'completed' | 'failed' | 'heartbeat'
+  // Fields can be at root level (from worker) or nested in data (legacy)
+  stepId?: string
+  stepName?: string
+  progress?: number
+  output?: unknown
+  error?: string
+  message?: string
   data?: {
     stepId?: string
     stepName?: string
@@ -45,6 +52,18 @@ export function useTaskProgress({
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptRef = useRef(0)
   const maxReconnectAttempts = SSE_MAX_RECONNECT_ATTEMPTS
+
+  // Store callbacks in refs to avoid re-running effect when they change
+  const onCompleteRef = useRef(onComplete)
+  const onFailedRef = useRef(onFailed)
+  const onProgressRef = useRef(onProgress)
+
+  // Keep refs up to date
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+    onFailedRef.current = onFailed
+    onProgressRef.current = onProgress
+  })
 
   const cleanup = useCallback(() => {
     if (heartbeatTimeoutRef.current) {
@@ -114,10 +133,10 @@ export function useTaskProgress({
                 const updated: TaskProgress = {
                   ...prev!,
                   status: 'processing',
-                  currentStep: parsed.data?.stepName || parsed.data?.stepId,
-                  progress: parsed.data?.progress ?? prev?.progress ?? 0,
+                  currentStep: parsed.stepName || parsed.data?.stepName || parsed.stepId || parsed.data?.stepId,
+                  progress: parsed.progress ?? parsed.data?.progress ?? prev?.progress ?? 0,
                 }
-                onProgress?.(updated)
+                onProgressRef.current?.(updated)
                 return updated
               })
               break
@@ -127,9 +146,9 @@ export function useTaskProgress({
                 const updated: TaskProgress = {
                   ...prev!,
                   status: 'processing',
-                  progress: parsed.data?.progress ?? prev?.progress ?? 0,
+                  progress: parsed.progress ?? parsed.data?.progress ?? prev?.progress ?? 0,
                 }
-                onProgress?.(updated)
+                onProgressRef.current?.(updated)
                 return updated
               })
               break
@@ -138,40 +157,42 @@ export function useTaskProgress({
               setProgress((prev) => {
                 const updated: TaskProgress = {
                   ...prev!,
-                  progress: parsed.data?.progress ?? 100,
+                  progress: parsed.progress ?? parsed.data?.progress ?? 100,
                 }
-                onProgress?.(updated)
+                onProgressRef.current?.(updated)
                 return updated
               })
               break
 
             case 'completed':
               setProgress((prev) => {
+                const output = parsed.output ?? parsed.data?.output
                 const updated: TaskProgress = {
                   ...prev!,
                   status: 'completed',
                   progress: 100,
-                  output: parsed.data?.output,
+                  output,
                 }
-                onProgress?.(updated)
+                onProgressRef.current?.(updated)
                 return updated
               })
               cleanup()
-              onComplete?.(parsed.data?.output)
+              onCompleteRef.current?.(parsed.output ?? parsed.data?.output)
               break
 
             case 'failed':
               setProgress((prev) => {
+                const errorMsg = parsed.error || parsed.data?.error || parsed.message || parsed.data?.message || 'Task failed'
                 const updated: TaskProgress = {
                   ...prev!,
                   status: 'failed',
-                  error: parsed.data?.error || parsed.data?.message || 'Task failed',
+                  error: errorMsg,
                 }
-                onProgress?.(updated)
+                onProgressRef.current?.(updated)
                 return updated
               })
               cleanup()
-              onFailed?.(parsed.data?.error || parsed.data?.message || 'Task failed')
+              onFailedRef.current?.(parsed.error || parsed.data?.error || parsed.message || parsed.data?.message || 'Task failed')
               break
 
             case 'heartbeat':
@@ -183,7 +204,7 @@ export function useTaskProgress({
       }
 
       eventSource.onerror = (error) => {
-        console.error('SSE error:', error)
+        console.error('SSE error:', error, 'readyState:', eventSource.readyState, 'url:', url)
 
         if (reconnectAttemptRef.current < maxReconnectAttempts) {
           reconnectAttemptRef.current++
@@ -200,7 +221,7 @@ export function useTaskProgress({
               : null
           )
           cleanup()
-          onFailed?.('Connection lost')
+          onFailedRef.current?.('Connection lost')
         }
       }
     }
@@ -208,7 +229,7 @@ export function useTaskProgress({
     connect()
 
     return cleanup
-  }, [taskId, cleanup, resetHeartbeatTimeout, onComplete, onFailed, onProgress])
+  }, [taskId, cleanup, resetHeartbeatTimeout])
 
   return {
     progress,

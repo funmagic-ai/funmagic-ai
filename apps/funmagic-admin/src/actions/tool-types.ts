@@ -3,7 +3,7 @@
 import { cookies } from 'next/headers';
 import { api } from '@/lib/api';
 import { revalidatePath } from 'next/cache';
-import { ToolTypeInputSchema, type ToolTypeTranslations } from '@funmagic/shared/schemas';
+import { ToolTypeFormSchema, type ToolTypeTranslations } from '@funmagic/shared/schemas';
 import { parseFormData } from '@/lib/validate';
 import type { FormState } from '@/lib/form-types';
 
@@ -29,7 +29,7 @@ export async function createToolType(
   prevState: CreateFormState,
   formData: FormData
 ): Promise<CreateFormState> {
-  const parsed = parseFormData(ToolTypeInputSchema, formData);
+  const parsed = parseFormData(ToolTypeFormSchema, formData);
   if (!parsed.success) return parsed.state;
 
   // Parse translations from formData
@@ -80,7 +80,7 @@ export async function updateToolType(
   const id = formData.get('id') as string;
   if (!id) return { success: false, message: 'Missing tool type ID' };
 
-  const parsed = parseFormData(ToolTypeInputSchema, formData);
+  const parsed = parseFormData(ToolTypeFormSchema, formData);
   if (!parsed.success) return parsed.state;
 
   // Parse translations from formData

@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { Plus, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import { getS3PublicUrl } from '@/lib/s3-url';
+import { ALLOWED_IMAGE_MIME_TYPES, IMAGE_UPLOAD_DESCRIPTION } from '@/lib/upload-config';
 
 interface StyleReference {
   id: string;
@@ -135,12 +136,8 @@ export function FigmeStyleEditor({ styles, maxStyles, onChange }: FigmeStyleEdit
                       >
                         <UploadDropzone
                           control={uploadControl}
-                          accept="image/jpeg,image/png,image/webp"
-                          description={{
-                            fileTypes: 'JPEG, PNG, WebP',
-                            maxFileSize: '5MB',
-                            maxFiles: 1,
-                          }}
+                          accept={ALLOWED_IMAGE_MIME_TYPES}
+                          description={IMAGE_UPLOAD_DESCRIPTION}
                         />
                       </div>
                     )}

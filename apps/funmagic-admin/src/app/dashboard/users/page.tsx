@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
+import { formatDate } from '@/lib/date-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -121,7 +122,7 @@ async function UserTableData() {
                 {(user.credits?.balance ?? 0).toLocaleString()}
               </TableCell>
               <TableCell className="hidden text-muted-foreground sm:table-cell">
-                {new Date(user.createdAt).toLocaleDateString()}
+                {formatDate(user.createdAt)}
               </TableCell>
               <TableCell>
                 <Button variant="ghost" size="icon" asChild>

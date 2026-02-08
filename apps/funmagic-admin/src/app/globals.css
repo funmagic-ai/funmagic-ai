@@ -55,3 +55,33 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Color scheme for dark mode native controls */
+.dark {
+  color-scheme: dark;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch optimization for interactive elements */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tabular numbers for numeric content */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

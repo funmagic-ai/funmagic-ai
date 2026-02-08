@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { db, users, tasks, credits, creditTransactions } from '@/lib/db';
 import { count, sum, desc, eq } from 'drizzle-orm';
+import { formatDate } from '@/lib/date-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -107,10 +108,10 @@ async function StatsCards() {
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-            <stat.icon className="h-4 w-4 text-muted-foreground" />
+            <stat.icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stat.value}</div>
+            <div className="text-2xl font-bold tabular-nums">{stat.value}</div>
             <p className="text-xs text-muted-foreground">{stat.description}</p>
           </CardContent>
         </Card>
@@ -170,7 +171,7 @@ async function RecentTransactions() {
                 </span>
               </TableCell>
               <TableCell className="text-right text-muted-foreground">
-                {new Date(tx.createdAt).toLocaleDateString()}
+                {formatDate(tx.createdAt)}
               </TableCell>
             </TableRow>
           ))}
@@ -235,7 +236,7 @@ async function RecentTasks() {
                 </Badge>
               </TableCell>
               <TableCell className="text-right text-muted-foreground">
-                {new Date(task.createdAt).toLocaleDateString()}
+                {formatDate(task.createdAt)}
               </TableCell>
             </TableRow>
           ))}

@@ -12,6 +12,7 @@ import {
   getLocalizedToolContent,
   getLocalizedToolTypeContent,
 } from '@funmagic/shared';
+import { getPublicCdnUrl } from '@funmagic/services/storage';
 
 const listToolsRoute = createRoute({
   method: 'get',
@@ -121,7 +122,7 @@ export const toolsRoutes = new OpenAPIHono()
             slug: t.slug,
             title: localizedContent.title,
             description: localizedContent.description ?? null,
-            thumbnail: t.thumbnail,
+            thumbnail: t.thumbnail ? getPublicCdnUrl(t.thumbnail) : null,
             category: localizedToolType?.displayName ?? t.toolType?.displayName,
           };
         }),
@@ -179,7 +180,7 @@ export const toolsRoutes = new OpenAPIHono()
         title: localizedContent.title,
         description: localizedContent.description ?? null,
         shortDescription: localizedContent.shortDescription ?? null,
-        thumbnail: tool.thumbnail,
+        thumbnail: tool.thumbnail ? getPublicCdnUrl(tool.thumbnail) : null,
         config: tool.config,
         isActive: tool.isActive,
         isFeatured: tool.isFeatured,

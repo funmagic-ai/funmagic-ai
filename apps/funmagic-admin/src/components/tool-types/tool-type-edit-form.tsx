@@ -75,6 +75,8 @@ export function ToolTypeEditForm({ toolType }: ToolTypeEditFormProps) {
         toast.success(result.message || 'Tool type updated successfully');
         await new Promise(resolve => setTimeout(resolve, 1500));
         router.push('/dashboard/tool-types');
+      } else {
+        toast.error(result.message || 'Failed to update tool type');
       }
 
       setFormState(result);

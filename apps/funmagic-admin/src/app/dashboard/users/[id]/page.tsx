@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { formatDate } from '@/lib/date-utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -163,13 +164,13 @@ async function UserDetailContent({ id }: { id: string }) {
                   <div>
                     <p className="text-sm text-muted-foreground">Joined</p>
                     <p className="font-medium">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {formatDate(user.createdAt)}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Last Updated</p>
                     <p className="font-medium">
-                      {new Date(user.updatedAt).toLocaleDateString()}
+                      {formatDate(user.updatedAt)}
                     </p>
                   </div>
                 </div>
@@ -264,7 +265,7 @@ async function UserDetailContent({ id }: { id: string }) {
                         </TableCell>
                         <TableCell className="text-right">{tx.balanceAfter}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          {new Date(tx.createdAt).toLocaleDateString()}
+                          {formatDate(tx.createdAt)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -317,7 +318,7 @@ async function UserDetailContent({ id }: { id: string }) {
                         </TableCell>
                         <TableCell className="text-right">{task.creditsCost}</TableCell>
                         <TableCell className="text-right text-muted-foreground">
-                          {new Date(task.createdAt).toLocaleDateString()}
+                          {formatDate(task.createdAt)}
                         </TableCell>
                       </TableRow>
                     ))}

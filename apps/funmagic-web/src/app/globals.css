@@ -32,6 +32,45 @@
    ============================================ */
 
 :root {
+  /* ============================================
+     Typography Scale
+     ============================================ */
+  --text-display: 3.5rem;    /* 56px - Hero headlines */
+  --text-h1: 2.25rem;        /* 36px - Page titles */
+  --text-h2: 1.875rem;       /* 30px - Section titles */
+  --text-h3: 1.5rem;         /* 24px - Card titles */
+  --text-body: 1rem;         /* 16px - Body text */
+  --text-small: 0.875rem;    /* 14px - Captions, labels */
+  --text-xs: 0.75rem;        /* 12px - Badges, metadata */
+
+  /* ============================================
+     Spacing Scale
+     ============================================ */
+  --space-section: 5rem;     /* 80px - Between major sections */
+  --space-content: 2.5rem;   /* 40px - Within sections */
+  --space-element: 1.5rem;   /* 24px - Between elements */
+  --space-tight: 1rem;       /* 16px - Compact spacing */
+  --space-xs: 0.5rem;        /* 8px - Minimal spacing */
+
+  /* ============================================
+     Container Widths
+     ============================================ */
+  --container-max: 80rem;    /* 1280px - max-w-7xl */
+  --container-narrow: 48rem; /* 768px - For text-heavy pages */
+
+  /* ============================================
+     Z-Index Scale
+     ============================================ */
+  /* z-0: base content */
+  /* z-10: floating elements, cards with elevation */
+  /* z-20: dropdowns, popovers */
+  /* z-30: modals, dialogs */
+  /* z-40: overlays */
+  /* z-50: sticky header, navigation */
+
+  /* ============================================
+     Theme Colors
+     ============================================ */
   /* Primary colors - Purple theme */
   --primary: #3713ec;
   --primary-foreground: #ffffff;
@@ -45,9 +84,9 @@
   /* Border */
   --border: #e2e8f0;
 
-  /* Muted */
+  /* Muted - FIXED: Improved contrast (4.5:1 ratio) */
   --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted-foreground: #475569; /* slate-600 for better accessibility */
 
   /* Accent */
   --accent: #8b5cf6;
@@ -59,6 +98,11 @@
 
   /* Destructive */
   --destructive: #ef4444;
+
+  /* Semantic Colors */
+  --success: #16a34a;
+  --warning: #d97706;
+  --info: #0284c7;
 
   /* Glass panel */
   --glass-bg: rgba(255, 255, 255, 0.8);
@@ -85,7 +129,7 @@
   --border: #2b2839;
 
   --muted: #2b2839;
-  --muted-foreground: #a19db9;
+  --muted-foreground: #b8b4cc; /* Improved contrast for dark mode */
 
   --accent: #8b5cf6;
   --accent-foreground: #ffffff;
@@ -97,12 +141,20 @@
   /* Destructive */
   --destructive: #ef4444;
 
+  /* Semantic Colors (same in dark mode) */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --info: #38bdf8;
+
   --glass-bg: rgba(30, 27, 46, 0.7);
   --glass-border: rgba(255, 255, 255, 0.05);
 
   /* Popover */
   --popover: var(--card);
   --popover-foreground: var(--card-foreground);
+
+  /* Color scheme for native controls */
+  color-scheme: dark;
 }
 
 /* ============================================
@@ -148,7 +200,7 @@
 
 /* Neon hover effect */
 .neon-hover {
-  transition: all 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
 }
 
 .neon-hover:hover {
@@ -217,6 +269,31 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Touch optimization for interactive elements */
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tabular numbers for numeric content */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 body {

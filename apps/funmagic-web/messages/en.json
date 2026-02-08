@@ -66,7 +66,9 @@
     "menu": "Menu",
     "viewAll": "View All",
     "loadMore": "Load More",
-    "copyright": "All rights reserved."
+    "copyright": "All rights reserved.",
+    "skipToContent": "Skip to main content",
+    "notifications": "Notifications"
   },
   "footer": {
     "privacy": "Privacy",
@@ -123,6 +125,21 @@
       "audio": "Audio",
       "productivity": "Productivity",
       "research": "Research"
+    },
+    "crystalMemory": {
+      "signInRequired": "Please sign in to use this tool",
+      "signIn": "Sign In",
+      "uploadTitle": "Upload Your Image",
+      "uploadDescription": "Upload a photo to transform it into a 3D point cloud. Works best with objects that have clear edges and distinct colors.",
+      "cropTitle": "Crop to Square",
+      "uploading": "Uploading...",
+      "createButton": "Create 3D Point Cloud ({cost} credits)",
+      "costBreakdown": "Cost breakdown: {bgCost} credits (background removal) + {vggtCost} credits (3D generation)",
+      "step1Title": "Step 1: Removing Background",
+      "step2Title": "Step 2: Generating 3D Point Cloud",
+      "resultTitle": "Your 3D Point Cloud",
+      "resultDescription": "Generated {pointCount} points. Use your mouse to rotate, scroll to zoom, and right-click to pan.",
+      "loadingViewer": "Loading viewer..."
     }
   },
   "assets": {

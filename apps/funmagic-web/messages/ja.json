@@ -66,7 +66,9 @@
     "menu": "メニュー",
     "viewAll": "すべて見る",
     "loadMore": "もっと見る",
-    "copyright": "全著作権所有。"
+    "copyright": "全著作権所有。",
+    "skipToContent": "メインコンテンツへスキップ",
+    "notifications": "通知"
   },
   "footer": {
     "privacy": "プライバシー",
@@ -123,6 +125,21 @@
       "audio": "音声",
       "productivity": "生産性",
       "research": "リサーチ"
+    },
+    "crystalMemory": {
+      "signInRequired": "このツールを使用するにはログインしてください",
+      "signIn": "ログイン",
+      "uploadTitle": "画像をアップロード",
+      "uploadDescription": "写真をアップロードして3Dポイントクラウドに変換します。エッジがはっきりしていて色が鮮明なオブジェクトに最適です。",
+      "cropTitle": "正方形にトリミング",
+      "uploading": "アップロード中...",
+      "createButton": "3Dポイントクラウドを作成（{cost}クレジット）",
+      "costBreakdown": "費用内訳：{bgCost}クレジット（背景除去）+ {vggtCost}クレジット（3D生成）",
+      "step1Title": "ステップ1：背景を除去中",
+      "step2Title": "ステップ2：3Dポイントクラウドを生成中",
+      "resultTitle": "あなたの3Dポイントクラウド",
+      "resultDescription": "{pointCount}ポイントを生成しました。マウスで回転、スクロールでズーム、右クリックでパンできます。",
+      "loadingViewer": "ビューアーを読み込み中..."
     }
   },
   "assets": {

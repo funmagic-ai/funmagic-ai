@@ -3,7 +3,7 @@ import { db, tasks, taskPayloads, tools, credits, creditTransactions } from '@fu
 import { eq, sql } from 'drizzle-orm';
 import { streamSSE } from 'hono/streaming';
 import { addAITaskJob } from '../lib/queue';
-import { redis } from '@funmagic/services';
+import { redis, createRedisConnection } from '@funmagic/services';
 import { CreateTaskSchema, TaskSchema, TaskDetailSchema, ErrorSchema } from '../schemas';
 
 // Step config from tool.config
@@ -294,16 +294,30 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       return c.json({ error: 'Task not found' }, 404);
     }
 
-    // Create a new Redis subscriber connection for this SSE stream
-    const subscriber = redis.duplicate();
     const channel = `task:${taskId}`;
 
     return streamSSE(c, async (stream) => {
       let isCompleted = false;
+      let subscriber: Awaited<ReturnType<typeof createRedisConnection>> | null = null;
+      let resolveStreamEnd: () => void;
+      const streamEndPromise = new Promise<void>((resolve) => {
+        resolveStreamEnd = resolve;
+      });
+
+      const closeStream = () => {
+        if (!isCompleted) {
+          isCompleted = true;
+          try {
+            subscriber?.disconnect();
+          } catch {
+            // Ignore disconnect errors
+          }
+          resolveStreamEnd();
+        }
+      };
 
       // Send initial connected event
       await stream.writeSSE({
-        event: 'connected',
         data: JSON.stringify({
           type: 'connected',
           taskId,
@@ -320,7 +334,6 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         });
 
         await stream.writeSSE({
-          event: task.status,
           data: JSON.stringify({
             type: task.status,
             output: finalTask?.payload?.output,
@@ -329,35 +342,113 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           } as ProgressEvent),
         });
 
-        subscriber.disconnect();
+        closeStream();
+        await streamEndPromise;
         return;
       }
 
-      // Subscribe to task progress channel
-      await subscriber.subscribe(channel);
+      // --- REPLAY MISSED EVENTS FROM REDIS STREAM ---
+      // This fixes the race condition where worker publishes before SSE connects
+      const streamKey = `stream:task:${taskId}`;
 
-      // Handle incoming messages
-      subscriber.on('message', async (ch, message) => {
-        if (ch !== channel || isCompleted) return;
+      try {
+        const existingEvents = await redis.xrange(streamKey, '-', '+');
+        console.log(`[SSE] Found ${existingEvents.length} events in stream ${streamKey}`);
 
-        try {
-          const event = JSON.parse(message) as ProgressEvent;
+        for (const [_id, fields] of existingEvents) {
+          try {
+            // Fields are returned as [key, value, key, value, ...]
+            // We stored as 'data', eventJson
+            const dataIndex = fields.indexOf('data');
+            if (dataIndex === -1 || dataIndex + 1 >= fields.length) {
+              continue;
+            }
+            const eventJson = fields[dataIndex + 1];
+            const event = JSON.parse(eventJson) as ProgressEvent;
 
-          await stream.writeSSE({
-            event: event.type,
-            data: JSON.stringify(event),
-          });
+            await stream.writeSSE({
+              data: eventJson,
+            });
 
-          // Close stream on completion or failure
-          if (event.type === 'completed' || event.type === 'failed') {
-            isCompleted = true;
-            await subscriber.unsubscribe(channel);
-            subscriber.disconnect();
+            console.log(`[SSE] Replayed event from stream: ${event.type}`);
+
+            // If we replayed a terminal event, close immediately
+            if (event.type === 'completed' || event.type === 'failed') {
+              closeStream();
+              await streamEndPromise;
+              return;
+            }
+          } catch (e) {
+            console.error('[SSE] Failed to parse stream event:', e);
           }
-        } catch (e) {
-          console.error('Failed to parse progress event:', e);
         }
-      });
+      } catch (e) {
+        console.error('[SSE] Failed to read from stream:', e);
+      }
+
+      // --- SUBSCRIBE TO PUB/SUB FOR REAL-TIME EVENTS ---
+      try {
+        // Create Redis subscriber connection and wait for it to be ready
+        subscriber = createRedisConnection();
+
+        // Set up error handlers before subscribing
+        subscriber.on('error', (err) => {
+          console.error('[SSE] Redis subscriber error:', err.message);
+          closeStream();
+        });
+
+        subscriber.on('close', () => {
+          if (!isCompleted) {
+            console.log('[SSE] Redis subscriber connection closed unexpectedly');
+          }
+        });
+
+        // Wait for connection to be ready
+        await new Promise<void>((resolve, reject) => {
+          if (subscriber!.status === 'ready') {
+            resolve();
+            return;
+          }
+          subscriber!.once('ready', () => resolve());
+          subscriber!.once('error', (err) => reject(err));
+          // Timeout after 5 seconds
+          setTimeout(() => reject(new Error('Redis connection timeout')), 5000);
+        });
+
+        await subscriber.subscribe(channel);
+        console.log(`[SSE] Subscribed to channel: ${channel}`);
+
+        // Handle incoming messages (only set up if subscription succeeded)
+        subscriber.on('message', async (ch, message) => {
+          if (ch !== channel || isCompleted) return;
+
+          try {
+            const event = JSON.parse(message) as ProgressEvent;
+
+            await stream.writeSSE({
+              data: JSON.stringify(event),
+            });
+
+            // Close stream on completion or failure
+            if (event.type === 'completed' || event.type === 'failed') {
+              try {
+                await subscriber?.unsubscribe(channel);
+              } catch {
+                // Ignore unsubscribe errors
+              }
+              closeStream();
+            }
+          } catch (e) {
+            // Only log if it's not a connection closed error
+            if (e instanceof Error && !e.message.includes('Connection is closed')) {
+              console.error('Failed to parse progress event:', e);
+            }
+          }
+        });
+      } catch (err) {
+        console.error('[SSE] Failed to create Redis subscriber:', err);
+        // Continue without pub/sub - polling will still work as fallback
+      }
 
       // Keep connection alive with heartbeat
       const heartbeatInterval = setInterval(async () => {
@@ -368,23 +459,24 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
 
         try {
           await stream.writeSSE({
-            event: 'heartbeat',
-            data: JSON.stringify({ timestamp: new Date().toISOString() }),
+            data: JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() }),
           });
         } catch {
           // Stream closed
           clearInterval(heartbeatInterval);
-          isCompleted = true;
-          subscriber.disconnect();
+          closeStream();
         }
       }, 15000);
 
       // Handle stream abort
       stream.onAbort(() => {
-        isCompleted = true;
         clearInterval(heartbeatInterval);
-        subscriber.unsubscribe(channel);
-        subscriber.disconnect();
+        try {
+          subscriber?.unsubscribe(channel);
+        } catch {
+          // Ignore unsubscribe errors
+        }
+        closeStream();
       });
 
       // Poll for task completion as fallback
@@ -400,20 +492,22 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         });
 
         if (currentTask && (currentTask.status === 'completed' || currentTask.status === 'failed')) {
-          isCompleted = true;
           clearInterval(pollInterval);
 
-          await stream.writeSSE({
-            event: currentTask.status,
-            data: JSON.stringify({
-              type: currentTask.status,
-              output: currentTask.payload?.output,
-              error: currentTask.payload?.error,
-              timestamp: new Date().toISOString(),
-            } as ProgressEvent),
-          });
+          try {
+            await stream.writeSSE({
+              data: JSON.stringify({
+                type: currentTask.status,
+                output: currentTask.payload?.output,
+                error: currentTask.payload?.error,
+                timestamp: new Date().toISOString(),
+              } as ProgressEvent),
+            });
+          } catch {
+            // Stream already closed
+          }
 
-          subscriber.disconnect();
+          closeStream();
         }
       }, 5000);
 
@@ -421,5 +515,8 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       stream.onAbort(() => {
         clearInterval(pollInterval);
       });
+
+      // Keep the stream alive until closeStream() is called
+      await streamEndPromise;
     });
   });

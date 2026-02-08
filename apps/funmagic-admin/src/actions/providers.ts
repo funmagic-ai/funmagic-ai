@@ -7,6 +7,21 @@ import { ProviderInputSchema } from '@funmagic/shared/schemas';
 import { parseFormData } from '@/lib/validate';
 import type { FormState } from '@/lib/form-types';
 
+/**
+ * Extract error message from API error response.
+ * The error.error can be a string or an object with {name, message}.
+ */
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback;
+  const err = error as { error?: unknown };
+  if (typeof err.error === 'string') return err.error;
+  if (err.error && typeof err.error === 'object') {
+    const errObj = err.error as { message?: string };
+    if (typeof errObj.message === 'string') return errObj.message;
+  }
+  return fallback;
+}
+
 interface CreateFormState extends FormState {
   providerId?: string;
 }
@@ -47,7 +62,7 @@ export async function createProvider(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to create provider' };
+      return { success: false, message: getErrorMessage(error, 'Failed to create provider') };
     }
 
     revalidatePath('/dashboard/providers');
@@ -125,7 +140,7 @@ export async function updateProvider(
     });
 
     if (error || !data) {
-      return { success: false, message: error?.error ?? 'Failed to update provider' };
+      return { success: false, message: getErrorMessage(error, 'Failed to update provider') };
     }
 
     revalidatePath('/dashboard/providers');
@@ -146,7 +161,7 @@ export async function deleteProvider(id: string) {
   });
 
   if (error) {
-    throw new Error(error.error ?? 'Failed to delete provider');
+    throw new Error(getErrorMessage(error, 'Failed to delete provider'));
   }
 
   revalidatePath('/dashboard/providers');
@@ -161,7 +176,7 @@ export async function toggleProviderActive(id: string, isActive: boolean) {
   });
 
   if (error) {
-    throw new Error(error.error ?? 'Failed to toggle provider status');
+    throw new Error(getErrorMessage(error, 'Failed to toggle provider status'));
   }
 
   revalidatePath('/dashboard/providers');

@@ -47,22 +47,25 @@ export function ThemeProvider({
   defaultTheme = DEFAULT_THEME,
   defaultMode = DEFAULT_MODE,
 }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<ThemeId>(() => {
-    if (typeof window === 'undefined') return defaultTheme;
-    const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return stored && isValidTheme(stored) ? stored : defaultTheme;
-  });
+  // Initialize with server defaults to match SSR output
+  // ThemeScript already applies the correct theme before React hydrates,
+  // so there's no visual flash. We sync state after hydration.
+  const [theme, setThemeState] = useState<ThemeId>(defaultTheme);
+  const [mode, setModeState] = useState<ColorMode>(defaultMode);
+  const [systemDark, setSystemDark] = useState(false);
 
-  const [mode, setModeState] = useState<ColorMode>(() => {
-    if (typeof window === 'undefined') return defaultMode;
-    const stored = localStorage.getItem(MODE_STORAGE_KEY);
-    return stored && isValidMode(stored) ? stored : defaultMode;
-  });
-
-  const [systemDark, setSystemDark] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
+  // Sync from localStorage AFTER hydration to avoid mismatch
+  useEffect(() => {
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (storedTheme && isValidTheme(storedTheme)) {
+      setThemeState(storedTheme);
+    }
+    const storedMode = localStorage.getItem(MODE_STORAGE_KEY);
+    if (storedMode && isValidMode(storedMode)) {
+      setModeState(storedMode);
+    }
+    setSystemDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
+  }, []);
 
   const resolvedMode = useMemo(() => {
     if (mode === 'system') return systemDark ? 'dark' : 'light';
@@ -113,10 +116,21 @@ export function ThemeProvider({
   );
 }
 
+// Default values for SSR - will be replaced after hydration
+const DEFAULT_CONTEXT: ThemeContextValue = {
+  theme: DEFAULT_THEME,
+  mode: DEFAULT_MODE,
+  resolvedMode: 'light',
+  setTheme: () => {},
+  setMode: () => {},
+};
+
 export function useTheme() {
   const context = useContext(ThemeContext);
+  // Return default context during SSR to avoid hydration errors
+  // ThemeScript ensures correct theme is applied before React hydrates
   if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    return DEFAULT_CONTEXT;
   }
   return context;
 }

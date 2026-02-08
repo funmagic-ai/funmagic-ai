@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { THEMES, type ColorMode } from '@/lib/theme';
 import { useTheme } from './theme-provider';
+import { useMounted } from '@/hooks/use-mounted';
 import { cn } from '@/lib/utils';
 
 const MODE_OPTIONS: { id: ColorMode; label: string; icon: typeof Sun }[] = [
@@ -20,7 +21,15 @@ const MODE_OPTIONS: { id: ColorMode; label: string; icon: typeof Sun }[] = [
 ];
 
 export function ThemeSwitcher() {
+  const mounted = useMounted();
   const { theme, mode, setTheme, setMode } = useTheme();
+
+  // Show placeholder during SSR to avoid Radix ID hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="h-8 w-full rounded-md border border-input bg-transparent" />
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -49,14 +58,16 @@ export function ThemeSwitcher() {
               key={t.id}
               onClick={() => setTheme(t.id)}
               className={cn(
-                'group relative flex h-8 w-8 items-center justify-center rounded-md border transition-all hover:scale-110',
+                'group relative flex h-8 w-8 items-center justify-center rounded-md border transition-transform hover:scale-110',
                 theme === t.id && 'ring-2 ring-ring ring-offset-2'
               )}
               style={{ backgroundColor: t.swatch }}
               title={t.name}
+              aria-label={`Select ${t.name} theme`}
+              aria-pressed={theme === t.id}
             >
               {theme === t.id && (
-                <Check className="h-4 w-4 text-white drop-shadow-md" />
+                <Check className="h-4 w-4 text-white drop-shadow-md" aria-hidden="true" />
               )}
             </button>
           ))}

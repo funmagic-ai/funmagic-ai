@@ -17,7 +17,7 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
-import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes } from './routes/admin';
+import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, aiStudioRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
 
@@ -68,8 +68,10 @@ adminApp.route('/banners', bannersAdminRoutes);
 adminApp.route('/tools', toolsAdminRoutes);
 adminApp.route('/tool-types', toolTypesRoutes);
 adminApp.route('/providers', providersRoutes);
+adminApp.route('/admin-providers', adminProvidersRoutes);
 adminApp.route('/packages', packagesRoutes);
 adminApp.route('/users', usersAdminRoutes);
+adminApp.route('/ai-studio', aiStudioRoutes);
 
 app.route('/api/admin', adminApp);
 

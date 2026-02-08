@@ -47,7 +47,7 @@ export default async function DashboardLayout({
       <Suspense fallback={<SidebarSkeleton />}>
         <SidebarWithAuth />
       </Suspense>
-      <main className="ml-0 flex-1 overflow-auto px-4 pb-4 pt-16 md:ml-64 md:px-8 md:pb-8 md:pt-8">
+      <main id="main-content" className="ml-0 flex-1 overflow-auto px-4 pb-4 pt-16 md:ml-64 md:px-8 md:pb-8 md:pt-8">
         <div className="mx-auto max-w-7xl">
           {children}
         </div>

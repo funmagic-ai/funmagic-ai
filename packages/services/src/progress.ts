@@ -57,7 +57,21 @@ export function getTaskChannel(taskId: string): string {
 }
 
 /**
+ * Get the Redis Stream key for a task
+ */
+export function getTaskStreamKey(taskId: string): string {
+  return `stream:task:${taskId}`;
+}
+
+/**
  * Publish a progress event to Redis
+ *
+ * Uses Redis Streams + Pub/Sub hybrid pattern:
+ * 1. Store event in Redis Stream (persistent, auto-trim at 1000 events)
+ * 2. Set TTL on stream (5 minutes)
+ * 3. Publish to Pub/Sub for real-time delivery
+ *
+ * This ensures events are not lost if SSE connects after worker starts publishing.
  */
 export async function publishProgress(
   redis: Redis,
@@ -65,13 +79,25 @@ export async function publishProgress(
   event: Omit<ProgressEvent, 'timestamp'>
 ): Promise<void> {
   const channel = getTaskChannel(taskId);
+  const streamKey = getTaskStreamKey(taskId);
+
   const fullEvent: ProgressEvent = {
     ...event,
     taskId,
     timestamp: new Date().toISOString(),
   };
 
-  await redis.publish(channel, JSON.stringify(fullEvent));
+  const eventJson = JSON.stringify(fullEvent);
+
+  // 1. Store in Redis Stream (persistent, auto-trim at ~1000 events)
+  await redis.xadd(streamKey, 'MAXLEN', '~', '1000', '*', 'data', eventJson);
+
+  // 2. Set TTL on stream (5 minutes) - refreshes on each event
+  await redis.expire(streamKey, 300);
+
+  // 3. Publish to Pub/Sub for real-time delivery
+  const subscribers = await redis.publish(channel, eventJson);
+  console.log(`[Progress] Published ${event.type} to ${channel}, subscribers: ${subscribers}`);
 }
 
 /**

@@ -10,6 +10,7 @@ export type ToolErrorCode =
 export type ToolErrorData = {
   available?: number
   required?: number
+  message?: string
 }
 
 const ERROR_KEY_MAP: Record<ToolErrorCode, string> = {
@@ -27,6 +28,11 @@ export function formatToolError(
   code: ToolErrorCode,
   data?: ToolErrorData
 ): string {
+  // If a custom message is provided, show it with the translated prefix
+  if (data?.message) {
+    return data.message
+  }
+
   const key = ERROR_KEY_MAP[code] || 'unknownError'
 
   if (code === 'INSUFFICIENT_CREDITS' && data) {

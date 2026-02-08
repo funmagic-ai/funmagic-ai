@@ -262,6 +262,7 @@ export interface paths {
             parameters: {
                 query?: {
                     type?: "main" | "side";
+                    locale?: "en" | "zh" | "ja" | "fr" | "es" | "pt" | "de" | "vi" | "ko";
                 };
                 header?: never;
                 path?: never;
@@ -297,7 +298,9 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    locale?: "en" | "zh" | "ja" | "fr" | "es" | "pt" | "de" | "vi" | "ko";
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1511,6 +1514,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/tool-types/{id}/active-tools-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Count of active tools for this tool type */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ActiveToolsCountResponse"];
+                    };
+                };
+                /** @description Tool type not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ToolTypeError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/tool-types/{id}/toggle-active": {
         parameters: {
             query?: never;
@@ -1775,6 +1824,183 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/admin-providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of all admin providers */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProvidersList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateAdminProvider"];
+                };
+            };
+            responses: {
+                /** @description Admin provider created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderDetail"];
+                    };
+                };
+                /** @description Admin provider name already exists */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/admin-providers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin provider details (credentials masked) */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderDetail"];
+                    };
+                };
+                /** @description Admin provider not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderError"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["UpdateAdminProvider"];
+                };
+            };
+            responses: {
+                /** @description Admin provider updated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderDetail"];
+                    };
+                };
+                /** @description Admin provider not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderError"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Admin provider deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteAdminProviderSuccess"];
+                    };
+                };
+                /** @description Admin provider not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminProviderError"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2180,6 +2406,388 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of chats */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminChatsList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["CreateAdminChat"];
+                };
+            };
+            responses: {
+                /** @description Chat created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            chat: components["schemas"]["AdminChat"];
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/chats/{chatId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    chatId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Chat with messages */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminChatWithMessages"];
+                    };
+                };
+                /** @description Chat not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    chatId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Chat deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            success: boolean;
+                        };
+                    };
+                };
+                /** @description Chat not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/chats/{chatId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    chatId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["SendAdminMessage"];
+                };
+            };
+            responses: {
+                /** @description Message sent, task created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SendAdminMessageResponse"];
+                    };
+                };
+                /** @description Provider not configured */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+                /** @description Chat not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+                /** @description Internal error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/messages/{messageId}/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    messageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description SSE stream of message progress events */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Message not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/messages/{messageId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    messageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Message status */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            message: components["schemas"]["AdminMessageStatus"];
+                        };
+                    };
+                };
+                /** @description Message not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/providers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Available providers based on configured API keys */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioProviders"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/ai-studio/assets/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    storageKey: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Presigned download URL */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            url: string;
+                            expiresIn: number;
+                        };
+                    };
+                };
+                /** @description Invalid storage key */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminAIStudioError"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2803,7 +3411,6 @@ export interface components {
             title: string;
             description?: string;
             shortDescription?: string;
-            /** Format: uri */
             thumbnail?: string;
             /** Format: uuid */
             toolTypeId: string;
@@ -2863,7 +3470,6 @@ export interface components {
             title?: string;
             description?: string;
             shortDescription?: string;
-            /** Format: uri */
             thumbnail?: string;
             /** Format: uuid */
             toolTypeId?: string;
@@ -3075,8 +3681,12 @@ export interface components {
         DeleteToolTypeSuccess: {
             success: boolean;
         };
+        ActiveToolsCountResponse: {
+            count: number;
+        };
         ToggleToolTypeActiveResponse: {
             isActive: boolean;
+            deactivatedToolsCount?: number;
         };
         ProvidersList: {
             providers: components["schemas"]["Provider"][];
@@ -3140,6 +3750,54 @@ export interface components {
             isHealthy: boolean;
             message: string;
             checkedAt: string;
+        };
+        AdminProvidersList: {
+            providers: components["schemas"]["AdminProvider"][];
+        };
+        AdminProvider: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            displayName: string;
+            description: string | null;
+            baseUrl: string | null;
+            config?: unknown;
+            isActive: boolean;
+            createdAt: string;
+            updatedAt: string;
+            hasApiKey: boolean;
+            hasApiSecret: boolean;
+        };
+        AdminProviderDetail: {
+            provider: components["schemas"]["AdminProvider"];
+        };
+        AdminProviderError: {
+            error: string;
+        };
+        CreateAdminProvider: {
+            name: string;
+            displayName: string;
+            description?: string;
+            apiKey?: string;
+            apiSecret?: string;
+            /** Format: uri */
+            baseUrl?: string;
+            config?: unknown;
+            isActive?: boolean;
+        };
+        UpdateAdminProvider: {
+            name?: string;
+            displayName?: string;
+            description?: string;
+            apiKey?: string;
+            apiSecret?: string;
+            /** Format: uri */
+            baseUrl?: string;
+            config?: unknown;
+            isActive?: boolean;
+        };
+        DeleteAdminProviderSuccess: {
+            success: boolean;
         };
         CreditPackagesList: {
             packages: components["schemas"]["CreditPackage"][];
@@ -3368,6 +4026,95 @@ export interface components {
         AdjustUserCredits: {
             amount: number;
             description: string;
+        };
+        AdminChatsList: {
+            chats: components["schemas"]["AdminChat"][];
+        };
+        AdminChat: {
+            /** Format: uuid */
+            id: string;
+            title: string | null;
+            createdAt: string;
+            updatedAt: string;
+        };
+        CreateAdminChat: {
+            title?: string;
+        };
+        AdminChatWithMessages: {
+            chat: components["schemas"]["AdminChat"];
+            messages: components["schemas"]["AdminMessage"][];
+        };
+        AdminMessage: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            chatId: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            content: string | null;
+            quotedImageIds: string[] | null;
+            provider: string | null;
+            model: string | null;
+            images: components["schemas"]["AdminMessageImage"][] | null;
+            status: string;
+            error: string | null;
+            createdAt: string;
+        };
+        AdminMessageImage: {
+            storageKey: string;
+            /** @enum {string} */
+            type?: "generated" | "uploaded" | "quoted";
+        };
+        AdminAIStudioError: {
+            error: string;
+        };
+        SendAdminMessageResponse: {
+            userMessage: components["schemas"]["AdminMessage"];
+            assistantMessage: components["schemas"]["AdminMessage"];
+        };
+        SendAdminMessage: {
+            content: string;
+            quotedImageIds?: string[];
+            uploadedImageUrls?: string[];
+            /** @enum {string} */
+            provider: "openai" | "google" | "fal";
+            model?: string;
+            options?: {
+                openai?: {
+                    /** @enum {string} */
+                    size?: "1024x1024" | "1536x1024" | "1024x1536" | "auto";
+                    /** @enum {string} */
+                    quality?: "low" | "medium" | "high";
+                    /** @enum {string} */
+                    format?: "png" | "jpeg" | "webp";
+                    /** @enum {string} */
+                    background?: "transparent" | "opaque";
+                    /** @enum {string} */
+                    moderation?: "low" | "auto";
+                };
+                google?: {
+                    /** @enum {string} */
+                    aspectRatio?: "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9";
+                    /** @enum {string} */
+                    imageSize?: "1K" | "2K" | "4K";
+                };
+            };
+        };
+        AdminMessageStatus: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            progress: string | null;
+            images: components["schemas"]["AdminMessageImage"][] | null;
+            content: string | null;
+            error: string | null;
+        };
+        AdminAIStudioProviders: {
+            providers: {
+                openai: boolean;
+                google: boolean;
+                fal: boolean;
+            };
         };
     };
     responses: never;

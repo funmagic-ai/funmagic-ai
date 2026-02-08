@@ -15,7 +15,7 @@ export async function Footer({ locale }: FooterProps) {
   const tFooter = await getTranslations({ locale, namespace: 'footer' })
 
   return (
-    <footer className="mt-auto border-t border-border bg-card py-12">
+    <footer className="mt-auto border-t border-border py-16">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-8 px-4 md:flex-row sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-3">

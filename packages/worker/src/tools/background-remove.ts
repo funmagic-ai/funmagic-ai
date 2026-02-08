@@ -16,7 +16,7 @@ import { createProgressTracker } from '../lib/progress';
  *       "name": "Remove Background",
  *       "type": "background-remove",
  *       "providerId": "uuid-fal",  // Admin links this
- *       "providerModel": "fal-ai/bria-rmbg",
+ *       "providerModel": "fal-ai/bria/background/remove",
  *       "cost": 5  // Credits
  *     }
  *   ]
@@ -91,17 +91,20 @@ export const backgroundRemoveWorker: ToolWorker = {
         throw new Error('No step configured for background remove tool');
       }
 
-      if (!step.providerId) {
+      // Get provider name from step config
+      const providerName = step.provider?.name;
+      if (!providerName) {
         throw new Error('No provider configured for background removal');
       }
 
-      // Get provider credentials
-      const provider = await db.query.providers.findFirst({
-        where: eq(providers.id, step.providerId),
-      });
+      // Look up provider by name (case-insensitive)
+      const allProviders = await db.query.providers.findMany();
+      const provider = allProviders.find(
+        (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
+      );
 
       if (!provider) {
-        throw new Error('Provider not found');
+        throw new Error(`Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
@@ -122,23 +125,34 @@ export const backgroundRemoveWorker: ToolWorker = {
         throw new Error('Image URL or storage key is required');
       }
 
-      await progress.updateProgress(10, 'Starting background removal');
+      await progress.updateProgress(5, 'Preparing image');
 
       // Configure FAL client with API key
       fal.config({ credentials: credentials.apiKey });
 
+      // Upload image to fal.ai storage first (required for non-public URLs like S3 presigned URLs)
+      await progress.updateProgress(10, 'Uploading to processing server');
+      const imageResponse = await fetch(imageUrl);
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+      }
+      const imageBlob = await imageResponse.blob();
+      const falImageUrl = await fal.storage.upload(imageBlob);
+
+      await progress.updateProgress(20, 'Starting background removal');
+
       // Get model from step config or default
-      const modelId = getProviderModel(step, 'fal-ai/bria-rmbg');
+      const modelId = getProviderModel(step, 'fal-ai/bria/background/remove');
 
       // Use fal.subscribe for async operation with progress updates
       const result = await fal.subscribe(modelId, {
-        input: { image_url: imageUrl },
+        input: { image_url: falImageUrl },
         logs: true,
         onQueueUpdate: (update) => {
           if (update.status === 'IN_PROGRESS') {
             // Map queue position/logs to progress percentage
             const logsCount = update.logs?.length ?? 0;
-            const progressPercent = Math.min(20 + logsCount * 10, 90);
+            const progressPercent = Math.min(30 + logsCount * 10, 90);
             progress.updateProgress(progressPercent, 'Processing...');
           }
         },

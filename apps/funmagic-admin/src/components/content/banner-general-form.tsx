@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/select';
 import { UploadDropzone } from '@/components/ui/upload-dropzone';
 import { AspectRatioPreview } from '@/components/ui/aspect-ratio-preview';
+import { ALLOWED_IMAGE_MIME_TYPES, IMAGE_UPLOAD_DESCRIPTION } from '@/lib/upload-config';
 import { TranslationsEditor } from '@/components/translations';
 import { createBanner } from '@/actions/banners';
 import { IMAGE_RATIOS, RECOMMENDED_DIMENSIONS } from '@/lib/image-ratio';
@@ -209,12 +210,8 @@ export function BannerGeneralForm() {
               ) : (
                 <UploadDropzone
                   onFileSelect={handleFileSelect}
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  description={{
-                    fileTypes: 'JPEG, PNG, WebP, GIF',
-                    maxFileSize: '10MB',
-                    maxFiles: 1,
-                  }}
+                  accept={ALLOWED_IMAGE_MIME_TYPES}
+                  description={IMAGE_UPLOAD_DESCRIPTION}
                 />
               )}
               {state.errors?.thumbnail && (
