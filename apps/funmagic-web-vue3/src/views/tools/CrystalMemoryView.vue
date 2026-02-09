@@ -33,12 +33,20 @@ const bgRemovedImageUrl = ref<string | null>(null)
 const cloudTaskId = ref<string | null>(null)
 
 interface VGGTOutput {
+  assetId: string
+  storageKey: string
+  pointCount: number
+  dimensions: { height: number; width: number }
+}
+
+interface PointCloudData {
   txt: string
   conf: number[]
-  pointCount: number
 }
 
 const cloudOutput = ref<VGGTOutput | null>(null)
+const pointCloudData = ref<PointCloudData | null>(null)
+const loadingPointCloud = ref(false)
 const resultTab = ref<'model' | 'original'>('model')
 
 // Fetch tool config from API
@@ -93,17 +101,32 @@ const { progress: bgProgress, isFailed: bgFailed } = useTaskProgress(
 const { progress: cloudProgress, isFailed: cloudFailed } = useTaskProgress(
   cloudTaskId,
   {
-    onComplete: (output: unknown) => {
+    onComplete: async (output: unknown) => {
       // Null out task ID to prevent reconnect from firing onComplete again
       cloudTaskId.value = null
-      currentStep.value = 3
-      const out = output as Record<string, any>
-      if (out?.txt) {
-        cloudOutput.value = {
-          txt: out.txt,
-          conf: out.conf ?? [],
-          pointCount: out.pointCount ?? 0,
-        }
+      const out = output as VGGTOutput | null
+      if (!out?.assetId) return
+
+      cloudOutput.value = out
+      loadingPointCloud.value = true
+
+      try {
+        // Fetch point cloud data from S3 via presigned URL
+        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: out.assetId } },
+        })
+        if (!urlData?.url) throw new Error('Failed to get download URL')
+
+        const response = await fetch(urlData.url)
+        if (!response.ok) throw new Error(`Failed to fetch point cloud data: ${response.status}`)
+
+        const data = await response.json() as PointCloudData
+        pointCloudData.value = data
+        currentStep.value = 3
+      } catch (err) {
+        console.error('[CrystalMemory] Failed to load point cloud data:', err)
+      } finally {
+        loadingPointCloud.value = false
       }
     },
   },
@@ -173,6 +196,8 @@ function handleReset() {
   bgRemovedAssetId.value = null
   bgRemovedImageUrl.value = null
   cloudOutput.value = null
+  pointCloudData.value = null
+  loadingPointCloud.value = false
   resultTab.value = 'model'
 }
 </script>
@@ -235,15 +260,19 @@ function handleReset() {
           </div>
 
           <!-- Step 2: Point Cloud Generation -->
-          <div v-if="currentStep === 2">
+          <div v-if="currentStep === 2" class="space-y-4">
             <TaskProgressDisplay :progress="cloudProgress" />
+            <div v-if="loadingPointCloud" class="flex items-center justify-center gap-2 py-4">
+              <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+              <span class="text-sm text-muted-foreground">{{ t('tools.pointCloud.loadingData') }}</span>
+            </div>
             <div v-if="cloudFailed" class="flex justify-center mt-4 gap-3">
               <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
             </div>
           </div>
 
           <!-- Step 3: Result -->
-          <div v-if="currentStep === 3" class="space-y-6">
+          <div v-if="currentStep === 3 && pointCloudData" class="space-y-6">
             <div class="space-y-1">
               <h3 class="text-lg font-semibold">{{ t('tools.resultReady') }}</h3>
               <p v-if="cloudOutput" class="text-sm text-muted-foreground">
@@ -254,10 +283,10 @@ function handleReset() {
             <!-- Tab Switcher -->
             <n-tabs v-model:value="resultTab" type="segment">
               <n-tab-pane name="model" :tab="t('tools.pointCloud.tab3D')">
-                <div v-if="cloudOutput" class="pt-4">
+                <div class="pt-4">
                   <Suspense>
                     <PointCloudViewer
-                      :data="{ txt: cloudOutput.txt, conf: cloudOutput.conf }"
+                      :data="pointCloudData"
                       @reset="handleReset"
                     />
                     <template #fallback>

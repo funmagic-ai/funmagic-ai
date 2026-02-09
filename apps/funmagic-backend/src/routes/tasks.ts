@@ -317,14 +317,6 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       } catch { /* stream already closed or errored */ }
     }
 
-    /** Write an SSE comment (invisible to EventSource clients, minimal bandwidth) */
-    function writeComment() {
-      if (closed) return;
-      try {
-        streamCtrl.enqueue(encoder.encode(`: h\n\n`));
-      } catch { /* stream already closed or errored */ }
-    }
-
     /** Fully close the stream and clean up all resources */
     function closeAll() {
       if (closed) return;
@@ -400,15 +392,15 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           timestamp: new Date().toISOString(),
         }));
 
-        // 2. If task is already terminal, send final event
+        // 2. If task is already terminal, send final event.
+        //    Don't include output — it can be massive (e.g. 13MB point cloud).
+        //    Client fetches full output via REST GET /tasks/:taskId.
         if (task.status === 'completed' || task.status === 'failed') {
-          const finalTask = await db.query.tasks.findFirst({
-            where: eq(tasks.id, taskId),
-            with: { payload: true },
-          });
+          const finalTask = task.status === 'failed'
+            ? await db.query.tasks.findFirst({ where: eq(tasks.id, taskId), with: { payload: true } })
+            : null;
           sendTerminal(JSON.stringify({
             type: task.status,
-            output: finalTask?.payload?.output,
             error: finalTask?.payload?.error,
             timestamp: new Date().toISOString(),
           }));
@@ -511,11 +503,12 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         if (closed) return;
 
         // 5. Heartbeat — fires every 6s (must be < Bun's idleTimeout to reset
-        //    the TCP idle timer). Uses an SSE comment (`: h\n\n`) which is
-        //    silently discarded by EventSource clients, minimising bandwidth.
+        //    the TCP idle timer). Must be a `data:` event (not SSE comment) so
+        //    that EventSource.onmessage fires and the client can reset its own
+        //    heartbeat timeout. Minimal JSON to save bandwidth.
         heartbeatTimer = setInterval(() => {
           if (closed) return;
-          writeComment();
+          writeEvent('{"type":"heartbeat"}');
         }, 6000);
 
         // 6. Poll DB as safety net (catches completion if pub/sub missed it)
@@ -530,7 +523,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
             if (current && (current.status === 'completed' || current.status === 'failed')) {
               sendTerminal(JSON.stringify({
                 type: current.status,
-                output: current.payload?.output,
+                // Don't include output — client fetches via REST
                 error: current.payload?.error,
                 timestamp: new Date().toISOString(),
               }));

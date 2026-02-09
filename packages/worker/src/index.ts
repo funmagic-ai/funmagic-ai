@@ -73,8 +73,10 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         });
       }
 
-      // Publish completion event
-      await publishTaskCompleted(redis, taskId, result.output);
+      // Publish completion signal (no output — it can be massive, e.g. 13MB
+      // point cloud data). Client fetches full output via REST after receiving
+      // this notification. Output is already persisted in taskPayloads above.
+      await publishTaskCompleted(redis, taskId);
 
       console.log(`[Worker] Task ${taskId} completed successfully`);
       return result.output;

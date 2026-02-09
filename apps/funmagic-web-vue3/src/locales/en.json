@@ -121,7 +121,8 @@
       "zCrop": "Z-Axis Crop (Z > 0)",
       "downloadPLY": "Download PLY",
       "downloadTXT": "Download TXT",
-      "settings": "Settings"
+      "settings": "Settings",
+      "loadingData": "Loading point cloud data..."
     }
   },
   "pricing": {

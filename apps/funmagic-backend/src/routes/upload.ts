@@ -1,15 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { getPresignedUploadUrl, generateStorageKey, getBucketForVisibility } from '@funmagic/services';
 
-const ALLOWED_CONTENT_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-  'image/svg+xml',
-];
+const DEFAULT_ALLOWED_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/svg+xml,application/json,text/plain';
+const ALLOWED_CONTENT_TYPES = (process.env.ALLOWED_UPLOAD_TYPES ?? DEFAULT_ALLOWED_TYPES).split(',').map(t => t.trim());
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE ?? String(20 * 1024 * 1024), 10);
 
 const PresignSchema = z.object({
   module: z.string().min(1),

@@ -121,7 +121,8 @@
       "zCrop": "Z轴裁剪 (Z > 0)",
       "downloadPLY": "下载 PLY",
       "downloadTXT": "下载 TXT",
-      "settings": "设置"
+      "settings": "设置",
+      "loadingData": "正在加载点云数据..."
     }
   },
   "pricing": {

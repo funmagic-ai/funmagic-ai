@@ -425,8 +425,6 @@ async function executeVGGTStep(params: {
       storageKey: asset.storageKey,
       pointCount: scaledPoints.length,
       dimensions: { height, width },
-      txt: outputData.txt,
-      conf: outputData.conf,
     },
   };
 }

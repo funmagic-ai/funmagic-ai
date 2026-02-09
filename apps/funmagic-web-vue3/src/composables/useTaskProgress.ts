@@ -68,6 +68,20 @@ export function useTaskProgress(
     }, SSE_HEARTBEAT_TIMEOUT)
   }
 
+  async function fetchTaskOutput(id: string): Promise<unknown> {
+    try {
+      const response = await fetch(`${API_URL}/api/tasks/${id}`, {
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      })
+      if (!response.ok) return null
+      const data = await response.json()
+      return data.task?.payload?.output ?? null
+    } catch {
+      return null
+    }
+  }
+
   function handleEvent(parsed: SSEEvent) {
     switch (parsed.type) {
       case 'connected':
@@ -269,9 +283,19 @@ export function useTaskProgress(
 
             try {
               const parsed: SSEEvent = JSON.parse(jsonStr)
+
+              if (parsed.type === 'completed') {
+                // SSE carries a lightweight signal only — fetch full output via REST
+                const output = await fetchTaskOutput(id)
+                handleEvent({ ...parsed, output })
+                reader.cancel()
+                cleanup()
+                return
+              }
+
               handleEvent(parsed)
 
-              if (parsed.type === 'completed' || parsed.type === 'failed') {
+              if (parsed.type === 'failed') {
                 reader.cancel()
                 cleanup()
                 return

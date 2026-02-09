@@ -36,3 +36,6 @@ packages/database/drizzle/meta/
 
 # TypeScript
 *.tsbuildinfo
+
+# Stale compiled JS in Vue source directories
+apps/*/src/**/*.js

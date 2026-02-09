@@ -825,6 +825,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/upload/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["PresignRequest"];
+                };
+            };
+            responses: {
+                /** @description Presigned upload URL generated */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PresignResponse"];
+                    };
+                };
+                /** @description Invalid request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UploadError"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/banners": {
         parameters: {
             query?: never;
@@ -2834,54 +2882,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/upload/presign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["PresignRequest"];
-                };
-            };
-            responses: {
-                /** @description Presigned upload URL generated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PresignResponse"];
-                    };
-                };
-                /** @description Invalid request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UploadError"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -3065,6 +3065,8 @@ export interface components {
                 userId: string;
                 /** Format: uuid */
                 toolId: string;
+                /** Format: uuid */
+                parentTaskId?: string | null;
                 status: string;
                 creditsCost: number | null;
                 createdAt: string;
@@ -3150,6 +3152,22 @@ export interface components {
         };
         DeleteAssetSuccess: {
             success: boolean;
+        };
+        PresignResponse: {
+            uploadUrl: string;
+            storageKey: string;
+            bucket: string;
+        };
+        UploadError: {
+            error: string;
+        };
+        PresignRequest: {
+            module: string;
+            filename: string;
+            contentType: string;
+            contentLength?: number;
+            /** @enum {string} */
+            visibility?: "public" | "private";
         };
         AdminBannersList: {
             banners: components["schemas"]["AdminBanner"][];
@@ -4204,6 +4222,10 @@ export interface components {
                 fal: boolean;
             };
         };
+        AdminTasksList: {
+            tasks: components["schemas"]["AdminTaskItem"][];
+            total: number;
+        };
         AdminTaskItem: {
             /** Format: uuid */
             id: string;
@@ -4224,28 +4246,6 @@ export interface components {
                 title: string;
                 slug: string;
             } | null;
-        };
-        AdminTasksList: {
-            tasks: components["schemas"]["AdminTaskItem"][];
-            total: number;
-        };
-        AdminTasksError: {
-            error: string;
-        };
-        PresignRequest: {
-            module: string;
-            filename: string;
-            contentType: string;
-            contentLength?: number;
-            visibility?: "public" | "private";
-        };
-        PresignResponse: {
-            uploadUrl: string;
-            storageKey: string;
-            bucket: string;
-        };
-        UploadError: {
-            error: string;
         };
     };
     responses: never;
