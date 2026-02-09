@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, Suspense } from 'react'
+import { useState, useCallback, Suspense, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic'
+import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
@@ -59,6 +60,7 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
   const tErrors = useTranslations('toolErrors')
   const t = useTranslations('tools.crystalMemory')
+  const pathname = usePathname()
   const config = (tool.config || { steps: [] }) as SavedToolConfig
 
   const [step, setStep] = useState<ExecutorStep>('upload')
@@ -74,10 +76,36 @@ export function CrystalMemoryClient({ tool }: { tool: ToolDetail }) {
   const [rawFile, setRawFile] = useState<File | null>(null)
   const [rawPreview, setRawPreview] = useState<string | null>(null)
 
+  // Track previous pathname to detect navigation
+  const prevPathnameRef = useRef(pathname)
+
   const upload = useSubmitUpload({
     route: 'crystal-memory',
     onError: () => setError({ code: 'UPLOAD_FAILED' }),
   })
+
+  // Store upload.reset in a ref to avoid dependency issues
+  const uploadResetRef = useRef(upload.reset)
+  uploadResetRef.current = upload.reset
+
+  // Reset state when navigating to this page
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      // Pathname changed - user navigated here, reset state
+      prevPathnameRef.current = pathname
+      setStep('upload')
+      setBgRemoveTaskId(null)
+      setVggtTaskId(null)
+      setOriginalPreview(null)
+      setBgRemovedPreview(null)
+      setBgRemoveOutput(null)
+      setVggtOutput(null)
+      setError(null)
+      setRawFile(null)
+      setRawPreview(null)
+      uploadResetRef.current()
+    }
+  }, [pathname])
 
   // Track background removal task
   useTaskProgress({

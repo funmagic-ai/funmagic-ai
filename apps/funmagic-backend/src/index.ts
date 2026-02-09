@@ -17,7 +17,8 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
-import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, aiStudioRoutes } from './routes/admin';
+import { uploadRoutes } from './routes/upload';
+import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, aiStudioRoutes, adminTasksRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
 
@@ -54,6 +55,7 @@ protectedApp.route('/users', usersRoutes);
 protectedApp.route('/tasks', tasksRoutes);
 protectedApp.route('/credits', creditsRoutes);
 protectedApp.route('/assets', assetsRoutes);
+protectedApp.route('/upload', uploadRoutes);
 
 app.route('/api', protectedApp);
 
@@ -72,6 +74,7 @@ adminApp.route('/admin-providers', adminProvidersRoutes);
 adminApp.route('/packages', packagesRoutes);
 adminApp.route('/users', usersAdminRoutes);
 adminApp.route('/ai-studio', aiStudioRoutes);
+adminApp.route('/tasks', adminTasksRoutes);
 
 app.route('/api/admin', adminApp);
 
@@ -115,4 +118,9 @@ export type AppType = typeof app;
 export default {
   port,
   fetch: app.fetch,
+  // Bun.serve default idleTimeout is 10s — too short for SSE streams.
+  // Set to 30s to give normal API connections reasonable cleanup while
+  // SSE connections stay alive via 6s heartbeat (each write resets the timer).
+  // Bun has no per-request timeout API so this is the only lever available.
+  idleTimeout: 30,
 };

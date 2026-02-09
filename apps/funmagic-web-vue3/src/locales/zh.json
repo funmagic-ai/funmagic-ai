@@ -1,0 +1,308 @@
+{
+  "common": {
+    "appName": "FunMagic",
+    "loading": "加载中...",
+    "error": "发生错误",
+    "retry": "重试",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "confirm": "确认",
+    "back": "返回",
+    "next": "下一步",
+    "submit": "提交",
+    "search": "搜索",
+    "noResults": "未找到结果",
+    "viewAll": "查看全部"
+  },
+  "nav": {
+    "home": "首页",
+    "tools": "工具",
+    "pricing": "定价",
+    "login": "登录",
+    "register": "注册",
+    "profile": "个人中心",
+    "assets": "我的资源",
+    "logout": "退出登录",
+    "help": "帮助",
+    "terms": "服务条款",
+    "privacy": "隐私政策"
+  },
+  "home": {
+    "heroTitle": "AI 驱动的创意工具",
+    "heroSubtitle": "使用我们的 AI 工具将您的想法变为现实",
+    "getStarted": "开始使用",
+    "featuredTools": "精选工具",
+    "explorAll": "探索所有工具"
+  },
+  "auth": {
+    "loginTitle": "欢迎回来",
+    "loginSubtitle": "登录您的账户",
+    "registerTitle": "创建账户",
+    "registerSubtitle": "开始您的创意之旅",
+    "email": "邮箱",
+    "password": "密码",
+    "name": "姓名",
+    "confirmPassword": "确认密码",
+    "signIn": "登录",
+    "signUp": "注册",
+    "noAccount": "还没有账户？",
+    "hasAccount": "已有账户？",
+    "forgotPassword": "忘记密码？",
+    "loginError": "邮箱或密码无效",
+    "registerError": "注册失败",
+    "welcomeBack": "欢迎回来！",
+    "accountCreated": "账户创建成功！",
+    "validation": {
+      "emailRequired": "请输入邮箱",
+      "emailInvalid": "请输入有效的邮箱地址",
+      "passwordRequired": "请输入密码",
+      "passwordMin6": "密码至少需要6个字符",
+      "passwordMin8": "密码至少需要8个字符",
+      "nameRequired": "请输入姓名",
+      "nameMin2": "姓名至少需要2个字符",
+      "confirmPasswordRequired": "请确认密码",
+      "passwordsMismatch": "两次输入的密码不一致"
+    }
+  },
+  "tools": {
+    "allTools": "所有工具",
+    "searchPlaceholder": "搜索工具...",
+    "noTools": "暂无可用工具",
+    "credits": "积分",
+    "tryNow": "立即体验",
+    "processing": "处理中...",
+    "uploadImage": "上传图片",
+    "download": "下载",
+    "result": "结果",
+    "startProcessing": "开始处理",
+    "resultReady": "处理完成",
+    "processAnother": "处理另一张",
+    "original": "原图",
+    "featured": "精选",
+    "uses": "次使用",
+    "signInRequired": "请登录后使用此工具。",
+    "tryAgain": "重试",
+    "startOver": "重新开始",
+    "selectStyle": "选择风格",
+    "generateImage": "生成图片",
+    "generate3D": "生成3D模型",
+    "generated": "生成结果",
+    "3dPointCloud": "3D点云",
+    "3dViewerComingSoon": "3D查看器即将推出",
+    "backToImage": "返回图片",
+    "clickToUpload": "点击上传或拖拽文件",
+    "preview": "预览",
+    "workspacePlaceholder": "这是一个占位工作区。每个工具都有自己的专用界面。",
+    "progress": {
+      "connecting": "连接中...",
+      "connected": "已连接",
+      "pending": "等待中",
+      "queued": "排队中",
+      "processing": "处理中",
+      "completed": "已完成",
+      "failed": "失败"
+    },
+    "upload": {
+      "dropHint": "拖拽图片到此处或",
+      "browse": "浏览文件",
+      "formats": "PNG、JPG、WebP，最大 {size}MB",
+      "invalidType": "请选择图片文件",
+      "sizeExceeded": "文件大小超过 {size}MB 限制"
+    },
+    "pointCloud": {
+      "tab3D": "3D 模型",
+      "loading": "加载 3D 查看器...",
+      "resultDescription": "已生成 {count} 个点",
+      "points": "点数",
+      "autoRotate": "自动旋转",
+      "pointSize": "点大小",
+      "confidence": "置信度阈值",
+      "zCrop": "Z轴裁剪 (Z > 0)",
+      "downloadPLY": "下载 PLY",
+      "downloadTXT": "下载 TXT",
+      "settings": "设置"
+    }
+  },
+  "pricing": {
+    "title": "定价",
+    "subtitle": "选择适合您的方案",
+    "popular": "热门",
+    "buy": "立即购买",
+    "free": "免费",
+    "paid": "付费",
+    "noPackages": "暂无可用套餐",
+    "bonusCredits": "赠送",
+    "comingSoon": "支付功能即将上线！"
+  },
+  "profile": {
+    "title": "个人中心",
+    "credits": "积分",
+    "transactions": "交易记录",
+    "noTransactions": "暂无交易记录",
+    "totalBalance": "总余额",
+    "available": "可用",
+    "reserved": "预留",
+    "lifetimeUsed": "累计使用",
+    "date": "日期",
+    "type": "类型",
+    "amount": "金额",
+    "balanceAfter": "交易后余额",
+    "description": "描述",
+    "types": {
+      "purchase": "购买",
+      "bonus": "赠送",
+      "welcome": "注册奖励",
+      "usage": "使用",
+      "refund": "退款",
+      "reservation": "预留",
+      "release": "释放",
+      "admin_adjust": "调整",
+      "expiry": "过期"
+    }
+  },
+  "assets": {
+    "title": "我的资源",
+    "noAssets": "暂无资源",
+    "deleteConfirm": "确定要删除此资源吗？",
+    "deleted": "资源已删除",
+    "deleteFailed": "删除资源失败",
+    "downloadFailed": "下载资源失败",
+    "downloadUrlFailed": "获取下载链接失败"
+  },
+  "help": {
+    "subtitle": "查找有关使用 FunMagic AI 工具的常见问题解答。",
+    "faqTitle": "常见问题",
+    "contactTitle": "联系我们",
+    "contactSubtitle": "没有找到您需要的答案？请联系我们的支持团队。",
+    "contactResponseTime": "响应时间：24小时内",
+    "faq": {
+      "what": {
+        "title": "什么是 FunMagic？",
+        "content": "FunMagic 是一个提供 AI 驱动的创意工具的平台。您可以使用我们的工具去除图片背景、生成 3D 模型、创建设计等。所有工具都通过简单的积分系统访问。"
+      },
+      "credits": {
+        "title": "积分如何使用？",
+        "content": "积分是在 FunMagic 上使用 AI 工具的货币。每个工具根据处理复杂度有特定的积分费用。您可以从定价页面购买积分套餐。部分套餐包含赠送积分，更加实惠。"
+      },
+      "formats": {
+        "title": "支持哪些文件格式？",
+        "content": "我们大部分图片工具支持常见格式，包括 JPEG、PNG 和 WebP。特定工具可能支持其他格式，请查看每个工具的说明了解支持的输入和输出格式详情。"
+      },
+      "processing": {
+        "title": "处理需要多长时间？",
+        "content": "处理时间取决于工具和输入的复杂度。简单操作如背景去除通常在几秒内完成，而更复杂的任务如 3D 模型生成可能需要几分钟。处理期间会显示进度指示器。"
+      },
+      "refunds": {
+        "title": "积分可以退款吗？",
+        "content": "积分通常不可退款。但如果工具因系统错误而无法处理您的内容，积分将自动退还到您的账户。如果遇到问题，请联系我们的支持团队。"
+      },
+      "storage": {
+        "title": "生成的资源存储在哪里？",
+        "content": "所有生成的资源都存储在您的个人资源库中，可以从「我的资源」页面访问。您可以随时下载或删除资源。资源安全存储在云端，只有您可以访问。"
+      },
+      "expiry": {
+        "title": "积分会过期吗？",
+        "content": "积分过期政策取决于您购买的套餐。请查看每个积分套餐的具体条款了解过期期限。"
+      },
+      "security": {
+        "title": "我的数据安全吗？",
+        "content": "是的，我们非常重视数据安全。所有数据在传输和存储中都经过加密。我们不会与第三方共享您的个人数据或上传的内容。请查看我们的隐私政策了解更多数据处理详情。"
+      }
+    }
+  },
+  "terms": {
+    "sections": {
+      "acceptance": {
+        "title": "1. 条款接受",
+        "content": "访问和使用 FunMagic（「本服务」），即表示您同意受这些服务条款的约束。如果您不同意这些条款，请不要使用本服务。"
+      },
+      "description": {
+        "title": "2. 服务说明",
+        "content": "FunMagic 提供 AI 驱动的创意工具，允许用户处理、生成和转换数字内容。本服务采用积分制，用户通过购买积分来使用各种工具和功能。"
+      },
+      "accounts": {
+        "title": "3. 用户账户",
+        "content": "您必须创建账户才能使用本服务的大部分功能。您有责任维护账户凭据的保密性，并对账户下发生的所有活动负责。您同意在发现任何未经授权使用您账户时立即通知我们。"
+      },
+      "credits": {
+        "title": "4. 积分与支付",
+        "content": "本服务采用积分制。使用 AI 工具时会消耗积分。积分套餐可通过定价页面购买。除适用法律要求外，积分不可退款。未使用的积分可能会根据购买时规定的条款过期。"
+      },
+      "acceptable": {
+        "title": "5. 可接受的使用",
+        "content": "您同意不将本服务用于任何非法或未经授权的目的。您不得使用本服务生成有害、滥用或侵犯他人权利的内容。我们保留暂停或终止违反这些条款的账户的权利。"
+      },
+      "ip": {
+        "title": "6. 知识产权",
+        "content": "使用本服务生成的内容归您所有，但受基础 AI 模型的限制。您授予我们有限许可，以存储和处理您的内容以提供服务。我们保留本服务本身的所有权利，包括其设计、代码和品牌。"
+      },
+      "liability": {
+        "title": "7. 责任限制",
+        "content": "本服务按「现状」提供，不提供任何形式的保证。我们不对因您使用本服务而产生的任何间接、附带或后果性损害承担责任。我们的总责任限于您在过去12个月内为本服务支付的金额。"
+      },
+      "changes": {
+        "title": "8. 条款变更",
+        "content": "我们可能会不时更新这些服务条款。我们将通过电子邮件或通过本服务通知您重大变更。变更生效后您继续使用本服务即表示接受更新后的条款。"
+      },
+      "contact": {
+        "title": "9. 联系方式",
+        "content": "如果您对这些服务条款有疑问，请通过 support@funmagic.ai 联系我们。"
+      }
+    },
+    "lastUpdated": "最后更新：2025年1月"
+  },
+  "privacy": {
+    "sections": {
+      "collect": {
+        "title": "1. 我们收集的信息",
+        "content": "我们收集您直接提供的信息，例如您在创建账户或购买积分时提供的姓名、电子邮件地址和支付信息。我们还收集使用数据，包括您使用的工具、处理时间和上传的内容元数据。"
+      },
+      "use": {
+        "title": "2. 我们如何使用您的信息",
+        "content": "我们使用您的信息来提供和改进服务、处理付款、就您的账户与您沟通，以及确保平台的安全。我们还可能使用汇总的匿名数据进行分析和服务改进。"
+      },
+      "processing": {
+        "title": "3. 内容处理",
+        "content": "您上传的文件和内容由我们的 AI 工具处理，可能会暂时存储在我们的服务器上。处理结果存储在您的资源库中，直到您选择删除。未经您明确同意，我们不会使用您上传的内容来训练 AI 模型。"
+      },
+      "sharing": {
+        "title": "4. 数据共享",
+        "content": "我们不会出售您的个人信息。我们可能会与帮助我们运营服务的第三方服务提供商共享数据（例如支付处理商和云托管提供商）。这些提供商受合同义务约束以保护您的数据。"
+      },
+      "security": {
+        "title": "5. 数据安全",
+        "content": "我们实施行业标准的安全措施来保护您的数据，包括传输和静态加密、访问控制和定期安全审计。但互联网上的传输方法没有100%安全的，我们无法保证绝对安全。"
+      },
+      "retention": {
+        "title": "6. 数据保留",
+        "content": "只要您的账户处于活动状态，我们就会保留您的账户信息。您生成的资源将保存到您删除或关闭账户为止。交易记录按适用法律要求保留用于法律和会计目的。"
+      },
+      "rights": {
+        "title": "7. 您的权利",
+        "content": "您有权访问、更正或删除您的个人数据。您可以随时下载您的资源并请求删除您的账户。要行使这些权利，请通过 privacy@funmagic.ai 联系我们。"
+      },
+      "cookies": {
+        "title": "8. Cookie",
+        "content": "我们使用必要的 Cookie 来维护您的会话和偏好。我们可能使用分析 Cookie 来了解您如何使用本服务。您可以通过浏览器设置管理 Cookie 偏好。"
+      },
+      "changes": {
+        "title": "9. 政策变更",
+        "content": "我们可能会不时更新本隐私政策。我们将通过电子邮件或通过本服务通知您重大变更。最新修订日期显示在本页底部。"
+      },
+      "contact": {
+        "title": "10. 联系我们",
+        "content": "如有隐私相关咨询，请通过 privacy@funmagic.ai 联系我们。"
+      }
+    },
+    "lastUpdated": "最后更新：2025年1月"
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "您访问的页面不存在或已被移动。",
+    "goHome": "返回首页"
+  },
+  "footer": {
+    "copyright": "保留所有权利。"
+  }
+}

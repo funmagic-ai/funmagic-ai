@@ -17,7 +17,7 @@ export const crystalMemoryDefinition: ToolDefinition = {
 
       provider: {
         name: 'fal',
-        model: 'fal-ai/bria-rmbg',
+        model: 'fal-ai/bria/background/remove',
         providerOptions: {
           sync_mode: false,
         },

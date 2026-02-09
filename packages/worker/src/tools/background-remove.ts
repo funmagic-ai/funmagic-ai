@@ -14,10 +14,11 @@ import { createProgressTracker } from '../lib/progress';
  *     {
  *       "id": "remove-bg",
  *       "name": "Remove Background",
- *       "type": "background-remove",
- *       "providerId": "uuid-fal",  // Admin links this
- *       "providerModel": "fal-ai/bria/background/remove",
- *       "cost": 5  // Credits
+ *       "provider": {
+ *         "name": "fal",
+ *         "model": "fal-ai/bria/background/remove"
+ *       },
+ *       "cost": 5
  *     }
  *   ]
  * }
@@ -30,8 +31,6 @@ interface BackgroundRemoveInput {
 }
 
 interface StepConfigWithProvider extends StepConfig {
-  providerModel?: string;
-  // New nested provider structure (from admin UI)
   provider?: {
     name: string;
     model: string;
@@ -44,17 +43,12 @@ interface BackgroundRemoveConfig extends ToolConfig {
   steps: StepConfigWithProvider[];
 }
 
-/**
- * Helper to get model from step config.
- * Supports both old flat structure and new nested provider structure.
- */
-function getProviderModel(step: StepConfigWithProvider, defaultModel: string): string {
-  // New nested structure
-  if (step.provider?.model) {
-    return step.provider.model;
+function getProviderModel(step: StepConfigWithProvider): string {
+  const model = step.provider?.model;
+  if (!model) {
+    throw new Error(`No model configured for step "${step.id}"`);
   }
-  // Old flat structure
-  return step.providerModel ?? defaultModel;
+  return model;
 }
 
 interface FalResult {
@@ -91,13 +85,12 @@ export const backgroundRemoveWorker: ToolWorker = {
         throw new Error('No step configured for background remove tool');
       }
 
-      // Get provider name from step config
+      // Get provider by name from step config
       const providerName = step.provider?.name;
       if (!providerName) {
         throw new Error('No provider configured for background removal');
       }
 
-      // Look up provider by name (case-insensitive)
       const allProviders = await db.query.providers.findMany();
       const provider = allProviders.find(
         (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
@@ -113,7 +106,7 @@ export const backgroundRemoveWorker: ToolWorker = {
         throw new Error(`No API key configured for provider "${provider.displayName}"`);
       }
 
-      await progress.startStep('remove-bg', 'Removing Background');
+      await progress.startStep(step.id, step.name || 'Processing');
 
       // Get image URL - either directly provided or from storage key
       let imageUrl = bgInput.imageUrl;
@@ -141,8 +134,8 @@ export const backgroundRemoveWorker: ToolWorker = {
 
       await progress.updateProgress(20, 'Starting background removal');
 
-      // Get model from step config or default
-      const modelId = getProviderModel(step, 'fal-ai/bria/background/remove');
+      // Get model from step config
+      const modelId = getProviderModel(step);
 
       // Use fal.subscribe for async operation with progress updates
       const result = await fal.subscribe(modelId, {
@@ -165,10 +158,11 @@ export const backgroundRemoveWorker: ToolWorker = {
       await progress.updateProgress(90, 'Saving result');
 
       // Upload to S3
+      const toolSlug = task.tool.slug;
       const asset = await uploadFromUrl({
         url: result.data.image.url,
         userId,
-        module: 'background-remove',
+        module: toolSlug,
         taskId,
         filename: `bg_removed_${Date.now()}.png`,
       });

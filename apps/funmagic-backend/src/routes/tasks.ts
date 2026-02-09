@@ -1,7 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tasks, taskPayloads, tools, credits, creditTransactions } from '@funmagic/database';
 import { eq, sql } from 'drizzle-orm';
-import { streamSSE } from 'hono/streaming';
 import { addAITaskJob } from '../lib/queue';
 import { redis, createRedisConnection } from '@funmagic/services';
 import { CreateTaskSchema, TaskSchema, TaskDetailSchema, ErrorSchema } from '../schemas';
@@ -269,6 +268,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         id: task.id,
         userId: task.userId,
         toolId: task.toolId,
+        parentTaskId: task.parentTaskId ?? null,
         status: task.status,
         creditsCost: task.creditsCost,
         createdAt: task.createdAt.toISOString(),
@@ -284,6 +284,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
   })
   .openapi(streamTaskRoute, async (c) => {
     const { taskId } = c.req.valid('param');
+    console.log(`[SSE] Stream request for task: ${taskId}`);
 
     // Verify task exists
     const task = await db.query.tasks.findFirst({
@@ -291,232 +292,269 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     });
 
     if (!task) {
+      console.log(`[SSE] Task not found: ${taskId}`);
       return c.json({ error: 'Task not found' }, 404);
     }
 
+    console.log(`[SSE] Starting stream for task: ${taskId}, status: ${task.status}`);
     const channel = `task:${taskId}`;
+    const streamKey = `stream:task:${taskId}`;
+    const encoder = new TextEncoder();
 
-    return streamSSE(c, async (stream) => {
-      let isCompleted = false;
-      let subscriber: Awaited<ReturnType<typeof createRedisConnection>> | null = null;
-      let resolveStreamEnd: () => void;
-      const streamEndPromise = new Promise<void>((resolve) => {
-        resolveStreamEnd = resolve;
-      });
+    // --- Stream state ---
+    let streamCtrl: ReadableStreamDefaultController<Uint8Array>;
+    let closed = false;
+    let subscriber: Awaited<ReturnType<typeof createRedisConnection>> | null = null;
+    let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
-      const closeStream = () => {
-        if (!isCompleted) {
-          isCompleted = true;
-          try {
-            subscriber?.disconnect();
-          } catch {
-            // Ignore disconnect errors
-          }
-          resolveStreamEnd();
-        }
-      };
+    /** Write an SSE event to the response stream */
+    function writeEvent(data: string) {
+      if (closed) return;
+      try {
+        streamCtrl.enqueue(encoder.encode(`data: ${data}\n\n`));
+      } catch { /* stream already closed or errored */ }
+    }
 
-      // Send initial connected event
-      await stream.writeSSE({
-        data: JSON.stringify({
+    /** Write an SSE comment (invisible to EventSource clients, minimal bandwidth) */
+    function writeComment() {
+      if (closed) return;
+      try {
+        streamCtrl.enqueue(encoder.encode(`: h\n\n`));
+      } catch { /* stream already closed or errored */ }
+    }
+
+    /** Fully close the stream and clean up all resources */
+    function closeAll() {
+      if (closed) return;
+      closed = true;
+      console.log(`[SSE] Closing stream for task: ${taskId}`);
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+      if (subscriber) {
+        subscriber.unsubscribe(channel).catch(() => {});
+        subscriber.quit().catch(() => {});
+        subscriber = null;
+      }
+      c.req.raw.signal.removeEventListener('abort', onAbort);
+      try { streamCtrl.close(); } catch { /* already closed */ }
+    }
+
+    /**
+     * After writing a terminal event, clean up resources but DON'T close
+     * the stream. Let the client drive the closure (via reader.cancel() /
+     * abort). This avoids the ERR_INCOMPLETE_CHUNKED_ENCODING that occurs
+     * when the server closes the stream before the client reads the last chunk.
+     * A safety timeout ensures cleanup even if the client doesn't disconnect.
+     */
+    function onTerminalWritten() {
+      if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (subscriber) {
+        subscriber.unsubscribe(channel).catch(() => {});
+        subscriber.quit().catch(() => {});
+        subscriber = null;
+      }
+      if (!safetyTimer) {
+        safetyTimer = setTimeout(closeAll, 30_000);
+      }
+    }
+
+    // --- Build the raw ReadableStream (bypasses Hono's streamSSE / TransformStream) ---
+    const readable = new ReadableStream<Uint8Array>({
+      start(ctrl) {
+        streamCtrl = ctrl;
+      },
+      cancel() {
+        // Client disconnected (reader.cancel() / fetch abort)
+        console.log(`[SSE] Client disconnected: ${taskId}`);
+        closeAll();
+      },
+    });
+
+    // Also listen for request abort signal (backup cleanup path)
+    const onAbort = () => closeAll();
+    c.req.raw.signal.addEventListener('abort', onAbort);
+
+    // --- Async pipeline (runs after Response is returned) ---
+    // Guard: only send one terminal event (completed/failed) to the client.
+    // Multiple sources (pub/sub, stream replay, poll) may detect the same terminal.
+    let terminalSent = false;
+
+    function sendTerminal(data: string) {
+      if (terminalSent || closed) return;
+      terminalSent = true;
+      writeEvent(data);
+      onTerminalWritten();
+    }
+
+    (async () => {
+      try {
+        // 1. Send connected event
+        writeEvent(JSON.stringify({
           type: 'connected',
           taskId,
           status: task.status,
           timestamp: new Date().toISOString(),
-        } as ProgressEvent),
-      });
+        }));
 
-      // If task is already completed or failed, send final event and close
-      if (task.status === 'completed' || task.status === 'failed') {
-        const finalTask = await db.query.tasks.findFirst({
-          where: eq(tasks.id, taskId),
-          with: { payload: true },
-        });
-
-        await stream.writeSSE({
-          data: JSON.stringify({
+        // 2. If task is already terminal, send final event
+        if (task.status === 'completed' || task.status === 'failed') {
+          const finalTask = await db.query.tasks.findFirst({
+            where: eq(tasks.id, taskId),
+            with: { payload: true },
+          });
+          sendTerminal(JSON.stringify({
             type: task.status,
             output: finalTask?.payload?.output,
             error: finalTask?.payload?.error,
             timestamp: new Date().toISOString(),
-          } as ProgressEvent),
-        });
-
-        closeStream();
-        await streamEndPromise;
-        return;
-      }
-
-      // --- REPLAY MISSED EVENTS FROM REDIS STREAM ---
-      // This fixes the race condition where worker publishes before SSE connects
-      const streamKey = `stream:task:${taskId}`;
-
-      try {
-        const existingEvents = await redis.xrange(streamKey, '-', '+');
-        console.log(`[SSE] Found ${existingEvents.length} events in stream ${streamKey}`);
-
-        for (const [_id, fields] of existingEvents) {
-          try {
-            // Fields are returned as [key, value, key, value, ...]
-            // We stored as 'data', eventJson
-            const dataIndex = fields.indexOf('data');
-            if (dataIndex === -1 || dataIndex + 1 >= fields.length) {
-              continue;
-            }
-            const eventJson = fields[dataIndex + 1];
-            const event = JSON.parse(eventJson) as ProgressEvent;
-
-            await stream.writeSSE({
-              data: eventJson,
-            });
-
-            console.log(`[SSE] Replayed event from stream: ${event.type}`);
-
-            // If we replayed a terminal event, close immediately
-            if (event.type === 'completed' || event.type === 'failed') {
-              closeStream();
-              await streamEndPromise;
-              return;
-            }
-          } catch (e) {
-            console.error('[SSE] Failed to parse stream event:', e);
-          }
-        }
-      } catch (e) {
-        console.error('[SSE] Failed to read from stream:', e);
-      }
-
-      // --- SUBSCRIBE TO PUB/SUB FOR REAL-TIME EVENTS ---
-      try {
-        // Create Redis subscriber connection and wait for it to be ready
-        subscriber = createRedisConnection();
-
-        // Set up error handlers before subscribing
-        subscriber.on('error', (err) => {
-          console.error('[SSE] Redis subscriber error:', err.message);
-          closeStream();
-        });
-
-        subscriber.on('close', () => {
-          if (!isCompleted) {
-            console.log('[SSE] Redis subscriber connection closed unexpectedly');
-          }
-        });
-
-        // Wait for connection to be ready
-        await new Promise<void>((resolve, reject) => {
-          if (subscriber!.status === 'ready') {
-            resolve();
-            return;
-          }
-          subscriber!.once('ready', () => resolve());
-          subscriber!.once('error', (err) => reject(err));
-          // Timeout after 5 seconds
-          setTimeout(() => reject(new Error('Redis connection timeout')), 5000);
-        });
-
-        await subscriber.subscribe(channel);
-        console.log(`[SSE] Subscribed to channel: ${channel}`);
-
-        // Handle incoming messages (only set up if subscription succeeded)
-        subscriber.on('message', async (ch, message) => {
-          if (ch !== channel || isCompleted) return;
-
-          try {
-            const event = JSON.parse(message) as ProgressEvent;
-
-            await stream.writeSSE({
-              data: JSON.stringify(event),
-            });
-
-            // Close stream on completion or failure
-            if (event.type === 'completed' || event.type === 'failed') {
-              try {
-                await subscriber?.unsubscribe(channel);
-              } catch {
-                // Ignore unsubscribe errors
-              }
-              closeStream();
-            }
-          } catch (e) {
-            // Only log if it's not a connection closed error
-            if (e instanceof Error && !e.message.includes('Connection is closed')) {
-              console.error('Failed to parse progress event:', e);
-            }
-          }
-        });
-      } catch (err) {
-        console.error('[SSE] Failed to create Redis subscriber:', err);
-        // Continue without pub/sub - polling will still work as fallback
-      }
-
-      // Keep connection alive with heartbeat
-      const heartbeatInterval = setInterval(async () => {
-        if (isCompleted) {
-          clearInterval(heartbeatInterval);
+          }));
           return;
         }
 
+        // 3. Subscribe to pub/sub FIRST — this ensures no events are missed.
+        //    Events published after subscribe are queued by the subscriber.
+        //    Events published before subscribe are caught by the XRANGE below.
         try {
-          await stream.writeSSE({
-            data: JSON.stringify({ type: 'heartbeat', timestamp: new Date().toISOString() }),
+          subscriber = createRedisConnection();
+
+          subscriber.on('error', (err) => {
+            console.error(`[SSE] Redis subscriber error (task ${taskId}):`, err.message);
           });
-        } catch {
-          // Stream closed
-          clearInterval(heartbeatInterval);
-          closeStream();
-        }
-      }, 15000);
 
-      // Handle stream abort
-      stream.onAbort(() => {
-        clearInterval(heartbeatInterval);
-        try {
-          subscriber?.unsubscribe(channel);
-        } catch {
-          // Ignore unsubscribe errors
-        }
-        closeStream();
-      });
+          // 'close' fires on transient disconnects AND on explicit quit().
+          // ioredis auto-reconnects on transient disconnects.
+          // Don't close the SSE stream — poll fallback continues working.
+          subscriber.on('close', () => {
+            console.warn(`[SSE] Redis subscriber disconnected (task ${taskId})`);
+          });
 
-      // Poll for task completion as fallback
-      const pollInterval = setInterval(async () => {
-        if (isCompleted) {
-          clearInterval(pollInterval);
-          return;
-        }
+          // 'end' fires when ioredis gives up reconnecting or after quit().
+          subscriber.on('end', () => {
+            console.log(`[SSE] Redis subscriber ended (task ${taskId})`);
+            subscriber = null;
+          });
 
-        const currentTask = await db.query.tasks.findFirst({
-          where: eq(tasks.id, taskId),
-          with: { payload: true },
-        });
+          subscriber.on('reconnecting', () => {
+            console.log(`[SSE] Redis subscriber reconnecting (task ${taskId})`);
+          });
 
-        if (currentTask && (currentTask.status === 'completed' || currentTask.status === 'failed')) {
-          clearInterval(pollInterval);
-
-          try {
-            await stream.writeSSE({
-              data: JSON.stringify({
-                type: currentTask.status,
-                output: currentTask.payload?.output,
-                error: currentTask.payload?.error,
-                timestamp: new Date().toISOString(),
-              } as ProgressEvent),
+          // Wait for initial connection
+          await new Promise<void>((resolve, reject) => {
+            if (subscriber!.status === 'ready') { resolve(); return; }
+            let settled = false;
+            const t = setTimeout(() => {
+              if (!settled) { settled = true; reject(new Error('Redis connection timeout')); }
+            }, 5000);
+            subscriber!.once('ready', () => {
+              if (!settled) { settled = true; clearTimeout(t); resolve(); }
             });
-          } catch {
-            // Stream already closed
+            subscriber!.once('error', (err) => {
+              if (!settled) { settled = true; clearTimeout(t); reject(err); }
+            });
+          });
+
+          if (closed) return;
+
+          await subscriber.subscribe(channel);
+          console.log(`[SSE] Subscribed to ${channel}`);
+
+          subscriber.on('message', (ch, message) => {
+            if (ch !== channel || closed) return;
+            try {
+              const event = JSON.parse(message) as ProgressEvent;
+              if (event.type === 'completed' || event.type === 'failed') {
+                sendTerminal(JSON.stringify(event));
+              } else {
+                writeEvent(JSON.stringify(event));
+              }
+            } catch (e) {
+              console.error('[SSE] Message parse error:', e);
+            }
+          });
+        } catch (err) {
+          console.error('[SSE] Redis subscriber setup failed:', err);
+        }
+
+        if (closed) return;
+
+        // 4. Replay missed events from Redis Stream AFTER subscribing.
+        //    This guarantees no gap: events before subscribe are in the stream,
+        //    events after subscribe arrive via pub/sub.
+        try {
+          const existingEvents = await redis.xrange(streamKey, '-', '+');
+          if (existingEvents.length > 0) {
+            console.log(`[SSE] Replaying ${existingEvents.length} events from stream`);
           }
 
-          closeStream();
+          for (const [, fields] of existingEvents) {
+            if (closed) return;
+            const dataIdx = fields.indexOf('data');
+            if (dataIdx === -1 || dataIdx + 1 >= fields.length) continue;
+            const eventJson = fields[dataIdx + 1];
+            try {
+              const event = JSON.parse(eventJson) as ProgressEvent;
+              if (event.type === 'completed' || event.type === 'failed') {
+                sendTerminal(eventJson);
+                return;
+              }
+              writeEvent(eventJson);
+            } catch { /* skip unparseable */ }
+          }
+        } catch (e) {
+          console.error('[SSE] Failed to read Redis Stream:', e);
         }
-      }, 5000);
 
-      // Cleanup on stream close
-      stream.onAbort(() => {
-        clearInterval(pollInterval);
-      });
+        if (closed) return;
 
-      // Keep the stream alive until closeStream() is called
-      await streamEndPromise;
+        // 5. Heartbeat — fires every 6s (must be < Bun's idleTimeout to reset
+        //    the TCP idle timer). Uses an SSE comment (`: h\n\n`) which is
+        //    silently discarded by EventSource clients, minimising bandwidth.
+        heartbeatTimer = setInterval(() => {
+          if (closed) return;
+          writeComment();
+        }, 6000);
+
+        // 6. Poll DB as safety net (catches completion if pub/sub missed it)
+        pollTimer = setInterval(async () => {
+          if (closed || terminalSent) return;
+          try {
+            const current = await db.query.tasks.findFirst({
+              where: eq(tasks.id, taskId),
+              with: { payload: true },
+            });
+            if (closed || terminalSent) return;
+            if (current && (current.status === 'completed' || current.status === 'failed')) {
+              sendTerminal(JSON.stringify({
+                type: current.status,
+                output: current.payload?.output,
+                error: current.payload?.error,
+                timestamp: new Date().toISOString(),
+              }));
+            }
+          } catch { /* retry next cycle */ }
+        }, 3000);
+      } catch (err) {
+        console.error('[SSE] Fatal setup error:', err);
+        closeAll();
+      }
+    })().catch((err) => {
+      console.error('[SSE] Unhandled error in stream pipeline:', err);
+      closeAll();
     });
+
+    // Return the raw SSE response immediately.
+    // Data is pushed asynchronously via streamCtrl.enqueue().
+    return new Response(readable, {
+      status: 200,
+      headers: new Headers({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      }),
+    }) as any;
   });

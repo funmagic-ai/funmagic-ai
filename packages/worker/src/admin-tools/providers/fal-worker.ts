@@ -46,7 +46,7 @@ export const falWorker: AdminProviderWorker = {
         console.log(`[Fal Worker] Processing image ${i + 1}/${quotedImages.length}`);
 
         // Call Fal.ai RMBG
-        const result = await fal.subscribe('fal-ai/bria-rmbg', {
+        const result = await fal.subscribe('fal-ai/bria/background/remove', {
           input: { image_url: imageUrl },
           logs: true,
           onQueueUpdate: (update) => {

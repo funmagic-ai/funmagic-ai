@@ -45,7 +45,6 @@ export {
   publishStepCompleted,
   publishTaskCompleted,
   publishTaskFailed,
-  subscribeProgress,
   ProgressTracker,
 } from './progress';
 

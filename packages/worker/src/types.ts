@@ -23,9 +23,7 @@ export interface WorkerContext {
 export interface StepConfig {
   id: string;
   name: string;
-  type: string;
   inputSchema?: Record<string, unknown>;
-  providerId?: string;
   cost?: number;
 }
 

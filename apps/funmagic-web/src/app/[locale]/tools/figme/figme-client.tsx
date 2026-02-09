@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useSessionContext } from '@/components/providers/session-provider'
 import { useSubmitUpload } from '@/hooks/useSubmitUpload'
@@ -39,6 +40,7 @@ type ErrorState = { code: ToolErrorCode; data?: ToolErrorData } | null
 export function FigMeClient({ tool }: { tool: ToolDetail }) {
   const { session } = useSessionContext()
   const t = useTranslations('toolErrors')
+  const pathname = usePathname()
   const config = (tool.config || { steps: [] }) as SavedToolConfig
 
   const [step, setStep] = useState<ExecutorStep>('style-upload')
@@ -50,10 +52,33 @@ export function FigMeClient({ tool }: { tool: ToolDetail }) {
   const [error, setError] = useState<ErrorState>(null)
   const [isSaving, setIsSaving] = useState(false)
 
+  // Track previous pathname to detect navigation
+  const prevPathnameRef = useRef(pathname)
+
   const upload = useSubmitUpload({
     route: 'figme',
     onError: () => setError({ code: 'UPLOAD_FAILED' }),
   })
+
+  // Store upload.reset in a ref to avoid dependency issues
+  const uploadResetRef = useRef(upload.reset)
+  uploadResetRef.current = upload.reset
+
+  // Reset state when navigating to this page
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      prevPathnameRef.current = pathname
+      setStep('style-upload')
+      setSelectedStyleId(null)
+      setTaskId(null)
+      setParentTaskId(null)
+      setImageResult(null)
+      setThreeDResult(null)
+      setError(null)
+      setIsSaving(false)
+      uploadResetRef.current()
+    }
+  }, [pathname])
 
   useTaskProgress({
     taskId,

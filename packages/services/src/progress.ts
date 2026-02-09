@@ -112,8 +112,9 @@ export async function publishStepStarted(
   await publishProgress(redis, taskId, {
     type: 'step_started',
     stepId,
+    stepName,
     message: stepName ? `Starting ${stepName}` : `Starting step ${stepId}`,
-  });
+  } as Omit<StepStartedEvent, 'timestamp'>);
 }
 
 /**
@@ -176,92 +177,6 @@ export async function publishTaskFailed(
     type: 'failed',
     error,
   });
-}
-
-/**
- * Create an async iterator that subscribes to task progress events
- */
-export function subscribeProgress(
-  redis: Redis,
-  taskId: string
-): {
-  iterator: AsyncIterableIterator<ProgressEvent>;
-  unsubscribe: () => Promise<void>;
-} {
-  const channel = getTaskChannel(taskId);
-  const eventQueue: ProgressEvent[] = [];
-  let resolveNext: ((value: IteratorResult<ProgressEvent, void>) => void) | null = null;
-  let isCompleted = false;
-
-  // Subscribe to the channel
-  redis.subscribe(channel);
-
-  // Handle incoming messages
-  const messageHandler = (ch: string, message: string) => {
-    if (ch !== channel) return;
-
-    try {
-      const event = JSON.parse(message) as ProgressEvent;
-
-      if (resolveNext) {
-        resolveNext({ value: event, done: false });
-        resolveNext = null;
-      } else {
-        eventQueue.push(event);
-      }
-
-      // Mark as completed on final events
-      if (event.type === 'completed' || event.type === 'failed') {
-        isCompleted = true;
-      }
-    } catch (e) {
-      console.error('Failed to parse progress event:', e);
-    }
-  };
-
-  redis.on('message', messageHandler);
-
-  const iterator = {
-    async next(): Promise<IteratorResult<ProgressEvent, void>> {
-      if (eventQueue.length > 0) {
-        return { value: eventQueue.shift()!, done: false };
-      }
-
-      if (isCompleted) {
-        return { value: undefined, done: true };
-      }
-
-      return new Promise((resolve) => {
-        resolveNext = resolve;
-      });
-    },
-
-    async return(): Promise<IteratorResult<ProgressEvent, void>> {
-      isCompleted = true;
-      redis.off('message', messageHandler);
-      await redis.unsubscribe(channel);
-      return { value: undefined, done: true };
-    },
-
-    async throw(e: unknown): Promise<never> {
-      isCompleted = true;
-      redis.off('message', messageHandler);
-      await redis.unsubscribe(channel);
-      throw e;
-    },
-
-    [Symbol.asyncIterator](): AsyncIterableIterator<ProgressEvent> {
-      return this as AsyncIterableIterator<ProgressEvent>;
-    },
-  };
-
-  const unsubscribe = async () => {
-    isCompleted = true;
-    redis.off('message', messageHandler);
-    await redis.unsubscribe(channel);
-  };
-
-  return { iterator, unsubscribe };
 }
 
 /**

@@ -5,3 +5,4 @@ export { adminProvidersRoutes } from './admin-providers';
 export { packagesRoutes } from './packages';
 export { usersRoutes } from './users';
 export { aiStudioRoutes } from './ai-studio';
+export { adminTasksRoutes } from './tasks';

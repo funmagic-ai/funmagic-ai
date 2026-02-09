@@ -51,6 +51,7 @@ export function useTaskProgress({
   const eventSourceRef = useRef<EventSource | null>(null)
   const heartbeatTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectAttemptRef = useRef(0)
+  const terminalReceivedRef = useRef(false)
   const maxReconnectAttempts = SSE_MAX_RECONNECT_ATTEMPTS
 
   // Store callbacks in refs to avoid re-running effect when they change
@@ -97,6 +98,7 @@ export function useTaskProgress({
     }
 
     reconnectAttemptRef.current = 0
+    terminalReceivedRef.current = false
 
     const connect = () => {
       const url = `${API_URL}/api/tasks/${taskId}/stream`
@@ -165,6 +167,7 @@ export function useTaskProgress({
               break
 
             case 'completed':
+              terminalReceivedRef.current = true
               setProgress((prev) => {
                 const output = parsed.output ?? parsed.data?.output
                 const updated: TaskProgress = {
@@ -181,6 +184,7 @@ export function useTaskProgress({
               break
 
             case 'failed':
+              terminalReceivedRef.current = true
               setProgress((prev) => {
                 const errorMsg = parsed.error || parsed.data?.error || parsed.message || parsed.data?.message || 'Task failed'
                 const updated: TaskProgress = {
@@ -203,8 +207,13 @@ export function useTaskProgress({
         }
       }
 
-      eventSource.onerror = (error) => {
-        console.error('SSE error:', error, 'readyState:', eventSource.readyState, 'url:', url)
+      eventSource.onerror = () => {
+        // Server closes the stream after sending completed/failed.
+        // EventSource fires onerror when it detects the drop — ignore it.
+        if (terminalReceivedRef.current) {
+          cleanup()
+          return
+        }
 
         if (reconnectAttemptRef.current < maxReconnectAttempts) {
           reconnectAttemptRef.current++

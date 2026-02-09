@@ -3,7 +3,7 @@ import { db, adminChats, adminMessages, adminProviders } from '@funmagic/databas
 import type { AdminMessageImage, AdminTaskInput } from '@funmagic/database';
 import { eq, desc, asc, and, isNotNull, inArray } from 'drizzle-orm';
 import { streamSSE } from 'hono/streaming';
-import { redis } from '@funmagic/services';
+import { redis, createRedisConnection } from '@funmagic/services';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { addAdminMessageJob, removeAdminMessageJob } from '../../lib/queue';
@@ -607,26 +607,26 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
       return c.json({ error: 'Message not found' }, 404);
     }
 
-    // Create a new Redis subscriber connection
-    const subscriber = redis.duplicate();
+    // Create a new Redis subscriber connection using factory (not duplicate())
+    const subscriber = createRedisConnection();
     const channel = `admin-msg:${messageId}`;
     const streamKey = `stream:admin-msg:${messageId}`;
 
     return streamSSE(c, async (stream) => {
       let isCompleted = false;
-      let isDisconnected = false;
+      let isQuitting = false;
       let resolveStreamEnd: () => void;
       const streamEndPromise = new Promise<void>((resolve) => {
         resolveStreamEnd = resolve;
       });
 
-      const safeDisconnect = () => {
-        if (!isDisconnected) {
-          isDisconnected = true;
+      const safeQuit = async () => {
+        if (!isQuitting) {
+          isQuitting = true;
           try {
-            subscriber.disconnect();
+            await subscriber.quit();
           } catch (e) {
-            console.error('[SSE] Error during disconnect:', e);
+            console.error('[SSE] Error during quit:', e);
           }
         }
       };
@@ -634,7 +634,7 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
       const closeStream = () => {
         if (!isCompleted) {
           isCompleted = true;
-          safeDisconnect();
+          safeQuit();
           resolveStreamEnd();
         }
       };
@@ -646,7 +646,9 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
       });
 
       subscriber.on('close', () => {
-        console.log('[SSE] Redis subscriber connection closed');
+        if (!isCompleted) {
+          console.log('[SSE] Redis subscriber connection closed unexpectedly');
+        }
         closeStream();
       });
 
@@ -718,7 +720,46 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
         console.error('[SSE] Failed to read from stream:', e);
       }
 
-      // 2. Register message handler for real-time Pub/Sub events
+      // 2. Wait for subscriber connection to be ready with proper timeout cleanup
+      try {
+        await new Promise<void>((resolve, reject) => {
+          if (subscriber.status === 'ready') {
+            resolve();
+            return;
+          }
+
+          let settled = false;
+          const timeoutId = setTimeout(() => {
+            if (!settled) {
+              settled = true;
+              reject(new Error('Redis connection timeout'));
+            }
+          }, 5000);
+
+          subscriber.once('ready', () => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              resolve();
+            }
+          });
+
+          subscriber.once('error', (err) => {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              reject(err);
+            }
+          });
+        });
+      } catch (err) {
+        console.error('[SSE] Failed to connect Redis subscriber:', err);
+        closeStream();
+        await streamEndPromise;
+        return;
+      }
+
+      // 3. Register message handler for real-time Pub/Sub events
       subscriber.on('message', async (ch, data) => {
         console.log(`[SSE] Received Redis message on channel: ${ch}, data length: ${data.length}`);
         if (ch !== channel || isCompleted) {
@@ -740,11 +781,11 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
             closeStream();
           }
         } catch (e) {
-          console.error('Failed to parse admin progress event:', e);
+          console.error('[SSE] Failed to parse admin progress event:', e);
         }
       });
 
-      // 3. Subscribe to Pub/Sub for real-time events
+      // 4. Subscribe to Pub/Sub for real-time events
       await subscriber.subscribe(channel);
       console.log(`[SSE] Subscribed to channel: ${channel}`);
 

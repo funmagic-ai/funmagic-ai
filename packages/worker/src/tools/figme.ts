@@ -20,18 +20,20 @@ import { createProgressTracker } from '../lib/progress';
  *     {
  *       "id": "image-gen",
  *       "name": "Image Generation",
- *       "type": "image-gen",
- *       "providerId": "uuid-openai",
- *       "providerModel": "gpt-image-1",
- *       "providerOptions": { "imageGenSize": "1024x1024" },
+ *       "provider": {
+ *         "name": "openai",
+ *         "model": "gpt-image-1",
+ *         "providerOptions": { "size": "1024x1024" }
+ *       },
  *       "cost": 20
  *     },
  *     {
  *       "id": "3d-gen",
  *       "name": "3D Generation",
- *       "type": "3d-gen",
- *       "providerId": "uuid-tripo",
- *       "providerModel": "v2.0-20240919",
+ *       "provider": {
+ *         "name": "tripo",
+ *         "model": "v2.0-20240919"
+ *       },
  *       "cost": 30
  *     }
  *   ],
@@ -66,12 +68,6 @@ interface StyleReference {
 }
 
 interface StepConfigWithOptions extends StepConfig {
-  providerModel?: string;
-  providerOptions?: {
-    imageGenSize?: string;
-    [key: string]: unknown;
-  };
-  // New nested provider structure (from admin UI)
   provider?: {
     name: string;
     model: string;
@@ -80,34 +76,19 @@ interface StepConfigWithOptions extends StepConfig {
   };
 }
 
-/**
- * Helper to get merged provider options from step config.
- * Merges providerOptions (defaults/overrides) + customProviderOptions (admin-added).
- * Supports both old flat structure and new nested provider structure.
- */
 function getMergedProviderOptions(step: StepConfigWithOptions): Record<string, unknown> {
-  // New nested structure
-  if (step.provider) {
-    return {
-      ...(step.provider.providerOptions ?? {}),
-      ...(step.provider.customProviderOptions ?? {}),
-    };
-  }
-  // Old flat structure
-  return step.providerOptions ?? {};
+  return {
+    ...(step.provider?.providerOptions ?? {}),
+    ...(step.provider?.customProviderOptions ?? {}),
+  };
 }
 
-/**
- * Helper to get model from step config.
- * Supports both old flat structure and new nested provider structure.
- */
-function getProviderModel(step: StepConfigWithOptions, defaultModel: string): string {
-  // New nested structure
-  if (step.provider?.model) {
-    return step.provider.model;
+function getProviderModel(step: StepConfigWithOptions): string {
+  const model = step.provider?.model;
+  if (!model) {
+    throw new Error(`No model configured for step "${step.id}"`);
   }
-  // Old flat structure
-  return step.providerModel ?? defaultModel;
+  return model;
 }
 
 interface FigmeConfig extends ToolConfig {
@@ -146,20 +127,23 @@ export const figmeWorker: ToolWorker = {
       const figmeInput = input as FigmeInput;
 
       // Determine which step to execute
-      const currentStepId = stepId || config.steps[0]?.id || 'image-gen';
+      const currentStepId = stepId || config.steps[0]?.id;
+      if (!currentStepId) {
+        throw new Error('No steps configured for this tool');
+      }
+
       const step = config.steps.find(s => s.id === currentStepId);
 
       if (!step) {
         throw new Error(`Step "${currentStepId}" not found in tool config`);
       }
 
-      // Get provider name from step config
+      // Get provider by name from step config
       const providerName = step.provider?.name;
       if (!providerName) {
         throw new Error(`No provider configured for step "${step.name}"`);
       }
 
-      // Look up provider by name (case-insensitive)
       const allProviders = await db.query.providers.findMany();
       const provider = allProviders.find(
         (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
@@ -175,10 +159,12 @@ export const figmeWorker: ToolWorker = {
         throw new Error(`No API key configured for provider "${provider.displayName}"`);
       }
 
-      await progress.startStep(currentStepId, step.name);
+      await progress.startStep(currentStepId, step.name || currentStepId);
 
-      // Execute based on step type
-      if (step.type === 'image-gen' || currentStepId === 'image-gen') {
+      const toolSlug = task.tool.slug;
+
+      // Route by provider name to determine execution path
+      if (providerName === 'openai') {
         return await executeImageGenStep({
           taskId,
           userId,
@@ -187,8 +173,9 @@ export const figmeWorker: ToolWorker = {
           input: figmeInput,
           apiKey: credentials.apiKey,
           progress,
+          toolSlug,
         });
-      } else if (step.type === '3d-gen' || currentStepId === '3d-gen') {
+      } else if (providerName === 'tripo') {
         return await execute3DGenStep({
           taskId,
           userId,
@@ -196,10 +183,11 @@ export const figmeWorker: ToolWorker = {
           input: figmeInput,
           apiKey: credentials.apiKey,
           progress,
+          toolSlug,
         });
       }
 
-      throw new Error(`Unknown step type: ${step.type}`);
+      throw new Error(`Unsupported provider "${providerName}" for step "${currentStepId}"`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -223,8 +211,9 @@ async function executeImageGenStep(params: {
   input: FigmeInput;
   apiKey: string;
   progress: ReturnType<typeof createProgressTracker>;
+  toolSlug: string;
 }): Promise<StepResult> {
-  const { taskId, userId, step, config, input, apiKey, progress } = params;
+  const { taskId, userId, step, config, input, apiKey, progress, toolSlug } = params;
 
   // Get image URL - either directly provided or from storage key
   let sourceImageUrl = input.imageUrl;
@@ -247,8 +236,11 @@ async function executeImageGenStep(params: {
     throw new Error(`Style "${style.name}" is missing a reference image (imageUrl)`);
   }
 
-  // Use prompt from style, fallback to default prompt
-  const prompt = style.prompt || config.defaultPrompt || 'Transform this image into a stylized artistic representation';
+  // Use prompt from style, fallback to config default prompt
+  const prompt = style.prompt || config.defaultPrompt;
+  if (!prompt) {
+    throw new Error(`No prompt configured for style "${style.name}" and no default prompt set`);
+  }
 
   await progress.updateProgress(20, 'Initializing OpenAI client');
 
@@ -257,8 +249,8 @@ async function executeImageGenStep(params: {
 
   // Get merged provider options (providerOptions + customProviderOptions)
   const mergedOptions = getMergedProviderOptions(step);
-  const configuredSize = (mergedOptions.imageGenSize as string) || '1024x1024';
-  const model = getProviderModel(step, 'gpt-image-1');
+  const configuredSize = (mergedOptions.size as string) || (mergedOptions.imageGenSize as string) || 'auto';
+  const model = getProviderModel(step);
 
   let resultImageUrl: string;
 
@@ -348,9 +340,9 @@ async function executeImageGenStep(params: {
   const asset = await uploadFromUrl({
     url: resultImageUrl,
     userId,
-    module: 'figme',
+    module: toolSlug,
     taskId,
-    filename: `figme_image_${Date.now()}.png`,
+    filename: `${toolSlug}_image_${Date.now()}.png`,
   });
 
   await progress.updateProgress(100, 'Image generation complete');
@@ -360,14 +352,14 @@ async function executeImageGenStep(params: {
     success: true,
     assetId: asset.id,
     output: {
-      stepId: 'image-gen',
+      stepId: step.id,
       assetId: asset.id,
       storageKey: asset.storageKey,
       imageUrl: resultImageUrl,
       styleId: style.id,
       styleName: style.name,
       // Flag indicating 3D generation is available as next step
-      canGenerate3D: config.steps.some(s => s.type === '3d-gen'),
+      canGenerate3D: config.steps.length > 1,
     },
   };
 }
@@ -382,8 +374,9 @@ async function execute3DGenStep(params: {
   input: FigmeInput;
   apiKey: string;
   progress: ReturnType<typeof createProgressTracker>;
+  toolSlug: string;
 }): Promise<StepResult> {
-  const { taskId, userId, step, input, apiKey, progress } = params;
+  const { taskId, userId, step, input, apiKey, progress, toolSlug } = params;
 
   const sourceImageUrl = input.sourceImageUrl;
 
@@ -397,8 +390,8 @@ async function execute3DGenStep(params: {
   const provider = new TripoProvider({ apiKey });
   const client = new Magi3DClient(provider);
 
-  // Get model version from step config or default
-  const modelVersion = getProviderModel(step, 'v2.0-20240919');
+  // Get model version from step config
+  const modelVersion = getProviderModel(step);
 
   await progress.updateProgress(15, 'Creating 3D generation task');
 
@@ -436,9 +429,9 @@ async function execute3DGenStep(params: {
   const modelAsset = await uploadFromUrl({
     url: result.result.modelGlb,
     userId,
-    module: 'figme',
+    module: toolSlug,
     taskId,
-    filename: `figme_3d_${Date.now()}.glb`,
+    filename: `${toolSlug}_3d_${Date.now()}.glb`,
   });
 
   // Upload preview if available
@@ -447,9 +440,9 @@ async function execute3DGenStep(params: {
     previewAsset = await uploadFromUrl({
       url: result.result.thumbnail,
       userId,
-      module: 'figme',
+      module: toolSlug,
       taskId,
-      filename: `figme_3d_preview_${Date.now()}.png`,
+      filename: `${toolSlug}_3d_preview_${Date.now()}.png`,
     });
   }
 
@@ -463,7 +456,7 @@ async function execute3DGenStep(params: {
     success: true,
     assetId: modelAsset.id,
     output: {
-      stepId: '3d-gen',
+      stepId: step.id,
       modelAssetId: modelAsset.id,
       modelStorageKey: modelAsset.storageKey,
       modelUrl: result.result.modelGlb,

@@ -1,10 +1,32 @@
-import { Redis } from 'ioredis';
+import { Redis, type RedisOptions } from 'ioredis';
+
+/**
+ * Robust Redis connection options for handling reconnection scenarios.
+ * These settings help prevent "Connection is closed" errors in SSE/Pub/Sub contexts.
+ */
+const REDIS_OPTIONS: RedisOptions = {
+  maxRetriesPerRequest: null, // Required for BullMQ compatibility
+  enableReadyCheck: true,
+  enableOfflineQueue: true,
+  connectTimeout: 10000, // 10s connection timeout
+  keepAlive: 30000, // 30s TCP keepalive
+  retryStrategy: (times: number) => {
+    if (times > 10) return null; // Stop retrying after 10 attempts
+    return Math.min(times * 100, 3000); // Exponential backoff, max 3s
+  },
+  reconnectOnError: (err: Error) => {
+    // Reconnect on common transient errors
+    const targetErrors = ['READONLY', 'ECONNRESET', 'ETIMEDOUT'];
+    return targetErrors.some((e) => err.message.includes(e));
+  },
+};
 
 let _redis: Redis | null = null;
 
 /**
  * Get the shared Redis singleton instance.
  * Uses lazy initialization to avoid issues when env vars aren't loaded yet.
+ * Includes connection event listeners for observability.
  */
 export function getRedis(): Redis {
   if (!_redis) {
@@ -12,8 +34,23 @@ export function getRedis(): Redis {
     if (!redisUrl) {
       throw new Error('REDIS_URL environment variable is required');
     }
-    _redis = new Redis(redisUrl, {
-      maxRetriesPerRequest: null,
+    _redis = new Redis(redisUrl, REDIS_OPTIONS);
+
+    // Add connection event listeners for observability
+    _redis.on('error', (err) => {
+      console.error('[Redis] Connection error:', err.message);
+    });
+
+    _redis.on('close', () => {
+      console.warn('[Redis] Connection closed');
+    });
+
+    _redis.on('reconnecting', () => {
+      console.log('[Redis] Reconnecting...');
+    });
+
+    _redis.on('ready', () => {
+      console.log('[Redis] Connection ready');
     });
   }
   return _redis;
@@ -31,14 +68,13 @@ export const redis = new Proxy({} as Redis, {
 
 /**
  * Factory for creating new Redis connections.
- * Use this when you need a separate connection (e.g., for BullMQ workers).
+ * Use this when you need a separate connection (e.g., for BullMQ workers, Pub/Sub subscribers).
+ * Each connection uses the same robust options as the singleton.
  */
 export function createRedisConnection(): Redis {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) {
     throw new Error('REDIS_URL environment variable is required');
   }
-  return new Redis(redisUrl, {
-    maxRetriesPerRequest: null,
-  });
+  return new Redis(redisUrl, REDIS_OPTIONS);
 }

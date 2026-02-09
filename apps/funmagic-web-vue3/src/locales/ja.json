@@ -1,0 +1,107 @@
+{
+  "common": {
+    "appName": "FunMagic",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "search": "Search",
+    "noResults": "No results found",
+    "viewAll": "View All"
+  },
+  "nav": {
+    "home": "Home",
+    "tools": "Tools",
+    "pricing": "Pricing",
+    "login": "Login",
+    "register": "Register",
+    "profile": "Profile",
+    "assets": "My Assets",
+    "logout": "Logout",
+    "help": "Help",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy"
+  },
+  "home": {
+    "heroTitle": "AI-Powered Creative Tools",
+    "heroSubtitle": "Transform your ideas into reality with our suite of AI tools",
+    "getStarted": "Get Started",
+    "featuredTools": "Featured Tools",
+    "explorAll": "Explore All Tools"
+  },
+  "auth": {
+    "loginTitle": "Welcome Back",
+    "loginSubtitle": "Sign in to your account",
+    "registerTitle": "Create Account",
+    "registerSubtitle": "Start your creative journey",
+    "email": "Email",
+    "password": "Password",
+    "name": "Name",
+    "confirmPassword": "Confirm Password",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "forgotPassword": "Forgot password?",
+    "loginError": "Invalid email or password",
+    "registerError": "Registration failed"
+  },
+  "tools": {
+    "allTools": "All Tools",
+    "searchPlaceholder": "Search tools...",
+    "noTools": "No tools available",
+    "credits": "credits",
+    "tryNow": "Try Now",
+    "processing": "Processing...",
+    "uploadImage": "Upload Image",
+    "download": "Download",
+    "result": "Result",
+    "startProcessing": "Start Processing",
+    "resultReady": "Result Ready",
+    "processAnother": "Process Another",
+    "original": "Original",
+    "featured": "おすすめ",
+    "uses": "回使用",
+    "signInRequired": "このツールを使用するにはログインしてください。",
+    "tryAgain": "再試行",
+    "startOver": "やり直す",
+    "selectStyle": "スタイルを選択",
+    "generateImage": "画像を生成",
+    "generate3D": "3Dモデルを生成",
+    "generated": "生成結果",
+    "3dPointCloud": "3Dポイントクラウド",
+    "3dViewerComingSoon": "3Dビューアは近日公開",
+    "backToImage": "画像に戻る",
+    "clickToUpload": "クリックしてアップロードまたはドラッグ＆ドロップ",
+    "preview": "プレビュー",
+    "workspacePlaceholder": "これはプレースホルダーワークスペースです。各ツールには専用のインターフェースがあります。"
+  },
+  "pricing": {
+    "title": "Pricing",
+    "subtitle": "Choose the plan that works for you",
+    "popular": "Popular",
+    "buy": "Buy Now",
+    "free": "Free",
+    "paid": "Paid"
+  },
+  "profile": {
+    "title": "Profile",
+    "credits": "Credits",
+    "transactions": "Transaction History",
+    "noTransactions": "No transactions yet"
+  },
+  "assets": {
+    "title": "My Assets",
+    "noAssets": "No assets yet",
+    "deleteConfirm": "Are you sure you want to delete this asset?"
+  },
+  "footer": {
+    "copyright": "All rights reserved."
+  }
+}

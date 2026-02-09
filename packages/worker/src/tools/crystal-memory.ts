@@ -16,26 +16,29 @@ import sharp from 'sharp';
  *     {
  *       "id": "background-remove",
  *       "name": "Remove Background",
- *       "type": "background-remove",
- *       "providerId": "uuid-fal",
- *       "providerModel": "fal-ai/bria/background/remove",
+ *       "provider": {
+ *         "name": "fal",
+ *         "model": "fal-ai/bria/background/remove",
+ *         "providerOptions": { "sync_mode": false }
+ *       },
  *       "cost": 5
  *     },
  *     {
  *       "id": "vggt",
  *       "name": "Generate Point Cloud",
- *       "type": "vggt",
- *       "providerId": "uuid-replicate",
- *       "providerModel": "vufinder/vggt-1b:...",
+ *       "provider": {
+ *         "name": "replicate",
+ *         "model": "vufinder/vggt-1b:...",
+ *         "providerOptions": {
+ *           "pcd_source": "point_head",
+ *           "return_pcd": true,
+ *           "output_image_size": 518,
+ *           "scale_extent": 10
+ *         }
+ *       },
  *       "cost": 15
  *     }
- *   ],
- *   "vggtOptions": {
- *     "pcdSource": "point_head",
- *     "returnPcd": true,
- *     "outputImageSize": 518,
- *     "scaleExtent": 10
- *   }
+ *   ]
  * }
  */
 
@@ -54,9 +57,7 @@ interface VGGTOptions {
   scaleExtent: number;
 }
 
-interface StepConfigWithModel extends StepConfig {
-  providerModel?: string;
-  // New nested provider structure (from admin UI)
+interface StepConfigWithProvider extends StepConfig {
   provider?: {
     name: string;
     model: string;
@@ -65,22 +66,23 @@ interface StepConfigWithModel extends StepConfig {
   };
 }
 
-/**
- * Helper to get model from step config.
- * Supports both old flat structure and new nested provider structure.
- */
-function getProviderModel(step: StepConfigWithModel, defaultModel: string): string {
-  // New nested structure
-  if (step.provider?.model) {
-    return step.provider.model;
+function getProviderModel(step: StepConfigWithProvider): string {
+  const model = step.provider?.model;
+  if (!model) {
+    throw new Error(`No model configured for step "${step.id}"`);
   }
-  // Old flat structure
-  return step.providerModel ?? defaultModel;
+  return model;
+}
+
+function getMergedProviderOptions(step: StepConfigWithProvider): Record<string, unknown> {
+  return {
+    ...(step.provider?.providerOptions ?? {}),
+    ...(step.provider?.customProviderOptions ?? {}),
+  };
 }
 
 interface CrystalMemoryConfig extends ToolConfig {
-  steps: StepConfigWithModel[];
-  vggtOptions?: VGGTOptions;
+  steps: StepConfigWithProvider[];
 }
 
 interface VGGTOutput {
@@ -116,7 +118,10 @@ export const crystalMemoryWorker: ToolWorker = {
       const crystalInput = input as CrystalMemoryInput;
 
       // Determine which step to execute
-      const currentStepId = stepId || config.steps[0]?.id || 'background-remove';
+      const currentStepId = stepId || config.steps[0]?.id;
+      if (!currentStepId) {
+        throw new Error('No steps configured for this tool');
+      }
 
       // Find step config
       const stepConfig = config.steps.find(s => s.id === currentStepId);
@@ -124,13 +129,12 @@ export const crystalMemoryWorker: ToolWorker = {
         throw new Error(`Step "${currentStepId}" not configured`);
       }
 
-      // Get provider name from step config
+      // Get provider by name from step config
       const providerName = stepConfig.provider?.name;
       if (!providerName) {
         throw new Error(`No provider configured for step "${currentStepId}"`);
       }
 
-      // Look up provider by name (case-insensitive)
       const allProviders = await db.query.providers.findMany();
       const provider = allProviders.find(
         (p) => p.name.toLowerCase() === providerName.toLowerCase() && p.isActive
@@ -146,8 +150,10 @@ export const crystalMemoryWorker: ToolWorker = {
         throw new Error(`No API key configured for provider "${provider.displayName}"`);
       }
 
-      // Execute the appropriate step
-      if (currentStepId === 'background-remove') {
+      const toolSlug = task.tool.slug;
+
+      // Route by provider name to determine execution path
+      if (providerName === 'fal') {
         return await executeBackgroundRemoveStep({
           taskId,
           userId,
@@ -155,22 +161,23 @@ export const crystalMemoryWorker: ToolWorker = {
           stepConfig,
           apiKey: credentials.apiKey,
           progress,
+          toolSlug,
         });
       }
 
-      if (currentStepId === 'vggt') {
+      if (providerName === 'replicate') {
         return await executeVGGTStep({
           taskId,
           userId,
           input: crystalInput,
           stepConfig,
-          config,
           apiKey: credentials.apiKey,
           progress,
+          toolSlug,
         });
       }
 
-      throw new Error(`Unknown step: ${currentStepId}`);
+      throw new Error(`Unsupported provider "${providerName}" for step "${currentStepId}"`);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -190,13 +197,14 @@ async function executeBackgroundRemoveStep(params: {
   taskId: string;
   userId: string;
   input: CrystalMemoryInput;
-  stepConfig: StepConfigWithModel;
+  stepConfig: StepConfigWithProvider;
   apiKey: string;
   progress: ReturnType<typeof createProgressTracker>;
+  toolSlug: string;
 }): Promise<StepResult> {
-  const { taskId, userId, input, stepConfig, apiKey, progress } = params;
+  const { taskId, userId, input, stepConfig, apiKey, progress, toolSlug } = params;
 
-  await progress.startStep('background-remove', 'Removing Background');
+  await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
 
   // Get image URL - either directly provided or from storage key
   let imageUrl = input.imageUrl;
@@ -225,8 +233,8 @@ async function executeBackgroundRemoveStep(params: {
 
   await progress.updateProgress(20, 'Starting background removal');
 
-  // Get model from step config or default
-  const modelId = getProviderModel(stepConfig, 'fal-ai/bria/background/remove');
+  // Get model from step config
+  const modelId = getProviderModel(stepConfig);
 
   // Use fal.subscribe for async operation with progress updates
   const result = await fal.subscribe(modelId, {
@@ -251,7 +259,7 @@ async function executeBackgroundRemoveStep(params: {
   const asset = await uploadFromUrl({
     url: result.data.image.url,
     userId,
-    module: 'crystal-memory',
+    module: toolSlug,
     taskId,
     filename: `bg_removed_${Date.now()}.png`,
   });
@@ -281,14 +289,14 @@ async function executeVGGTStep(params: {
   taskId: string;
   userId: string;
   input: CrystalMemoryInput;
-  stepConfig: StepConfigWithModel;
-  config: CrystalMemoryConfig;
+  stepConfig: StepConfigWithProvider;
   apiKey: string;
   progress: ReturnType<typeof createProgressTracker>;
+  toolSlug: string;
 }): Promise<StepResult> {
-  const { taskId, userId, input, stepConfig, config, apiKey, progress } = params;
+  const { taskId, userId, input, stepConfig, apiKey, progress, toolSlug } = params;
 
-  await progress.startStep('vggt', 'Generating Point Cloud');
+  await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
 
   // Get the bg-removed image URL
   const imageUrl = input.bgRemovedImageUrl;
@@ -297,12 +305,13 @@ async function executeVGGTStep(params: {
     throw new Error('Background-removed image URL is required for VGGT step');
   }
 
-  // Get VGGT options with defaults
+  // Get VGGT options from step provider options
+  const providerOptions = getMergedProviderOptions(stepConfig);
   const vggtOptions: VGGTOptions = {
-    pcdSource: config.vggtOptions?.pcdSource || 'point_head',
-    returnPcd: config.vggtOptions?.returnPcd ?? true,
-    outputImageSize: config.vggtOptions?.outputImageSize || 518,
-    scaleExtent: config.vggtOptions?.scaleExtent || 10,
+    pcdSource: (providerOptions.pcd_source as string) || (providerOptions.pcdSource as string) || 'point_head',
+    returnPcd: (providerOptions.return_pcd as boolean) ?? (providerOptions.returnPcd as boolean) ?? true,
+    outputImageSize: (providerOptions.output_image_size as number) || (providerOptions.outputImageSize as number) || 518,
+    scaleExtent: (providerOptions.scale_extent as number) || (providerOptions.scaleExtent as number) || 10,
   };
 
   await progress.updateProgress(5, 'Preparing image for VGGT');
@@ -322,8 +331,8 @@ async function executeVGGTStep(params: {
   // Initialize Replicate SDK
   const replicate = new Replicate({ auth: apiKey });
 
-  // Get model from step config or default
-  const modelId = getProviderModel(stepConfig, 'vufinder/vggt-1b:770898f053ca56571e8a49d71f27fc695b6d203e0691baa30d8fbb6954599f2b');
+  // Get model from step config
+  const modelId = getProviderModel(stepConfig);
 
   await progress.updateProgress(15, 'Calling VGGT API');
 
@@ -399,7 +408,7 @@ async function executeVGGTStep(params: {
   const asset = await uploadBuffer({
     buffer: Buffer.from(outputJson, 'utf-8'),
     userId,
-    module: 'crystal-memory',
+    module: toolSlug,
     taskId,
     filename: `point_cloud_${Date.now()}.json`,
     contentType: 'application/json',

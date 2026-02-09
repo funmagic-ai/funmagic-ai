@@ -67,7 +67,11 @@ function CameraController() {
   return null
 }
 
-function parsePointCloudData(data: PointCloudData, confidenceThreshold: number): {
+function parsePointCloudData(
+  data: PointCloudData,
+  confidenceThreshold: number,
+  zCropEnabled: boolean
+): {
   positions: Float32Array
   colors: Float32Array
   pointCount: number
@@ -104,6 +108,9 @@ function parsePointCloudData(data: PointCloudData, confidenceThreshold: number):
       // Skip points with invalid (NaN) coordinates
       if (isNaN(x) || isNaN(y) || isNaN(z)) return
 
+      // Apply Z-axis crop filter (remove points behind XY plane)
+      if (zCropEnabled && z < 0) return
+
       positions[validCount * 3] = x
       positions[validCount * 3 + 1] = y
       positions[validCount * 3 + 2] = z
@@ -130,20 +137,40 @@ export function PointCloudViewer({
   const [pointSize, setPointSize] = useState(0.08)
   const [autoRotate, setAutoRotate] = useState(true)
   const [confThreshold, setConfThreshold] = useState(confidenceThreshold)
+  const [zCropEnabled, setZCropEnabled] = useState(true)
 
   const { positions, colors, pointCount } = useMemo(
-    () => parsePointCloudData(data, confThreshold),
-    [data, confThreshold]
+    () => parsePointCloudData(data, confThreshold, zCropEnabled),
+    [data, confThreshold, zCropEnabled]
   )
 
   const handleDownloadPLY = useCallback(() => {
     const lines = data.txt.split('\n').filter(Boolean)
+    const confidenceArray = data.conf || []
+
+    // Filter points based on current settings (confidence + Z-crop)
+    const filteredLines: string[] = []
+    for (let i = 0; i < lines.length; i++) {
+      const conf = confidenceArray[i] ?? 1
+      if (conf < confThreshold) continue
+
+      const parts = lines[i].split(',')
+      if (parts.length >= 7) {
+        const z = parseFloat(parts[3])
+        if (isNaN(z)) continue
+
+        // Apply Z-crop filter if enabled (remove points behind XY plane)
+        if (zCropEnabled && z < 0) continue
+
+        filteredLines.push(lines[i])
+      }
+    }
 
     // Generate PLY format
     const plyHeader = [
       'ply',
       'format ascii 1.0',
-      `element vertex ${lines.length}`,
+      `element vertex ${filteredLines.length}`,
       'property float x',
       'property float y',
       'property float z',
@@ -153,10 +180,12 @@ export function PointCloudViewer({
       'end_header',
     ].join('\n')
 
-    const plyData = lines.map(line => {
-      const [, x, y, z, r, g, b] = line.split(',')
-      return `${x} ${y} ${z} ${r} ${g} ${b}`
-    }).join('\n')
+    const plyData = filteredLines
+      .map((line) => {
+        const [, x, y, z, r, g, b] = line.split(',')
+        return `${x} ${y} ${z} ${r} ${g} ${b}`
+      })
+      .join('\n')
 
     const blob = new Blob([plyHeader + '\n' + plyData], { type: 'application/octet-stream' })
     const url = URL.createObjectURL(blob)
@@ -165,7 +194,7 @@ export function PointCloudViewer({
     a.download = `point_cloud_${Date.now()}.ply`
     a.click()
     URL.revokeObjectURL(url)
-  }, [data])
+  }, [data, confThreshold, zCropEnabled])
 
   const hasConfidence = data.conf && data.conf.length > 0
 
@@ -248,6 +277,19 @@ export function PointCloudViewer({
             />
           </div>
         )}
+
+        {/* Z-Axis Crop Controls */}
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={zCropEnabled}
+              onChange={(e) => setZCropEnabled(e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm text-foreground">Z-Axis Crop (Z &lt; 0)</span>
+          </label>
+        </div>
       </div>
 
       {/* Actions */}

@@ -107,6 +107,7 @@ export const TaskDetailSchema = z.object({
     id: z.string().uuid(),
     userId: z.string(),
     toolId: z.string().uuid(),
+    parentTaskId: z.string().uuid().nullable().optional(),
     status: z.string(),
     creditsCost: z.number().nullable(),
     createdAt: z.string(),

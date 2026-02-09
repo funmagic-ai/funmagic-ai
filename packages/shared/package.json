@@ -7,7 +7,9 @@
     ".": "./src/index.ts",
     "./types": "./src/types/index.ts",
     "./api": "./src/api/index.ts",
-    "./schemas": "./src/schemas/index.ts"
+    "./schemas": "./src/schemas/index.ts",
+    "./config/locales": "./src/config/locales.ts",
+    "./tool-registry": "./src/tool-registry/index.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.3"
