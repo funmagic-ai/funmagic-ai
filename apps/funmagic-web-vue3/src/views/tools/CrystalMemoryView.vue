@@ -47,7 +47,7 @@ interface PointCloudData {
 const cloudOutput = ref<VGGTOutput | null>(null)
 const pointCloudData = ref<PointCloudData | null>(null)
 const loadingPointCloud = ref(false)
-const resultTab = ref<'model' | 'original'>('model')
+const showExport = computed(() => route.query.query === 'bsltest')
 
 // Fetch tool config from API
 const { data: toolData } = useQuery({
@@ -198,7 +198,6 @@ function handleReset() {
   cloudOutput.value = null
   pointCloudData.value = null
   loadingPointCloud.value = false
-  resultTab.value = 'model'
 }
 </script>
 
@@ -228,7 +227,7 @@ function handleReset() {
 
           <!-- Step 0: Upload -->
           <div v-if="currentStep === 0" class="space-y-6">
-            <div class="rounded-xl border bg-card p-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <ImagePicker
                 :preview="upload.preview.value"
                 :disabled="submitMutation.isPending.value"
@@ -252,22 +251,26 @@ function handleReset() {
 
           <!-- Step 1: Background Removal -->
           <div v-if="currentStep === 1">
-            <TaskProgressDisplay :progress="bgProgress" />
-            <div v-if="bgFailed" class="flex justify-center mt-4 gap-3">
-              <n-button @click="currentStep = 0">{{ t('tools.tryAgain') }}</n-button>
-              <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
+              <TaskProgressDisplay :progress="bgProgress" />
+              <div v-if="bgFailed" class="flex justify-center mt-4 gap-3">
+                <n-button @click="currentStep = 0">{{ t('tools.tryAgain') }}</n-button>
+                <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+              </div>
             </div>
           </div>
 
           <!-- Step 2: Point Cloud Generation -->
-          <div v-if="currentStep === 2" class="space-y-4">
-            <TaskProgressDisplay :progress="cloudProgress" />
-            <div v-if="loadingPointCloud" class="flex items-center justify-center gap-2 py-4">
-              <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
-              <span class="text-sm text-muted-foreground">{{ t('tools.pointCloud.loadingData') }}</span>
-            </div>
-            <div v-if="cloudFailed" class="flex justify-center mt-4 gap-3">
-              <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+          <div v-if="currentStep === 2">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center space-y-4">
+              <TaskProgressDisplay :progress="cloudProgress" />
+              <div v-if="loadingPointCloud" class="flex items-center justify-center gap-2 py-4">
+                <div class="animate-spin w-5 h-5 border-2 border-primary border-t-transparent rounded-full" />
+                <span class="text-sm text-muted-foreground">{{ t('tools.pointCloud.loadingData') }}</span>
+              </div>
+              <div v-if="cloudFailed" class="flex justify-center mt-4 gap-3">
+                <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+              </div>
             </div>
           </div>
 
@@ -280,40 +283,21 @@ function handleReset() {
               </p>
             </div>
 
-            <!-- Tab Switcher -->
-            <n-tabs v-model:value="resultTab" type="segment">
-              <n-tab-pane name="model" :tab="t('tools.pointCloud.tab3D')">
-                <div class="pt-4">
-                  <Suspense>
-                    <PointCloudViewer
-                      :data="pointCloudData"
-                      @reset="handleReset"
-                    />
-                    <template #fallback>
-                      <div class="rounded-lg bg-zinc-900 h-[500px] flex items-center justify-center">
-                        <div class="text-center text-muted-foreground">
-                          <div class="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2" />
-                          <p class="text-sm">{{ t('tools.pointCloud.loading') }}</p>
-                        </div>
-                      </div>
-                    </template>
-                  </Suspense>
-                </div>
-              </n-tab-pane>
-              <n-tab-pane name="original" :tab="t('tools.original')">
-                <div class="pt-4 space-y-4">
-                  <div class="rounded-lg border overflow-hidden bg-muted max-w-lg mx-auto">
-                    <img
-                      v-if="upload.preview.value"
-                      :src="upload.preview.value"
-                      :alt="t('tools.original')"
-                      class="w-full object-contain"
-                    />
+            <Suspense>
+              <PointCloudViewer
+                :data="pointCloudData"
+                :original-image="upload.preview.value ?? undefined"
+                :show-export="showExport"
+              />
+              <template #fallback>
+                <div class="rounded-lg bg-zinc-900 h-[500px] flex items-center justify-center">
+                  <div class="text-center text-muted-foreground">
+                    <div class="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2" />
+                    <p class="text-sm">{{ t('tools.pointCloud.loading') }}</p>
                   </div>
-                  <n-button @click="handleReset">{{ t('tools.processAnother') }}</n-button>
                 </div>
-              </n-tab-pane>
-            </n-tabs>
+              </template>
+            </Suspense>
           </div>
         </template>
       </div>

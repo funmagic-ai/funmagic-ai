@@ -351,6 +351,50 @@ t=end  → Wait for client to close (safety timeout 30s)
 t=end+30 → closeAll() if client hasn't disconnected
 ```
 
+## Client Implementation: Vue 3 Composable with fetch API
+
+When the client uses the `fetch` API (instead of `EventSource`), SSE is consumed via `ReadableStream`. The `completed` handler must fetch full output via REST before firing the callback.
+
+```ts
+const API_URL = import.meta.env.VITE_API_URL
+
+async function fetchTaskOutput(id: string): Promise<unknown> {
+  try {
+    const response = await fetch(`${API_URL}/api/tasks/${id}`, {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    })
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.task?.payload?.output ?? null
+  } catch {
+    return null
+  }
+}
+
+// Inside the SSE reading loop:
+const parsed: SSEEvent = JSON.parse(jsonStr)
+
+if (parsed.type === 'completed') {
+  // SSE carries a lightweight signal only — fetch full output via REST
+  const output = await fetchTaskOutput(id)
+  handleEvent({ ...parsed, output })
+  reader.cancel()
+  cleanup()
+  return
+}
+
+handleEvent(parsed)
+
+if (parsed.type === 'failed') {
+  reader.cancel()
+  cleanup()
+  return
+}
+```
+
+**Critical:** Any code path that processes a `completed` event must fetch output via REST first. Watch for alternative paths like `drainBuffer()` (processes remaining buffer after stream close) and `checkTaskStatusREST()` (pre-flight check) — both must include the output in the event they construct.
+
 ## Debugging Checklist
 
 ### Connection Drops During Long Operations
@@ -371,6 +415,32 @@ t=end+30 → closeAll() if client hasn't disconnected
 1. Is the worker sending output through `publishTaskCompleted`? (It shouldn't.)
 2. Does the client fetch output via REST on completion?
 3. Is the REST endpoint returning the full `task.payload.output`?
+4. Are ALL code paths that handle `completed` fetching via REST? (Check `drainBuffer`, `checkTaskStatusREST`, and the main SSE loop.)
+
+### Changes to Client SSE Code Not Taking Effect
+
+**Symptom:** Code changes to `.ts` composables/hooks have zero effect. No console.log output, no behavior change. The old behavior persists exactly.
+
+**Root cause:** Stale compiled `.js` files in the `src/` directory shadow the `.ts` source files.
+
+Vite's default `resolve.extensions` order is: `.mjs` → `.js` → `.mts` → `.ts` → `.jsx` → `.tsx`. For extensionless imports like `import { useTaskProgress } from '@/composables/useTaskProgress'`, Vite resolves **`.js` before `.ts`**. If a stale `.js` file exists alongside the `.ts` file, all edits to the `.ts` file are silently ignored.
+
+**Check:**
+1. Are there `.js` files alongside `.ts` files in `src/`?
+   ```bash
+   find apps/*/src -name '*.js' -type f
+   ```
+2. If found, delete them:
+   ```bash
+   find apps/*/src -name '*.js' -type f -delete
+   ```
+3. Prevent recurrence — add to `.gitignore`:
+   ```
+   apps/*/src/**/*.js
+   ```
+4. Restart the Vite dev server after cleanup.
+
+**How they get created:** Accidental `tsc` invocation, IDE auto-compile, or build tool misconfiguration that writes compiled output into `src/` instead of `dist/`.
 
 ### Redis Pub/Sub Subscriber Count
 
@@ -380,15 +450,23 @@ The `subscribers` count in worker logs reflects Redis Pub/Sub subscribers at pub
 
 Note: there can be a delay between client disconnecting and server cleanup running. Events published during this window show `subscribers: 1` even though nobody is reading.
 
+### Monorepo: Debugging the Wrong App
+
+**Symptom:** All changes have zero effect. Console.log statements produce no output at all. The app behaves identically before and after changes.
+
+**Check:** In a monorepo with multiple frontend apps (e.g., `funmagic-web` (Next.js) and `funmagic-web-vue3` (Vue 3)), verify you are editing the app that is actually running in the browser. Check:
+1. The URL bar — which port / app is loaded?
+2. The dev server output — which app is serving?
+3. The file you're editing — is it in the correct `apps/` subdirectory?
+
 ## Checklist for New SSE Endpoints
 
+### Server
 - [ ] Raw `ReadableStream<Uint8Array>` (not Hono streamSSE)
 - [ ] All four zero-buffering headers set
 - [ ] Heartbeat interval < `idleTimeout` (6s with 30s timeout)
 - [ ] Heartbeat uses `data:` event format (not SSE comment)
-- [ ] Client heartbeat timeout triggers reconnection (not just cleanup)
 - [ ] SSE events carry only lightweight signals (no bulk output)
-- [ ] Client fetches full output via REST on completion
 - [ ] `closeAll()` is idempotent (guarded by `closed` flag)
 - [ ] Abort listener removed in `closeAll()`
 - [ ] Terminal events deduplicated via `terminalSent` flag
@@ -397,3 +475,9 @@ Note: there can be a delay between client disconnecting and server cleanup runni
 - [ ] Dedicated Redis connection for Pub/Sub subscriber
 - [ ] Redis subscriber properly cleaned up (unsubscribe + quit)
 - [ ] DB poll as safety net for missed Pub/Sub messages
+
+### Client
+- [ ] Client heartbeat timeout triggers reconnection (not just cleanup)
+- [ ] Client fetches full output via REST on `completed` (not from SSE event)
+- [ ] ALL `completed` code paths fetch via REST (main loop, drainBuffer, checkTaskStatusREST)
+- [ ] No stale `.js` files in `src/` shadowing `.ts` sources (Vite resolves `.js` before `.ts`)

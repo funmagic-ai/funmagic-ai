@@ -2,7 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
-import { SettingsOutline, DownloadOutline } from '@vicons/ionicons5'
+import { SettingsOutline, DownloadOutline, ImageOutline, ChevronDownOutline } from '@vicons/ionicons5'
 import type { DropdownOption } from 'naive-ui'
 
 const { t } = useI18n()
@@ -14,10 +14,8 @@ interface PointCloudData {
 
 const props = defineProps<{
   data: PointCloudData
-}>()
-
-const emit = defineEmits<{
-  reset: []
+  originalImage?: string
+  showExport?: boolean
 }>()
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
@@ -26,7 +24,16 @@ const autoRotate = ref(true)
 const confThreshold = ref(0)
 const zCropEnabled = ref(true)
 const pointCount = ref(0)
-const showSettings = ref(true)
+const showSettings = ref(false)
+const showOriginal = ref(false)
+
+function toggleSettings() {
+  showSettings.value = !showSettings.value
+}
+
+function toggleOriginal() {
+  showOriginal.value = !showOriginal.value
+}
 
 const hasConfidence = computed(() => props.data.conf && props.data.conf.length > 0)
 
@@ -246,8 +253,8 @@ function handleDownloadTXT() {
 }
 
 const downloadOptions = computed<DropdownOption[]>(() => [
-  { label: 'PLY', key: 'ply' },
   { label: 'TXT', key: 'txt' },
+  { label: 'PLY', key: 'ply' },
 ])
 
 function handleDownloadSelect(key: string) {
@@ -277,6 +284,11 @@ function cleanupThree() {
   renderer = null
 }
 
+// Resize canvas when settings panel toggles
+watch(showSettings, () => {
+  nextTick(() => handleResize())
+})
+
 // Watch for filter/size changes — rebuild point cloud
 watch([confThreshold, zCropEnabled], () => {
   buildPointCloud()
@@ -303,21 +315,35 @@ onUnmounted(() => {
   <div class="space-y-4">
     <!-- Main layout: Canvas + Settings side by side -->
     <div class="flex flex-col lg:flex-row gap-4">
-      <!-- Left: 3D Canvas -->
-      <div class="flex-1 relative">
+      <!-- Left: 3D Canvas (auto-resizes) -->
+      <div class="flex-1 relative min-w-0">
         <div class="rounded-lg overflow-hidden bg-zinc-900" style="min-height: 500px">
           <canvas ref="canvasRef" class="w-full h-full block" style="height: 500px" />
         </div>
-        <!-- Settings toggle button -->
-        <button
-          class="absolute top-3 right-3 flex items-center justify-center w-8 h-8 rounded-md bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
-          :title="showSettings ? 'Hide settings' : 'Show settings'"
-          @click="showSettings = !showSettings"
-        >
-          <n-icon :size="18">
-            <SettingsOutline />
-          </n-icon>
-        </button>
+        <!-- Top-right icon buttons -->
+        <div class="absolute top-3 right-3 flex items-center gap-2">
+          <button
+            v-if="originalImage"
+            class="flex items-center justify-center w-8 h-8 rounded-md text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
+            :class="showOriginal ? 'bg-primary/80 text-white' : 'bg-zinc-800/80'"
+            :title="t('tools.original')"
+            @click="toggleOriginal"
+          >
+            <n-icon :size="18">
+              <ImageOutline />
+            </n-icon>
+          </button>
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-md text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
+            :class="showSettings ? 'bg-primary/80 text-white' : 'bg-zinc-800/80'"
+            :title="t('tools.pointCloud.settings')"
+            @click="toggleSettings"
+          >
+            <n-icon :size="18">
+              <SettingsOutline />
+            </n-icon>
+          </button>
+        </div>
         <!-- Point count overlay -->
         <div class="absolute bottom-3 left-3 text-xs text-zinc-400 bg-zinc-800/80 px-2 py-1 rounded">
           {{ t('tools.pointCloud.points') }}: {{ pointCount.toLocaleString() }}
@@ -325,87 +351,61 @@ onUnmounted(() => {
       </div>
 
       <!-- Right: Settings Panel -->
-      <Transition
-        enter-active-class="transition-all duration-200 ease-out"
-        enter-from-class="opacity-0 lg:w-0 lg:opacity-0"
-        enter-to-class="opacity-100 lg:w-72 lg:opacity-100"
-        leave-active-class="transition-all duration-150 ease-in"
-        leave-from-class="opacity-100 lg:w-72 lg:opacity-100"
-        leave-to-class="opacity-0 lg:w-0 lg:opacity-0"
-      >
-        <div
-          v-if="showSettings"
-          class="lg:w-72 shrink-0 rounded-lg bg-muted p-4 space-y-5"
-        >
-          <h4 class="text-sm font-semibold text-foreground">{{ t('tools.pointCloud.settings') }}</h4>
+      <div v-if="showSettings" class="lg:w-72 shrink-0 rounded-lg bg-muted p-4 space-y-5">
+        <h4 class="text-sm font-semibold text-foreground">{{ t('tools.pointCloud.settings') }}</h4>
 
-          <!-- Auto-rotate -->
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="autoRotate"
-              type="checkbox"
-              class="rounded"
-            />
-            <span class="text-sm text-foreground">{{ t('tools.pointCloud.autoRotate') }}</span>
-          </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input v-model="autoRotate" type="checkbox" class="rounded" />
+          <span class="text-sm text-foreground">{{ t('tools.pointCloud.autoRotate') }}</span>
+        </label>
 
-          <!-- Point Size -->
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="text-sm text-muted-foreground">{{ t('tools.pointCloud.pointSize') }}</label>
-              <span class="text-sm text-muted-foreground tabular-nums">{{ pointSize.toFixed(2) }}</span>
-            </div>
-            <input
-              v-model.number="pointSize"
-              type="range"
-              min="0.01"
-              max="0.3"
-              step="0.01"
-              class="w-full"
-            />
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-sm text-muted-foreground">{{ t('tools.pointCloud.pointSize') }}</label>
+            <span class="text-sm text-muted-foreground tabular-nums">{{ pointSize.toFixed(2) }}</span>
           </div>
-
-          <!-- Confidence Threshold -->
-          <div v-if="hasConfidence" class="space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="text-sm text-muted-foreground">{{ t('tools.pointCloud.confidence') }}</label>
-              <span class="text-sm text-muted-foreground tabular-nums">{{ (confThreshold * 100).toFixed(0) }}%</span>
-            </div>
-            <input
-              v-model.number="confThreshold"
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              class="w-full"
-            />
-          </div>
-
-          <!-- Z-Axis Crop -->
-          <label class="flex items-center gap-2 cursor-pointer">
-            <input
-              v-model="zCropEnabled"
-              type="checkbox"
-              class="rounded"
-            />
-            <span class="text-sm text-foreground">{{ t('tools.pointCloud.zCrop') }}</span>
-          </label>
+          <input v-model.number="pointSize" type="range" min="0.01" max="0.3" step="0.01" class="w-full" />
         </div>
-      </Transition>
+
+        <div v-if="hasConfidence" class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-sm text-muted-foreground">{{ t('tools.pointCloud.confidence') }}</label>
+            <span class="text-sm text-muted-foreground tabular-nums">{{ (confThreshold * 100).toFixed(0) }}%</span>
+          </div>
+          <input v-model.number="confThreshold" type="range" min="0" max="1" step="0.05" class="w-full" />
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input v-model="zCropEnabled" type="checkbox" class="rounded" />
+          <span class="text-sm text-foreground">{{ t('tools.pointCloud.zCrop') }}</span>
+        </label>
+      </div>
     </div>
 
+    <!-- Original Image Dialog -->
+    <n-modal v-model:show="showOriginal">
+      <div class="rounded-lg overflow-hidden bg-card p-2 max-w-2xl">
+        <img v-if="originalImage" :src="originalImage" :alt="t('tools.original')" class="w-full object-contain rounded" />
+      </div>
+    </n-modal>
+
     <!-- Actions -->
-    <div class="flex flex-wrap gap-3">
-      <n-dropdown :options="downloadOptions" @select="handleDownloadSelect">
-        <n-button type="primary">
+    <div class="flex gap-3">
+      <div class="flex flex-1">
+        <n-button type="primary" class="flex-1 !rounded-r-none" @click="handleDownloadTXT">
           <template #icon>
             <n-icon><DownloadOutline /></n-icon>
           </template>
           {{ t('tools.download') }}
         </n-button>
-      </n-dropdown>
-      <n-button @click="emit('reset')">
-        {{ t('tools.processAnother') }}
+        <n-dropdown :options="downloadOptions" @select="handleDownloadSelect" placement="bottom-end">
+          <n-button type="primary" class="!rounded-l-none !border-l !border-l-white/20 !px-2">
+            <n-icon :size="16"><ChevronDownOutline /></n-icon>
+          </n-button>
+        </n-dropdown>
+      </div>
+      <n-button v-if="showExport" type="primary" class="flex-1" @click="handleDownloadTXT">
+        Export
       </n-button>
     </div>
   </div>
