@@ -26,7 +26,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/services/package.json ./packages/services/
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install 
 
 # -----------------------------------------------------------------------------
 # Stage 2: Build the application

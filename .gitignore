@@ -39,3 +39,5 @@ packages/database/drizzle/meta/
 
 # Stale compiled JS in Vue source directories
 apps/*/src/**/*.js
+.terraform/
+.terraform/

@@ -23,7 +23,7 @@ COPY apps/funmagic-admin-vue3/package.json ./apps/funmagic-admin-vue3/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install 
 
 # -----------------------------------------------------------------------------
 # Stage 2: Build the application

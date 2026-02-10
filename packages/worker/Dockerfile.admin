@@ -33,7 +33,7 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/auth/package.json ./packages/auth/
 
 # Install dependencies (including native modules like sharp)
-RUN bun install --frozen-lockfile
+RUN bun install 
 
 # -----------------------------------------------------------------------------
 # Stage 2: Production runner
