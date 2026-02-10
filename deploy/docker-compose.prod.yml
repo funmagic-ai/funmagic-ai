@@ -1,0 +1,222 @@
+# =============================================================================
+# FunMagic AI - Production Docker Compose (Single EC2 Minimal Setup)
+# =============================================================================
+# All services run on a single EC2 instance with nginx reverse proxy
+# Usage: docker compose -f deploy/docker-compose.prod.yml up -d
+# =============================================================================
+
+name: funmagic-prod
+
+services:
+  # ===========================================================================
+  # Reverse Proxy
+  # ===========================================================================
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: funmagic-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites:/etc/nginx/sites-enabled:ro
+      - /etc/ssl/cloudflare:/etc/ssl/cloudflare:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - funmagic-network
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================================================
+  # Infrastructure
+  # ===========================================================================
+  postgres:
+    image: postgres:17-alpine
+    container_name: funmagic-postgres
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: funmagic-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - funmagic-network
+
+  # ===========================================================================
+  # Backend (Hono API)
+  # ===========================================================================
+  backend:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-backend/Dockerfile
+    container_name: funmagic-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 8000
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      # AWS S3 configuration
+      S3_ENDPOINT: https://s3.${AWS_REGION:-us-east-2}.amazonaws.com
+      S3_REGION: ${AWS_REGION:-us-east-2}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-funmagic-public-prod}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-funmagic-private-prod}
+      S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN:-funmagic-admin-prod}
+      # Auth
+      SECRET_KEY: ${SECRET_KEY}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://api.funmagic.ai
+      # CORS
+      CORS_ORIGINS: https://funmagic.ai,https://admin.funmagic.ai
+      TRUSTED_ORIGINS: https://funmagic.ai,https://admin.funmagic.ai
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - funmagic-network
+
+  # ===========================================================================
+  # BullMQ Workers
+  # ===========================================================================
+  worker:
+    build:
+      context: ..
+      dockerfile: packages/worker/Dockerfile
+    container_name: funmagic-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: https://s3.${AWS_REGION:-us-east-2}.amazonaws.com
+      S3_REGION: ${AWS_REGION:-us-east-2}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-funmagic-public-prod}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-funmagic-private-prod}
+      S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN:-funmagic-admin-prod}
+      VGGT_MAX_POLL_ATTEMPTS: "120"
+      VGGT_POLL_INTERVAL_MS: "5000"
+    networks:
+      - funmagic-network
+
+  admin-worker:
+    build:
+      context: ..
+      dockerfile: packages/worker/Dockerfile.admin
+    container_name: funmagic-admin-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379
+      S3_ENDPOINT: https://s3.${AWS_REGION:-us-east-2}.amazonaws.com
+      S3_REGION: ${AWS_REGION:-us-east-2}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-funmagic-public-prod}
+      S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-funmagic-private-prod}
+      S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN:-funmagic-admin-prod}
+    networks:
+      - funmagic-network
+
+  # ===========================================================================
+  # Frontends (Vue3 SPAs)
+  # ===========================================================================
+  web:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-web-vue3/Dockerfile
+      args:
+        VITE_API_URL: https://api.funmagic.ai
+        VITE_APP_URL: https://funmagic.ai
+    container_name: funmagic-web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - funmagic-network
+
+  admin:
+    build:
+      context: ..
+      dockerfile: apps/funmagic-admin-vue3/Dockerfile
+      args:
+        VITE_API_URL: https://api.funmagic.ai
+        VITE_APP_URL: https://admin.funmagic.ai
+    container_name: funmagic-admin
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - funmagic-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  funmagic-network:
+    driver: bridge
