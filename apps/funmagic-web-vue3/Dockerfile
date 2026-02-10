@@ -10,23 +10,7 @@ FROM oven/bun:1.3.8-alpine AS base
 WORKDIR /app
 
 # -----------------------------------------------------------------------------
-# Stage 1: Install dependencies
-# -----------------------------------------------------------------------------
-FROM base AS deps
-
-# Copy root workspace files
-COPY package.json bun.lock ./
-COPY tsconfig.json ./
-
-# Copy all package.json files for workspace resolution
-COPY apps/funmagic-web-vue3/package.json ./apps/funmagic-web-vue3/
-COPY packages/shared ./packages/shared
-
-# Install dependencies
-RUN bun install 
-
-# -----------------------------------------------------------------------------
-# Stage 2: Build the application
+# Stage 1: Build the application
 # -----------------------------------------------------------------------------
 FROM base AS builder
 
@@ -37,20 +21,23 @@ ARG VITE_APP_URL=https://funmagic.ai
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_URL=$VITE_APP_URL
 
-# Copy dependencies
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/shared ./packages/shared
+# Copy root workspace files
+COPY package.json bun.lock ./
+COPY tsconfig.json ./
 
 # Copy source files
-COPY package.json bun.lock tsconfig.json ./
 COPY apps/funmagic-web-vue3 ./apps/funmagic-web-vue3
+COPY packages/shared ./packages/shared
+
+# Install dependencies
+RUN bun install
 
 # Build the application
 WORKDIR /app/apps/funmagic-web-vue3
 RUN bun run build
 
 # -----------------------------------------------------------------------------
-# Stage 3: Production server with nginx
+# Stage 2: Production server with nginx
 # -----------------------------------------------------------------------------
 FROM nginx:1.27-alpine AS runner
 
