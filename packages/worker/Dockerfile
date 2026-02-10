@@ -17,41 +17,24 @@ RUN apk add --no-cache \
 WORKDIR /app
 
 # -----------------------------------------------------------------------------
-# Stage 1: Install dependencies
+# Stage 1: Build and run
 # -----------------------------------------------------------------------------
-FROM base AS deps
-
-# Copy root workspace files
-COPY package.json bun.lock ./
-COPY tsconfig.json ./
-
-# Copy all package.json files for workspace resolution
-COPY packages/worker/package.json ./packages/worker/
-COPY packages/database/package.json ./packages/database/
-COPY packages/services/package.json ./packages/services/
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/auth/package.json ./packages/auth/
-
-# Install dependencies (including native modules like sharp)
-RUN bun install 
-
-# -----------------------------------------------------------------------------
-# Stage 2: Production runner
-# -----------------------------------------------------------------------------
-FROM oven/bun:1.3.8-alpine AS runner
+FROM base AS runner
 
 # Install runtime dependencies for sharp
 RUN apk add --no-cache vips
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/worker/node_modules ./packages/worker/node_modules
+# Copy root workspace files
+COPY package.json bun.lock ./
+COPY tsconfig.json ./
 
-# Copy source files
-COPY package.json bun.lock tsconfig.json ./
+# Copy all packages
 COPY packages ./packages
+
+# Install dependencies
+RUN bun install
 
 # Create non-root user
 RUN addgroup --system --gid 1001 worker && \
