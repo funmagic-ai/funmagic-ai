@@ -142,6 +142,7 @@ services:
       S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-funmagic-public-prod}
       S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-funmagic-private-prod}
       S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN:-funmagic-admin-prod}
+      SECRET_KEY: ${SECRET_KEY}
       VGGT_MAX_POLL_ATTEMPTS: "120"
       VGGT_POLL_INTERVAL_MS: "5000"
     networks:
@@ -169,6 +170,7 @@ services:
       S3_BUCKET_PUBLIC: ${S3_BUCKET_PUBLIC:-funmagic-public-prod}
       S3_BUCKET_PRIVATE: ${S3_BUCKET_PRIVATE:-funmagic-private-prod}
       S3_BUCKET_ADMIN: ${S3_BUCKET_ADMIN:-funmagic-admin-prod}
+      SECRET_KEY: ${SECRET_KEY}
     networks:
       - funmagic-network
 
