@@ -29,6 +29,6 @@ export async function loadLocaleMessages(locale: SupportedLocale) {
 
 export async function setLocale(locale: SupportedLocale) {
   await loadLocaleMessages(locale)
-  i18n.global.locale.value = locale
+  ;(i18n.global.locale as unknown as { value: string }).value = locale
   document.documentElement.lang = locale
 }

@@ -20,7 +20,7 @@ COPY tsconfig.json ./
 
 # Copy all package.json files for workspace resolution
 COPY apps/funmagic-admin-vue3/package.json ./apps/funmagic-admin-vue3/
-COPY packages/shared/package.json ./packages/shared/
+COPY packages/shared ./packages/shared
 
 # Install dependencies
 RUN bun install 
@@ -39,12 +39,11 @@ ENV VITE_APP_URL=$VITE_APP_URL
 
 # Copy dependencies
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/funmagic-admin-vue3/node_modules ./apps/funmagic-admin-vue3/node_modules
+COPY --from=deps /app/packages/shared ./packages/shared
 
 # Copy source files
 COPY package.json bun.lock tsconfig.json ./
 COPY apps/funmagic-admin-vue3 ./apps/funmagic-admin-vue3
-COPY packages/shared ./packages/shared
 
 # Build the application
 WORKDIR /app/apps/funmagic-admin-vue3
