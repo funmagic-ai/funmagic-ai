@@ -137,9 +137,12 @@ export const backgroundRemoveWorker: ToolWorker = {
       // Get model from step config
       const modelId = getProviderModel(step);
 
+      // Build provider request
+      const providerInput = { image_url: falImageUrl };
+
       // Use fal.subscribe for async operation with progress updates
       const result = await fal.subscribe(modelId, {
-        input: { image_url: falImageUrl },
+        input: providerInput,
         logs: true,
         onQueueUpdate: (update) => {
           if (update.status === 'IN_PROGRESS') {
@@ -149,7 +152,7 @@ export const backgroundRemoveWorker: ToolWorker = {
             progress.updateProgress(progressPercent, 'Processing...');
           }
         },
-      }) as { data: FalResult };
+      }) as { data: FalResult; requestId?: string };
 
       if (!result.data?.image?.url) {
         throw new Error('No image URL in fal.ai response');
@@ -179,6 +182,9 @@ export const backgroundRemoveWorker: ToolWorker = {
           originalUrl: imageUrl,
           processedUrl: result.data.image.url,
         },
+        providerRequest: { model: modelId, input: providerInput },
+        providerResponse: { data: result.data },
+        providerMeta: { provider: 'fal', model: modelId, requestId: result.requestId },
       };
 
     } catch (error) {

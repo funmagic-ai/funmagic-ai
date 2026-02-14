@@ -5,6 +5,7 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { validateForm } from '@/composables/useFormValidation'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
@@ -98,18 +99,14 @@ const updateMutation = useMutation({
 })
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-    updateMutation.mutate()
-  } catch {
-    // validation failed
-  }
+  if (!await validateForm(formRef)) return
+  updateMutation.mutate()
 }
 </script>
 
 <template>
   <div>
-    <PageHeader :title="t('common.edit') + ' Package'">
+    <PageHeader :title="t('billing.editPackage')">
       <template #actions>
         <NButton @click="router.push({ name: 'packages' })">
           <template #icon>
@@ -138,8 +135,18 @@ async function handleSubmit() {
           label-placement="left"
           label-width="140"
         >
+          <div class="grid grid-cols-2 gap-4">
+            <NFormItem :label="t('common.active')">
+              <NSwitch v-model:value="formValue.isActive" />
+            </NFormItem>
+
+            <NFormItem :label="t('common.popular')">
+              <NSwitch v-model:value="formValue.isPopular" />
+            </NFormItem>
+          </div>
+
           <NFormItem :label="t('common.name')" path="name">
-            <NInput v-model:value="formValue.name" placeholder="e.g. Starter Pack" />
+            <NInput v-model:value="formValue.name" :placeholder="t('placeholder.examplePackageName')" />
           </NFormItem>
 
           <NFormItem :label="t('common.description')">
@@ -147,7 +154,7 @@ async function handleSubmit() {
               v-model:value="formValue.description"
               type="textarea"
               :rows="3"
-              placeholder="Optional description"
+              :placeholder="t('placeholder.optionalDescription')"
             />
           </NFormItem>
 
@@ -165,14 +172,6 @@ async function handleSubmit() {
 
           <NFormItem :label="t('billing.currency')">
             <NSelect v-model:value="formValue.currency" :options="currencyOptions" />
-          </NFormItem>
-
-          <NFormItem :label="t('common.popular')">
-            <NSwitch v-model:value="formValue.isPopular" />
-          </NFormItem>
-
-          <NFormItem label="Active">
-            <NSwitch v-model:value="formValue.isActive" />
           </NFormItem>
 
           <NFormItem :label="t('common.sortOrder')">

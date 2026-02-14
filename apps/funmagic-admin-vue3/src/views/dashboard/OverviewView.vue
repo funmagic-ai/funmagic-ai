@@ -57,7 +57,7 @@ const stats = computed(() => [
     loading: toolsLoading.value,
   },
   {
-    label: 'Active Tools',
+    label: t('dashboard.activeTools'),
     value: activeTools.value,
     loading: toolsLoading.value,
   },
@@ -69,24 +69,24 @@ const stats = computed(() => [
 ])
 
 // Recent tools table columns
-const toolColumns: DataTableColumns = [
+const toolColumns = computed<DataTableColumns>(() => [
   {
     title: t('common.name'),
     key: 'title',
     ellipsis: { tooltip: true },
   },
   {
-    title: 'Slug',
+    title: t('common.slug'),
     key: 'slug',
     width: 180,
     ellipsis: { tooltip: true },
   },
   {
-    title: 'Type',
+    title: t('common.type'),
     key: 'toolType',
     width: 140,
     render(row: any) {
-      return row.toolType?.displayName ?? '--'
+      return row.toolType?.title ?? '--'
     },
   },
   {
@@ -98,7 +98,7 @@ const toolColumns: DataTableColumns = [
     },
   },
   {
-    title: 'Usage',
+    title: t('common.usage'),
     key: 'usageCount',
     width: 80,
   },
@@ -110,7 +110,7 @@ const toolColumns: DataTableColumns = [
       return new Date(row.createdAt).toLocaleDateString()
     },
   },
-]
+])
 
 const recentTools = computed(() => {
   const tools = toolsData.value?.tools ?? []
@@ -142,7 +142,7 @@ function handleToolRowClick(row: any) {
     <!-- Recent Tools -->
     <div class="rounded-xl border bg-card py-6 shadow-sm">
       <div class="px-6 pb-4">
-        <h3 class="text-lg font-semibold text-foreground">Recent Tools</h3>
+        <h3 class="text-lg font-semibold text-foreground">{{ t('dashboard.recentTools') }}</h3>
       </div>
       <div class="px-6">
         <NSpin v-if="isLoading" class="flex justify-center py-8" />

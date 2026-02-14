@@ -5,6 +5,7 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { validateForm } from '@/composables/useFormValidation'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
@@ -106,18 +107,14 @@ const healthCheckMutation = useMutation({
 })
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-    updateMutation.mutate()
-  } catch {
-    // validation failed
-  }
+  if (!await validateForm(formRef)) return
+  updateMutation.mutate()
 }
 </script>
 
 <template>
   <div>
-    <PageHeader :title="t('common.edit') + ' Provider'">
+    <PageHeader :title="t('providers.editProvider')">
       <template #actions>
         <NButton @click="router.push({ name: 'providers' })">
           <template #icon>
@@ -140,15 +137,15 @@ async function handleSubmit() {
 
       <template v-else>
         <div v-if="data" class="mb-4 flex items-center gap-2">
-          <NTag v-if="data.hasApiKey" type="success" size="small">API Key Set</NTag>
-          <NTag v-else type="warning" size="small">No API Key</NTag>
-          <NTag v-if="data.hasApiSecret" type="success" size="small">API Secret Set</NTag>
+          <NTag v-if="data.hasApiKey" type="success" size="small">{{ t('common.apiKeySet') }}</NTag>
+          <NTag v-else type="warning" size="small">{{ t('common.noApiKey') }}</NTag>
+          <NTag v-if="data.hasApiSecret" type="success" size="small">{{ t('common.apiSecretSet') }}</NTag>
           <NButton
             size="small"
             :loading="healthCheckMutation.isPending.value"
             @click="healthCheckMutation.mutate()"
           >
-            Run Health Check
+            {{ t('common.runHealthCheck') }}
           </NButton>
         </div>
 
@@ -159,12 +156,16 @@ async function handleSubmit() {
           label-placement="left"
           label-width="160"
         >
-          <NFormItem label="Name (slug)" path="name">
-            <NInput v-model:value="formValue.name" placeholder="e.g. openai-main" />
+          <NFormItem :label="t('common.active')">
+            <NSwitch v-model:value="formValue.isActive" />
           </NFormItem>
 
-          <NFormItem label="Display Name" path="displayName">
-            <NInput v-model:value="formValue.displayName" placeholder="e.g. OpenAI (Main)" />
+          <NFormItem :label="t('common.nameSlug')" path="name">
+            <NInput v-model:value="formValue.name" :placeholder="t('placeholder.exampleSlug', { example: 'openai-main' })" />
+          </NFormItem>
+
+          <NFormItem :label="t('common.displayName')" path="displayName">
+            <NInput v-model:value="formValue.displayName" :placeholder="t('placeholder.exampleDisplayName', { example: 'OpenAI (Main)' })" />
           </NFormItem>
 
           <NFormItem :label="t('common.description')">
@@ -172,7 +173,7 @@ async function handleSubmit() {
               v-model:value="formValue.description"
               type="textarea"
               :rows="3"
-              placeholder="Optional description"
+              :placeholder="t('placeholder.optionalDescription')"
             />
           </NFormItem>
 
@@ -181,38 +182,34 @@ async function handleSubmit() {
               v-model:value="formValue.apiKey"
               type="password"
               show-password-on="click"
-              placeholder="Leave empty to keep current value"
+              :placeholder="data?.apiKeyPreview ? `${t('providers.current')}: ${data.apiKeyPreview}  —  ${t('placeholder.leaveEmptyToKeep')}` : t('placeholder.leaveEmptyToKeep')"
             />
           </NFormItem>
 
-          <NFormItem label="API Secret">
+          <NFormItem :label="t('providers.apiSecret')">
             <NInput
               v-model:value="formValue.apiSecret"
               type="password"
               show-password-on="click"
-              placeholder="Leave empty to keep current value"
+              :placeholder="t('placeholder.leaveEmptyToKeep')"
             />
           </NFormItem>
 
           <NFormItem :label="t('providers.baseUrl')">
-            <NInput v-model:value="formValue.baseUrl" placeholder="https://api.example.com" />
+            <NInput v-model:value="formValue.baseUrl" :placeholder="t('placeholder.exampleUrl')" />
           </NFormItem>
 
-          <NFormItem label="Webhook Secret">
+          <NFormItem :label="t('providers.webhookSecret')">
             <NInput
               v-model:value="formValue.webhookSecret"
               type="password"
               show-password-on="click"
-              placeholder="Leave empty to keep current value"
+              :placeholder="t('placeholder.leaveEmptyToKeep')"
             />
           </NFormItem>
 
-          <NFormItem label="Health Check URL">
-            <NInput v-model:value="formValue.healthCheckUrl" placeholder="https://api.example.com/health" />
-          </NFormItem>
-
-          <NFormItem label="Active">
-            <NSwitch v-model:value="formValue.isActive" />
+          <NFormItem :label="t('providers.healthCheckUrl')">
+            <NInput v-model:value="formValue.healthCheckUrl" :placeholder="t('placeholder.exampleHealthCheckUrl')" />
           </NFormItem>
 
           <div class="flex justify-end gap-2 pt-4">

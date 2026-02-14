@@ -77,8 +77,11 @@ function getTransactionTypeTag(type: string) {
 
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <h1 class="text-3xl font-bold text-foreground mb-8">{{ t('profile.title') }}</h1>
+    <main class="flex-1 py-8 md:py-12">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-foreground">{{ t('profile.title') }}</h1>
+      </div>
 
       <!-- User Info -->
       <n-card class="mb-6">
@@ -182,6 +185,7 @@ function getTransactionTypeTag(type: string) {
           </div>
         </div>
       </n-card>
-    </div>
+      </div>
+    </main>
   </AppLayout>
 </template>

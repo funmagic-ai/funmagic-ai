@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NDataTable, NIcon, NTag, NSwitch } from 'naive-ui'
+import { NButton, NDataTable, NIcon, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -83,7 +83,7 @@ const columns = computed<DataTableColumns>(() => [
     ellipsis: { tooltip: true },
   },
   {
-    title: 'Slug',
+    title: t('common.slug'),
     key: 'name',
     ellipsis: { tooltip: true },
   },
@@ -94,19 +94,18 @@ const columns = computed<DataTableColumns>(() => [
     render: (row: any) => row.description || '-',
   },
   {
-    title: 'Base URL',
+    title: t('providers.baseUrl'),
     key: 'baseUrl',
     ellipsis: { tooltip: true },
     render: (row: any) => row.baseUrl || '-',
   },
   {
-    title: 'API Key',
-    key: 'hasApiKey',
-    width: 100,
+    title: t('providers.apiKey'),
+    key: 'apiKeyPreview',
+    width: 140,
     render: (row: any) => {
-      return h(NTag, { type: row.hasApiKey ? 'success' : 'default', size: 'small' }, {
-        default: () => row.hasApiKey ? 'Set' : 'Not set',
-      })
+      if (!row.apiKeyPreview) return h('span', { class: 'text-muted-foreground text-xs' }, t('providers.notSet'))
+      return h('code', { class: 'text-xs font-mono bg-muted px-1.5 py-0.5 rounded' }, row.apiKeyPreview)
     },
   },
   {
@@ -187,7 +186,7 @@ const columns = computed<DataTableColumns>(() => [
     <DeleteConfirmDialog
       v-model:show="showDeleteDialog"
       :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
-      message="Are you sure you want to delete this admin provider? This action cannot be undone."
+      :message="t('common.deleteConfirm')"
       :loading="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

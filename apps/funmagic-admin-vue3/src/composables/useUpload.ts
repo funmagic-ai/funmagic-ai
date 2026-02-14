@@ -2,7 +2,7 @@ import { api } from '@/lib/api'
 
 export interface UseUploadOptions {
   module: string
-  visibility?: 'public' | 'private'
+  visibility?: 'public' | 'private' | 'admin-private'
 }
 
 export function useUpload(options: UseUploadOptions) {
@@ -27,7 +27,7 @@ export function useUpload(options: UseUploadOptions) {
     }
   }
 
-  async function uploadOnSubmit(): Promise<{ storageKey: string; bucket: string } | null> {
+  async function uploadOnSubmit(): Promise<{ storageKey: string; bucket: string; assetId: string } | null> {
     if (!pendingFile.value) {
       error.value = 'No file selected'
       return null
@@ -38,13 +38,13 @@ export function useUpload(options: UseUploadOptions) {
     error.value = null
 
     try {
-      // Step 1: Get presigned URL
-      const { data: presignData, error: presignError } = await api.POST('/api/upload/presign', {
+      // Step 1: Get presigned URL and create asset record
+      const { data: presignData, error: presignError } = await api.POST('/api/assets/upload', {
         body: {
           module: options.module,
           filename: pendingFile.value.name,
           contentType: pendingFile.value.type,
-          contentLength: pendingFile.value.size,
+          size: pendingFile.value.size,
           visibility: options.visibility ?? 'private',
         },
       })
@@ -54,12 +54,12 @@ export function useUpload(options: UseUploadOptions) {
         return null
       }
 
-      const { uploadUrl, storageKey, bucket } = presignData
+      const { presignedUrl, storageKey, bucket, assetId } = presignData
 
       progress.value = 30
 
       // Step 2: Upload file directly to S3
-      const uploadResponse = await fetch(uploadUrl, {
+      const uploadResponse = await fetch(presignedUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': pendingFile.value.type,
@@ -74,7 +74,7 @@ export function useUpload(options: UseUploadOptions) {
 
       progress.value = 100
 
-      return { storageKey, bucket }
+      return { storageKey, bucket, assetId }
     } catch (e: unknown) {
       error.value = e instanceof Error ? e.message : 'Upload failed'
       return null

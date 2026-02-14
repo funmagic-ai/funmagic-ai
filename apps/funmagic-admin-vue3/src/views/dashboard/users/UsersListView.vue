@@ -25,12 +25,12 @@ const roleFilter = ref<string | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(20)
 
-const roleOptions = [
+const roleOptions = computed(() => [
   { label: t('roles.all'), value: null },
   { label: t('roles.user'), value: 'user' },
   { label: t('roles.admin'), value: 'admin' },
   { label: t('roles.superAdmin'), value: 'super_admin' },
-]
+]) as any
 
 // Fetch users
 const { data, isLoading, isError, refetch } = useQuery({
@@ -73,7 +73,7 @@ const paginatedUsers = computed(() => {
 })
 
 // Table columns
-const columns: DataTableColumns = [
+const columns = computed<DataTableColumns>(() => [
   {
     title: t('common.name'),
     key: 'name',
@@ -137,7 +137,7 @@ const columns: DataTableColumns = [
       )
     },
   },
-]
+])
 
 // Reset page on filter change
 watch([search, roleFilter], () => {
@@ -165,7 +165,7 @@ watch([search, roleFilter], () => {
         <NSelect
           v-model:value="roleFilter"
           :options="roleOptions"
-          placeholder="Filter by role"
+          :placeholder="t('users.filterByRole')"
           clearable
           class="w-full sm:w-40"
         />

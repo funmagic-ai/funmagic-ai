@@ -236,9 +236,12 @@ async function executeBackgroundRemoveStep(params: {
   // Get model from step config
   const modelId = getProviderModel(stepConfig);
 
+  // Build provider request
+  const providerInput = { image_url: falImageUrl };
+
   // Use fal.subscribe for async operation with progress updates
   const result = await fal.subscribe(modelId, {
-    input: { image_url: falImageUrl },
+    input: providerInput,
     logs: true,
     onQueueUpdate: (update) => {
       if (update.status === 'IN_PROGRESS') {
@@ -247,7 +250,7 @@ async function executeBackgroundRemoveStep(params: {
         progress.updateProgress(progressPercent, 'Processing background removal...');
       }
     },
-  }) as { data: FalResult };
+  }) as { data: FalResult; requestId?: string };
 
   if (!result.data?.image?.url) {
     throw new Error('No image URL in fal.ai response');
@@ -279,6 +282,9 @@ async function executeBackgroundRemoveStep(params: {
       bgRemovedImageUrl: result.data.image.url,
       originalUrl: imageUrl,
     },
+    providerRequest: { model: modelId, input: providerInput },
+    providerResponse: { data: result.data },
+    providerMeta: { provider: 'fal', model: modelId, stepId: stepConfig.id, requestId: result.requestId },
   };
 }
 
@@ -336,13 +342,16 @@ async function executeVGGTStep(params: {
 
   await progress.updateProgress(15, 'Calling VGGT API');
 
+  // Build provider request
+  const replicateInput = {
+    images: [imageDataUri],
+    pcd_source: vggtOptions.pcdSource,
+    return_pcd: vggtOptions.returnPcd,
+  };
+
   // Run VGGT prediction using Replicate SDK - it handles polling automatically
   const output = await replicate.run(modelId as `${string}/${string}:${string}`, {
-    input: {
-      images: [imageDataUri],
-      pcd_source: vggtOptions.pcdSource,
-      return_pcd: vggtOptions.returnPcd,
-    },
+    input: replicateInput,
   }) as {
     data?: string[];
   };
@@ -426,6 +435,9 @@ async function executeVGGTStep(params: {
       pointCount: scaledPoints.length,
       dimensions: { height, width },
     },
+    providerRequest: { model: modelId, input: { ...replicateInput, images: ['[data_uri]'] } },
+    providerResponse: { data: output.data },
+    providerMeta: { provider: 'replicate', model: modelId, stepId: stepConfig.id },
   };
 }
 

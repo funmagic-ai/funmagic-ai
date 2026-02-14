@@ -5,6 +5,7 @@ import {
   ToolTranslationsSchema,
   type ToolTranslations,
 } from '@funmagic/shared';
+import { getPublicCdnUrl } from '@funmagic/services/storage';
 
 // Schemas
 const ToolAdminSchema = z.object({
@@ -12,7 +13,6 @@ const ToolAdminSchema = z.object({
   slug: z.string(),
   title: z.string(),
   description: z.string().nullable(),
-  shortDescription: z.string().nullable(),
   thumbnail: z.string().nullable(),
   toolTypeId: z.string().uuid(),
   config: z.any(),
@@ -25,7 +25,7 @@ const ToolAdminSchema = z.object({
   toolType: z.object({
     id: z.string().uuid(),
     name: z.string(),
-    displayName: z.string(),
+    title: z.string(),
   }).optional(),
 }).openapi('ToolAdmin');
 
@@ -37,7 +37,6 @@ const CreateToolSchema = z.object({
   slug: z.string().min(1, 'Slug is required'),
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  shortDescription: z.string().optional(),
   thumbnail: z.string().optional(),
   toolTypeId: z.string().uuid('Tool type ID must be a valid UUID'),
   config: z.any().default({}),
@@ -208,8 +207,7 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
     slug: t.slug,
     title: t.title,
     description: t.description,
-    shortDescription: t.shortDescription,
-    thumbnail: t.thumbnail,
+    thumbnail: t.thumbnail ? getPublicCdnUrl(t.thumbnail) : null,
     toolTypeId: t.toolTypeId,
     config: t.config,
     translations: t.translations as ToolTranslations,
@@ -221,7 +219,7 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
     toolType: t.toolType ? {
       id: t.toolType.id,
       name: t.toolType.name,
-      displayName: t.toolType.displayName,
+      title: t.toolType.title,
     } : undefined,
   };
 }
@@ -230,15 +228,14 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
 function buildTranslationsFromLegacy(
   title: string,
   description?: string,
-  shortDescription?: string,
   existingTranslations?: ToolTranslations
 ): ToolTranslations {
   return {
     ...existingTranslations,
     en: {
+      ...existingTranslations?.en,
       title,
       description: description ?? existingTranslations?.en?.description ?? '',
-      shortDescription: shortDescription ?? existingTranslations?.en?.shortDescription ?? '',
     },
   };
 }
@@ -301,15 +298,13 @@ export const toolsAdminRoutes = new OpenAPIHono()
     // Build translations: use provided translations or build from legacy fields
     const translations = data.translations ?? buildTranslationsFromLegacy(
       data.title,
-      data.description,
-      data.shortDescription
+      data.description
     );
 
     const [tool] = await db.insert(tools).values({
       slug: data.slug,
       title: data.title,
       description: data.description,
-      shortDescription: data.shortDescription,
       thumbnail: data.thumbnail,
       toolTypeId: data.toolTypeId,
       config: data.config,
@@ -343,7 +338,6 @@ export const toolsAdminRoutes = new OpenAPIHono()
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.shortDescription !== undefined) updateData.shortDescription = data.shortDescription;
     if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
     if (data.toolTypeId !== undefined) updateData.toolTypeId = data.toolTypeId;
     if (data.config !== undefined) updateData.config = data.config;
@@ -352,12 +346,11 @@ export const toolsAdminRoutes = new OpenAPIHono()
     if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;
 
     // Sync legacy fields to translations.en if legacy fields change but translations don't
-    if (!data.translations && (data.title !== undefined || data.description !== undefined || data.shortDescription !== undefined)) {
+    if (!data.translations && (data.title !== undefined || data.description !== undefined)) {
       const existingTranslations = existing.translations as ToolTranslations;
       updateData.translations = buildTranslationsFromLegacy(
         data.title ?? existing.title,
         data.description ?? existing.description ?? undefined,
-        data.shortDescription ?? existing.shortDescription ?? undefined,
         existingTranslations
       );
     }

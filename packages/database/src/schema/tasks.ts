@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { users } from './users';
 import { tools } from './tools';
@@ -39,33 +39,13 @@ export const taskPayloads = pgTable('task_payloads', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-// Task steps - 1:N relationship for multi-step workflows
-export const taskSteps = pgTable('task_steps', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  taskId: uuid('task_id').notNull().references(() => tasks.id, { onDelete: 'cascade' }),
-  stepId: text('step_id').notNull(),
-  stepIndex: integer('step_index').notNull(),
-  state: jsonb('state'), // Step-specific state data
-  status: text('status').notNull().default('pending'), // 'pending' | 'processing' | 'completed' | 'failed'
-  startedAt: timestamp('started_at'),
-  completedAt: timestamp('completed_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-}, (table) => ({
-  taskIdIdx: index('task_steps_task_id_idx').on(table.taskId),
-}));
-
 // Relations
-export const tasksRelations = relations(tasks, ({ one, many }) => ({
+export const tasksRelations = relations(tasks, ({ one }) => ({
   user: one(users, { fields: [tasks.userId], references: [users.id] }),
   tool: one(tools, { fields: [tasks.toolId], references: [tools.id] }),
   payload: one(taskPayloads, { fields: [tasks.id], references: [taskPayloads.taskId] }),
-  steps: many(taskSteps),
 }));
 
 export const taskPayloadsRelations = relations(taskPayloads, ({ one }) => ({
   task: one(tasks, { fields: [taskPayloads.taskId], references: [tasks.id] }),
-}));
-
-export const taskStepsRelations = relations(taskSteps, ({ one }) => ({
-  task: one(tasks, { fields: [taskSteps.taskId], references: [tasks.id] }),
 }));

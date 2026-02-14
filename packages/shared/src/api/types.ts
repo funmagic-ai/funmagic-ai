@@ -825,54 +825,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/upload/presign": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": components["schemas"]["PresignRequest"];
-                };
-            };
-            responses: {
-                /** @description Presigned upload URL generated */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PresignResponse"];
-                    };
-                };
-                /** @description Invalid request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["UploadError"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/admin/banners": {
         parameters: {
             query?: never;
@@ -2882,6 +2834,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/tasks/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Task soft-deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteTaskSuccess"];
+                    };
+                };
+                /** @description Task not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AdminTasksError"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2920,7 +2918,7 @@ export interface components {
             categories?: {
                 id: string;
                 name: string;
-                displayName: string;
+                title: string;
             }[];
         };
         Tool: {
@@ -2939,7 +2937,6 @@ export interface components {
                 slug: string;
                 title: string;
                 description: string | null;
-                shortDescription: string | null;
                 thumbnail: string | null;
                 config?: unknown;
                 isActive: boolean;
@@ -3120,6 +3117,11 @@ export interface components {
             contentType: string;
             size: number;
             module: string;
+            /**
+             * @default private
+             * @enum {string}
+             */
+            visibility: "public" | "private" | "admin-private";
         };
         DownloadResponse: {
             url: string;
@@ -3152,22 +3154,6 @@ export interface components {
         };
         DeleteAssetSuccess: {
             success: boolean;
-        };
-        PresignResponse: {
-            uploadUrl: string;
-            storageKey: string;
-            bucket: string;
-        };
-        UploadError: {
-            error: string;
-        };
-        PresignRequest: {
-            module: string;
-            filename: string;
-            contentType: string;
-            contentLength?: number;
-            /** @enum {string} */
-            visibility?: "public" | "private";
         };
         AdminBannersList: {
             banners: components["schemas"]["AdminBanner"][];
@@ -3262,7 +3248,6 @@ export interface components {
         CreateBanner: {
             title: string;
             description?: string;
-            /** Format: uri */
             thumbnail: string;
             /** Format: uri */
             link?: string;
@@ -3346,7 +3331,6 @@ export interface components {
         UpdateBanner: {
             title?: string;
             description?: string;
-            /** Format: uri */
             thumbnail?: string;
             /** Format: uri */
             link?: string;
@@ -3442,7 +3426,6 @@ export interface components {
             slug: string;
             title: string;
             description: string | null;
-            shortDescription: string | null;
             thumbnail: string | null;
             /** Format: uuid */
             toolTypeId: string;
@@ -3451,47 +3434,92 @@ export interface components {
                 en: {
                     title: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 zh?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ja?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 fr?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 es?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 pt?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 de?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 vi?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ko?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
             };
             isActive: boolean;
@@ -3503,7 +3531,7 @@ export interface components {
                 /** Format: uuid */
                 id: string;
                 name: string;
-                displayName: string;
+                title: string;
             };
         };
         ToolAdminDetail: {
@@ -3516,7 +3544,6 @@ export interface components {
             slug: string;
             title: string;
             description?: string;
-            shortDescription?: string;
             thumbnail?: string;
             /** Format: uuid */
             toolTypeId: string;
@@ -3525,47 +3552,92 @@ export interface components {
                 en: {
                     title: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 zh?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ja?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 fr?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 es?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 pt?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 de?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 vi?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ko?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
             };
             isActive?: boolean;
@@ -3575,7 +3647,6 @@ export interface components {
             slug?: string;
             title?: string;
             description?: string;
-            shortDescription?: string;
             thumbnail?: string;
             /** Format: uuid */
             toolTypeId?: string;
@@ -3584,47 +3655,92 @@ export interface components {
                 en: {
                     title: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 zh?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ja?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 fr?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 es?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 pt?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 de?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 vi?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
                 ko?: {
                     title?: string;
                     description?: string;
-                    shortDescription?: string;
+                    steps?: {
+                        [key: string]: {
+                            name: string;
+                            description?: string;
+                        };
+                    };
                 };
             };
             isActive?: boolean;
@@ -3646,43 +3762,43 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
-            displayName: string;
+            title: string;
             description: string | null;
             translations: {
                 en: {
-                    displayName: string;
+                    title: string;
                     description?: string;
                 };
                 zh?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ja?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 fr?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 es?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 pt?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 de?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 vi?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ko?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
             };
@@ -3698,43 +3814,43 @@ export interface components {
         };
         CreateToolType: {
             name: string;
-            displayName: string;
+            title?: string;
             description?: string;
             translations?: {
                 en: {
-                    displayName: string;
+                    title: string;
                     description?: string;
                 };
                 zh?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ja?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 fr?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 es?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 pt?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 de?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 vi?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ko?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
             };
@@ -3742,43 +3858,43 @@ export interface components {
         };
         UpdateToolType: {
             name?: string;
-            displayName?: string;
+            title?: string;
             description?: string;
             translations?: {
                 en: {
-                    displayName: string;
+                    title: string;
                     description?: string;
                 };
                 zh?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ja?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 fr?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 es?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 pt?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 de?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 vi?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
                 ko?: {
-                    displayName?: string;
+                    title?: string;
                     description?: string;
                 };
             };
@@ -3814,6 +3930,7 @@ export interface components {
             hasApiKey: boolean;
             hasApiSecret: boolean;
             hasWebhookSecret: boolean;
+            apiKeyPreview: string | null;
         };
         ProviderDetail: {
             provider: components["schemas"]["Provider"];
@@ -3873,6 +3990,7 @@ export interface components {
             updatedAt: string;
             hasApiKey: boolean;
             hasApiSecret: boolean;
+            apiKeyPreview: string | null;
         };
         AdminProviderDetail: {
             provider: components["schemas"]["AdminProvider"];
@@ -4246,6 +4364,12 @@ export interface components {
                 title: string;
                 slug: string;
             } | null;
+        };
+        DeleteTaskSuccess: {
+            success: boolean;
+        };
+        AdminTasksError: {
+            error: string;
         };
     };
     responses: never;

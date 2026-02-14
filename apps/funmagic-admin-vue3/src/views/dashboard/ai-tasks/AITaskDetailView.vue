@@ -5,7 +5,6 @@ import {
   NSpin,
   NEmpty,
   NCard,
-  NTag,
   NCollapse,
   NCollapseItem,
   NDescriptions,
@@ -107,16 +106,6 @@ watch(messages, async (msgs) => {
   }
 }, { immediate: true })
 
-function getStatusType(status: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
-  switch (status) {
-    case 'completed': return 'success'
-    case 'processing': return 'info'
-    case 'pending': return 'warning'
-    case 'failed': return 'error'
-    default: return 'default'
-  }
-}
-
 // Find the user message that precedes an assistant message
 function getUserPrompt(assistantMsg: Message): string | null {
   const idx = messages.value.indexOf(assistantMsg)
@@ -144,15 +133,15 @@ function getUserPrompt(assistantMsg: Message): string | null {
     </div>
 
     <div v-else-if="isError || !chat" class="rounded-lg border border-dashed p-8 text-center md:p-12">
-      <NEmpty description="Failed to load conversation" />
+      <NEmpty :description="t('aiTasks.loadFailed')" />
     </div>
 
     <div v-else class="space-y-6">
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <NCard size="small">
-          <div class="text-sm text-gray-500">Conversation</div>
-          <div class="mt-1 text-lg font-semibold truncate">{{ chat.title || 'Untitled' }}</div>
+          <div class="text-sm text-gray-500">{{ t('aiTasks.conversation') }}</div>
+          <div class="mt-1 text-lg font-semibold truncate">{{ chat.title || t('aiTasks.untitled') }}</div>
         </NCard>
         <NCard size="small">
           <div class="text-sm text-gray-500">{{ t('tasks.completed') }}</div>
@@ -169,9 +158,9 @@ function getUserPrompt(assistantMsg: Message): string | null {
       </div>
 
       <!-- Conversation Info -->
-      <NCard title="Conversation Info" size="small">
+      <NCard :title="t('aiTasks.conversationInfo')" size="small">
         <NDescriptions label-placement="left" :column="2" bordered>
-          <NDescriptionsItem label="ID">
+          <NDescriptionsItem :label="t('common.id')">
             {{ chat.id }}
           </NDescriptionsItem>
           <NDescriptionsItem :label="t('common.createdAt')">
@@ -187,7 +176,7 @@ function getUserPrompt(assistantMsg: Message): string | null {
       </NCard>
 
       <!-- Messages Accordion -->
-      <NCard title="Messages" size="small">
+      <NCard :title="t('aiTasks.messages')" size="small">
         <NCollapse v-if="assistantMessages.length > 0">
           <NCollapseItem
             v-for="(msg, idx) in assistantMessages"
@@ -246,7 +235,7 @@ function getUserPrompt(assistantMsg: Message): string | null {
                       class="w-full h-full"
                     />
                     <div v-else class="w-full h-full flex items-center justify-center text-xs text-gray-400 bg-gray-100 dark:bg-gray-800">
-                      Loading...
+                      {{ t('common.loading') }}
                     </div>
                   </div>
                 </div>
@@ -259,7 +248,7 @@ function getUserPrompt(assistantMsg: Message): string | null {
             </div>
           </NCollapseItem>
         </NCollapse>
-        <NEmpty v-else :description="'No assistant messages'" />
+        <NEmpty v-else :description="t('aiTasks.noAssistantMessages')" />
       </NCard>
     </div>
   </div>

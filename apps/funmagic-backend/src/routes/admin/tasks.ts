@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tasks, tools, users } from '@funmagic/database';
-import { eq, desc, and, sql } from 'drizzle-orm';
+import { eq, desc, and, sql, isNull } from 'drizzle-orm';
 
 const TaskSchema = z.object({
   id: z.string().uuid(),
@@ -49,6 +49,25 @@ const listTasksRoute = createRoute({
   },
 });
 
+const deleteTaskRoute = createRoute({
+  method: 'delete',
+  path: '/{id}',
+  tags: ['Admin - Tasks'],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      content: { 'application/json': { schema: z.object({ success: z.boolean() }).openapi('DeleteTaskSuccess') } },
+      description: 'Task soft-deleted',
+    },
+    404: {
+      content: { 'application/json': { schema: ErrorSchema } },
+      description: 'Task not found',
+    },
+  },
+});
+
 export const adminTasksRoutes = new OpenAPIHono()
   .openapi(listTasksRoute, async (c) => {
     const { status, limit, offset, parentTaskId } = c.req.valid('query');
@@ -56,12 +75,14 @@ export const adminTasksRoutes = new OpenAPIHono()
     const queryLimit = limit ?? 50;
     const queryOffset = offset ?? 0;
 
-    const conditions = [];
+    const conditions = [isNull(tasks.deletedAt)];
     if (status && status !== 'all') {
       conditions.push(eq(tasks.status, status));
     }
     if (parentTaskId) {
       conditions.push(eq(tasks.parentTaskId, parentTaskId));
+    } else {
+      conditions.push(isNull(tasks.parentTaskId));
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -122,4 +143,27 @@ export const adminTasksRoutes = new OpenAPIHono()
       }),
       total: countResult[0]?.count ?? 0,
     }, 200);
+  })
+  .openapi(deleteTaskRoute, async (c) => {
+    const { id } = c.req.valid('param');
+
+    const existing = await db.query.tasks.findFirst({
+      where: and(eq(tasks.id, id), isNull(tasks.deletedAt)),
+    });
+
+    if (!existing) {
+      return c.json({ error: 'Task not found' }, 404);
+    }
+
+    // Soft delete the task and its children
+    await db.update(tasks)
+      .set({ deletedAt: new Date() })
+      .where(eq(tasks.id, id));
+
+    // Also soft delete child tasks
+    await db.update(tasks)
+      .set({ deletedAt: new Date() })
+      .where(and(eq(tasks.parentTaskId, id), isNull(tasks.deletedAt)));
+
+    return c.json({ success: true }, 200);
   });

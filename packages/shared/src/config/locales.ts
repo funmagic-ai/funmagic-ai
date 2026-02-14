@@ -30,11 +30,11 @@ export const LOCALE_LABELS: Record<SupportedLocale, string> = {
 export interface ToolTranslationContent {
   title: string
   description?: string
-  shortDescription?: string
+  steps?: Record<string, { name: string; description?: string }>
 }
 
 export interface ToolTypeTranslationContent {
-  displayName: string
+  title: string
   description?: string
 }
 
@@ -62,10 +62,26 @@ export function getLocalizedToolContent(
     return enContent
   }
 
+  // Merge step translations: locale-specific steps override English steps
+  const enSteps = enContent.steps
+  const localeSteps = localeContent.steps
+  let mergedSteps: Record<string, { name: string; description?: string }> | undefined
+  if (enSteps || localeSteps) {
+    mergedSteps = { ...enSteps }
+    if (localeSteps) {
+      for (const [stepId, stepTranslation] of Object.entries(localeSteps)) {
+        mergedSteps[stepId] = {
+          name: stepTranslation.name || mergedSteps[stepId]?.name || stepId,
+          description: stepTranslation.description ?? mergedSteps[stepId]?.description,
+        }
+      }
+    }
+  }
+
   return {
     title: localeContent.title || enContent.title,
     description: localeContent.description ?? enContent.description,
-    shortDescription: localeContent.shortDescription ?? enContent.shortDescription,
+    steps: mergedSteps,
   }
 }
 
@@ -81,7 +97,7 @@ export function getLocalizedToolTypeContent(
   }
 
   return {
-    displayName: localeContent.displayName || enContent.displayName,
+    title: localeContent.title || enContent.title,
     description: localeContent.description ?? enContent.description,
   }
 }

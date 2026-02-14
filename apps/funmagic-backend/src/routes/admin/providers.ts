@@ -5,7 +5,7 @@ import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypt
 
 // Environment variables
 const SECRET_KEY = process.env.SECRET_KEY;
-const HEALTH_CHECK_TIMEOUT = parseInt(process.env.HEALTH_CHECK_TIMEOUT_MS ?? '10000', 10);
+const HEALTH_CHECK_TIMEOUT = parseInt(process.env.HEALTH_CHECK_TIMEOUT_MS!, 10);
 
 // Encryption constants
 const ALGORITHM = 'aes-256-gcm';
@@ -31,6 +31,7 @@ const ProviderSchema = z.object({
   hasApiKey: z.boolean(),
   hasApiSecret: z.boolean(),
   hasWebhookSecret: z.boolean(),
+  apiKeyPreview: z.string().nullable(),
 }).openapi('Provider');
 
 const ProvidersListSchema = z.object({
@@ -179,6 +180,18 @@ const healthCheckRoute = createRoute({
   },
 });
 
+// Get masked preview of a credential (e.g. "••••ab3F")
+function getKeyPreview(encrypted: string | null): string | null {
+  if (!encrypted) return null;
+  try {
+    const decrypted = decryptCredential(encrypted);
+    if (!decrypted || decrypted.length < 4) return '••••';
+    return '••••' + decrypted.slice(-4);
+  } catch {
+    return '••••';
+  }
+}
+
 // Helper function to format provider (masking credentials)
 function formatProvider(p: typeof providers.$inferSelect) {
   return {
@@ -198,6 +211,7 @@ function formatProvider(p: typeof providers.$inferSelect) {
     hasApiKey: !!p.apiKey,
     hasApiSecret: !!p.apiSecret,
     hasWebhookSecret: !!p.webhookSecret,
+    apiKeyPreview: getKeyPreview(p.apiKey),
   };
 }
 

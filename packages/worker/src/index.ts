@@ -25,27 +25,38 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       .set({ status: 'processing', startedAt: new Date() })
       .where(eq(tasks.id, taskId));
 
+    // Get the tool-specific worker
+    const toolWorker = getToolWorker(toolSlug);
+
+    if (!toolWorker) {
+      throw new Error(`No worker found for tool: ${toolSlug}. Available: ${getRegisteredTools().join(', ')}`);
+    }
+
+    // Execute the tool worker with step context
+    let result: import('./types').StepResult;
     try {
-      // Get the tool-specific worker
-      const toolWorker = getToolWorker(toolSlug);
-
-      if (!toolWorker) {
-        throw new Error(`No worker found for tool: ${toolSlug}. Available: ${getRegisteredTools().join(', ')}`);
-      }
-
-      // Execute the tool worker with step context
-      const result = await toolWorker.execute({
+      result = await toolWorker.execute({
         taskId,
         stepId,
         userId,
         input: { ...input, parentTaskId },
         redis,
       });
+    } catch (error) {
+      result = {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
 
-      if (!result.success) {
-        throw new Error(result.error || 'Tool execution failed');
-      }
+    // Provider data to persist regardless of outcome
+    const providerData = {
+      providerRequest: result.providerRequest,
+      providerResponse: result.providerResponse,
+      providerMeta: result.providerMeta,
+    };
 
+    if (result.success) {
       // Update task as completed
       await db.update(tasks)
         .set({
@@ -54,9 +65,9 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         })
         .where(eq(tasks.id, taskId));
 
-      // Update payload with output
+      // Update payload with output and provider data
       await db.update(taskPayloads)
-        .set({ output: result.output })
+        .set({ output: result.output, ...providerData })
         .where(eq(taskPayloads.taskId, taskId));
 
       // Confirm credit charge if credits were reserved
@@ -81,8 +92,8 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       console.log(`[Worker] Task ${taskId} completed successfully`);
       return result.output;
 
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    } else {
+      const errorMessage = result.error || 'Tool execution failed';
       console.error(`[Worker] Task ${taskId} failed:`, errorMessage);
 
       // Update task as failed
@@ -93,9 +104,9 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         })
         .where(eq(tasks.id, taskId));
 
-      // Update payload with error
+      // Update payload with error and any provider data captured before failure
       await db.update(taskPayloads)
-        .set({ error: errorMessage })
+        .set({ error: errorMessage, ...providerData })
         .where(eq(taskPayloads.taskId, taskId));
 
       // Release reserved credits if task failed
@@ -115,7 +126,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       // Publish failure event
       await publishTaskFailed(redis, taskId, errorMessage);
 
-      throw error;
+      throw new Error(errorMessage);
     }
   },
   {

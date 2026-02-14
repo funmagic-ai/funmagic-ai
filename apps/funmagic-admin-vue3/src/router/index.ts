@@ -166,13 +166,19 @@ const router = createRouter({
         // AI Studio
         {
           path: 'ai-studio',
-          name: 'ai-studio',
-          component: () => import('@/views/dashboard/ai-studio/AiStudioView.vue'),
-        },
-        {
-          path: 'ai-studio/chat/:id',
-          name: 'ai-studio-chat',
-          component: () => import('@/views/dashboard/ai-studio/AiChatView.vue'),
+          component: () => import('@/views/dashboard/ai-studio/AiStudioLayout.vue'),
+          children: [
+            {
+              path: '',
+              name: 'ai-studio',
+              component: () => import('@/views/dashboard/ai-studio/AiStudioEmptyState.vue'),
+            },
+            {
+              path: 'chat/:id',
+              name: 'ai-studio-chat',
+              component: () => import('@/views/dashboard/ai-studio/AiChatView.vue'),
+            },
+          ],
         },
       ],
     },

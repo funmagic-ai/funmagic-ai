@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NIcon, NStatistic, NSpin, NEmpty, NButton } from 'naive-ui'
+import { NIcon, NSpin, NEmpty, NButton } from 'naive-ui'
 import {
   HourglassOutline,
   FlashOutline,
@@ -81,13 +81,13 @@ const stats = computed(() => [
 
 <template>
   <div>
-    <PageHeader :title="t('queue.title')" description="Monitor background job processing">
+    <PageHeader :title="t('queue.title')" :description="t('queue.description')">
       <template #actions>
         <NButton :loading="isLoading" @click="() => refetch()">
           <template #icon>
             <NIcon><RefreshOutline /></NIcon>
           </template>
-          Refresh
+          {{ t('queue.refresh') }}
         </NButton>
       </template>
     </PageHeader>
@@ -98,10 +98,10 @@ const stats = computed(() => [
 
     <template v-else-if="isError">
       <n-card>
-        <NEmpty description="Queue stats API is not yet available." class="py-12">
+        <NEmpty :description="t('queue.notAvailable')" class="py-12">
           <template #extra>
             <p class="text-sm text-muted-foreground">
-              The queue monitoring endpoint needs to be implemented in the backend.
+              {{ t('queue.notAvailableHint') }}
             </p>
           </template>
         </NEmpty>

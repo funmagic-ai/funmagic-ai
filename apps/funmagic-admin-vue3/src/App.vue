@@ -16,27 +16,68 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 
 const THEME_PRIMARY_COLORS: Record<ThemeName, string> = {
-  purple: '#9333ea',
-  blue: '#3b82f6',
-  green: '#22c55e',
-  orange: '#f97316',
-  red: '#ef4444',
-  teal: '#14b8a6',
-  indigo: '#6366f1',
-  slate: '#64748b',
+  purple: '#7c3aed',
+  blue: '#2563eb',
+  green: '#16a34a',
+  orange: '#ea580c',
+  red: '#dc2626',
+  teal: '#0d9488',
+  indigo: '#4f46e5',
+  slate: '#475569',
+}
+
+const THEME_DARK_PRIMARY_COLORS: Record<ThemeName, string> = {
+  purple: '#a78bfa',
+  blue: '#60a5fa',
+  green: '#4ade80',
+  orange: '#fb923c',
+  red: '#f87171',
+  teal: '#2dd4bf',
+  indigo: '#818cf8',
+  slate: '#94a3b8',
 }
 
 const themeOverrides = computed<GlobalThemeOverrides>(() => {
-  const primary = THEME_PRIMARY_COLORS[appStore.currentTheme] || '#9333ea'
+  const colors = appStore.isDark ? THEME_DARK_PRIMARY_COLORS : THEME_PRIMARY_COLORS
+  const primary = colors[appStore.currentTheme] || '#9333ea'
+  const radius = '0.625rem'
+  const radiusLg = '0.75rem'
   return {
     common: {
       primaryColor: primary,
       primaryColorHover: primary,
       primaryColorPressed: primary,
       primaryColorSuppl: primary,
+      borderRadius: radius,
+      borderRadiusSmall: radius,
     },
     Card: {
-      borderRadius: '0.75rem',
+      borderRadius: radiusLg,
+    },
+    Button: {
+      borderRadiusTiny: radius,
+      borderRadiusSmall: radius,
+      borderRadiusMedium: radius,
+      borderRadiusLarge: radius,
+    },
+    Input: {
+      borderRadius: radius,
+    },
+    Select: {
+      peers: {
+        InternalSelection: {
+          borderRadius: radius,
+        },
+      },
+    },
+    Tag: {
+      borderRadius: radius,
+    },
+    DataTable: {
+      borderRadius: radiusLg,
+    },
+    Dialog: {
+      borderRadius: radiusLg,
     },
   }
 })
@@ -50,7 +91,7 @@ const theme = computed(() => (appStore.isDark ? darkTheme : null))
       <NMessageProvider>
         <NDialogProvider>
           <NNotificationProvider>
-            <div v-if="authStore.isLoading" class="flex h-screen items-center justify-center">
+            <div v-if="authStore.isLoading" class="flex h-dvh items-center justify-center">
               <n-spin size="large" />
             </div>
             <ErrorBoundary v-else>

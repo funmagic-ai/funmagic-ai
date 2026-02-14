@@ -12,6 +12,7 @@ import {
   getLocalizedToolContent,
   getLocalizedToolTypeContent,
 } from '@funmagic/shared';
+import type { SavedToolConfig } from '@funmagic/shared/tool-registry';
 import { getPublicCdnUrl } from '@funmagic/services/storage';
 
 const listToolsRoute = createRoute({
@@ -123,7 +124,7 @@ export const toolsRoutes = new OpenAPIHono()
             title: localizedContent.title,
             description: localizedContent.description ?? null,
             thumbnail: t.thumbnail ? getPublicCdnUrl(t.thumbnail) : null,
-            category: localizedToolType?.displayName ?? t.toolType?.displayName,
+            category: localizedToolType?.title ?? t.toolType?.title,
           };
         }),
         pagination: {
@@ -140,7 +141,7 @@ export const toolsRoutes = new OpenAPIHono()
           return {
             id: t.id,
             name: t.name,
-            displayName: localizedToolType.displayName,
+            title: localizedToolType.title,
           };
         }),
       });
@@ -173,15 +174,25 @@ export const toolsRoutes = new OpenAPIHono()
       locale as SupportedLocale
     );
 
+    // Inject localized step names into config
+    const savedConfig = tool.config as SavedToolConfig | undefined;
+    const localizedConfig = savedConfig ? {
+      ...savedConfig,
+      steps: (savedConfig.steps ?? []).map(s => ({
+        ...s,
+        name: localizedContent.steps?.[s.id]?.name ?? s.id,
+        description: localizedContent.steps?.[s.id]?.description,
+      })),
+    } : tool.config;
+
     return c.json({
       tool: {
         id: tool.id,
         slug: tool.slug,
         title: localizedContent.title,
         description: localizedContent.description ?? null,
-        shortDescription: localizedContent.shortDescription ?? null,
         thumbnail: tool.thumbnail ? getPublicCdnUrl(tool.thumbnail) : null,
-        config: tool.config,
+        config: localizedConfig,
         isActive: tool.isActive,
         isFeatured: tool.isFeatured,
         usageCount: tool.usageCount,

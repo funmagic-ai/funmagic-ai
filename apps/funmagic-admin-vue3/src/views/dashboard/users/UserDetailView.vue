@@ -48,11 +48,11 @@ const {
 })
 
 // Role change
-const roleOptions = [
+const roleOptions = computed(() => [
   { label: t('roles.user'), value: 'user' as const },
   { label: t('roles.admin'), value: 'admin' as const },
   { label: t('roles.superAdmin'), value: 'super_admin' as const },
-]
+])
 
 const selectedRole = ref<'user' | 'admin' | 'super_admin'>('user')
 
@@ -117,20 +117,20 @@ const creditMutation = useMutation({
 
 function handleCreditAdjust() {
   if (!creditAmount.value) {
-    message.warning('Please enter a credit amount')
+    message.warning(t('users.creditAmountRequired'))
     return
   }
   if (!creditDescription.value.trim()) {
-    message.warning('Please enter a description')
+    message.warning(t('users.creditReasonRequired'))
     return
   }
   creditMutation.mutate()
 }
 
 // Transaction history columns
-const transactionColumns: DataTableColumns = [
+const transactionColumns = computed<DataTableColumns>(() => [
   {
-    title: 'Type',
+    title: t('common.type'),
     key: 'type',
     width: 120,
     render(row: any) {
@@ -138,7 +138,7 @@ const transactionColumns: DataTableColumns = [
     },
   },
   {
-    title: 'Amount',
+    title: t('common.amount'),
     key: 'amount',
     width: 100,
     render(row: any) {
@@ -151,7 +151,7 @@ const transactionColumns: DataTableColumns = [
     },
   },
   {
-    title: 'Balance After',
+    title: t('common.balanceAfter'),
     key: 'balanceAfter',
     width: 120,
   },
@@ -171,10 +171,10 @@ const transactionColumns: DataTableColumns = [
       return new Date(row.createdAt).toLocaleString()
     },
   },
-]
+])
 
 // Recent tasks columns
-const taskColumns: DataTableColumns = [
+const taskColumns = computed<DataTableColumns>(() => [
   {
     title: t('common.id'),
     key: 'id',
@@ -200,7 +200,7 @@ const taskColumns: DataTableColumns = [
     },
   },
   {
-    title: 'Credits',
+    title: t('users.credits'),
     key: 'creditsCost',
     width: 80,
   },
@@ -212,12 +212,12 @@ const taskColumns: DataTableColumns = [
       return new Date(row.createdAt).toLocaleString()
     },
   },
-]
+])
 </script>
 
 <template>
   <div>
-    <PageHeader :title="userData?.user?.name ?? userData?.user?.email ?? 'User Detail'">
+    <PageHeader :title="userData?.user?.name ?? userData?.user?.email ?? t('users.title')">
       <template #actions>
         <NButton quaternary @click="router.push({ name: 'users' })">
           <template #icon>
@@ -235,7 +235,7 @@ const taskColumns: DataTableColumns = [
 
     <!-- Error -->
     <div v-else-if="isError" class="py-12 text-center">
-      <NEmpty description="User not found or failed to load">
+      <NEmpty :description="t('users.userNotFound')">
         <template #extra>
           <NButton @click="() => refetch()">{{ t('common.retry') }}</NButton>
         </template>
@@ -246,7 +246,7 @@ const taskColumns: DataTableColumns = [
     <template v-else-if="userData?.user">
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- User Info -->
-        <NCard title="User Information" size="small">
+        <NCard :title="t('users.userInformation')" size="small">
           <NDescriptions label-placement="left" :column="1" bordered>
             <NDescriptionsItem :label="t('common.id')">
               {{ userData.user.id }}
@@ -260,8 +260,8 @@ const taskColumns: DataTableColumns = [
             <NDescriptionsItem :label="t('users.role')">
               {{ userData.user.role }}
             </NDescriptionsItem>
-            <NDescriptionsItem label="Email Verified">
-              {{ userData.user.emailVerified ? 'Yes' : 'No' }}
+            <NDescriptionsItem :label="t('users.emailVerified')">
+              {{ userData.user.emailVerified ? t('common.yes') : t('common.no') }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="t('common.createdAt')">
               {{ new Date(userData.user.createdAt).toLocaleString() }}
@@ -298,19 +298,19 @@ const taskColumns: DataTableColumns = [
                 <div class="text-2xl font-bold text-foreground">
                   {{ userData.user.credits?.balance ?? 0 }}
                 </div>
-                <div class="text-xs text-muted-foreground">Balance</div>
+                <div class="text-xs text-muted-foreground">{{ t('users.balance') }}</div>
               </div>
               <div>
                 <div class="text-2xl font-bold text-green-600">
                   {{ userData.user.credits?.lifetimePurchased ?? 0 }}
                 </div>
-                <div class="text-xs text-muted-foreground">Purchased</div>
+                <div class="text-xs text-muted-foreground">{{ t('users.purchased') }}</div>
               </div>
               <div>
                 <div class="text-2xl font-bold text-red-600">
                   {{ userData.user.credits?.lifetimeUsed ?? 0 }}
                 </div>
-                <div class="text-xs text-muted-foreground">Used</div>
+                <div class="text-xs text-muted-foreground">{{ t('users.used') }}</div>
               </div>
             </div>
 
@@ -319,12 +319,12 @@ const taskColumns: DataTableColumns = [
             <div class="flex flex-col gap-3">
               <NInputNumber
                 v-model:value="creditAmount"
-                placeholder="Amount (positive or negative)"
+                :placeholder="t('users.creditAmountPlaceholder')"
                 class="w-full"
               />
               <NInput
                 v-model:value="creditDescription"
-                placeholder="Reason for adjustment"
+                :placeholder="t('users.creditReasonPlaceholder')"
               />
               <NButton
                 type="primary"
@@ -341,7 +341,7 @@ const taskColumns: DataTableColumns = [
       </div>
 
       <!-- Transaction History -->
-      <NCard title="Transaction History" size="small" class="mt-6">
+      <NCard :title="t('users.transactionHistory')" size="small" class="mt-6">
         <NEmpty
           v-if="!userData.recentTransactions?.length"
           :description="t('common.noResults')"
@@ -358,7 +358,7 @@ const taskColumns: DataTableColumns = [
       </NCard>
 
       <!-- Recent Tasks -->
-      <NCard title="Recent Tasks" size="small" class="mt-6">
+      <NCard :title="t('users.recentTasks')" size="small" class="mt-6">
         <NEmpty
           v-if="!userData.recentTasks?.length"
           :description="t('common.noResults')"

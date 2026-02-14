@@ -7,15 +7,10 @@ const props = withDefaults(defineProps<{
   categoryLabel?: string
   image?: string
   rating?: number
-  pricing?: 'free' | 'freemium' | 'paid'
-  pricingLabel?: string
   visitLabel?: string
   locale?: string
 }>(), {
   rating: 0,
-  pricing: 'free',
-  pricingLabel: 'Free',
-  visitLabel: 'Visit',
   locale: 'en',
 })
 
@@ -42,7 +37,7 @@ const toolLink = computed(() => {
 </script>
 
 <template>
-  <article class="rounded-xl overflow-hidden border bg-card/50 backdrop-blur transition-all duration-300 hover:shadow-lg hover:border-primary/30 group flex flex-col h-full cursor-pointer">
+  <article class="rounded-xl overflow-hidden border bg-card/50 backdrop-blur transition-all duration-300 hover:shadow-lg hover:border-primary/30 focus-within:ring-2 focus-within:ring-ring group flex flex-col h-full">
     <!-- Image -->
     <RouterLink :to="toolLink" class="relative aspect-video w-full overflow-hidden bg-muted block">
       <div v-if="showFallback" class="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
@@ -53,22 +48,23 @@ const toolLink = computed(() => {
         <img
           :src="image"
           :alt="name"
-          class="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
+          loading="lazy"
+          class="w-full h-full object-cover transition-all duration-500 group-hover:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
           :class="imageLoaded ? 'opacity-100' : 'opacity-0'"
           @load="handleImageLoad"
           @error="handleImageError"
         />
       </template>
-      <!-- Pricing Badge -->
-      <div class="absolute top-3 left-3 z-10">
+      <!-- Category Badge -->
+      <div v-if="categoryLabel" class="absolute top-3 left-3 z-10">
         <span class="inline-flex items-center px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-white border border-white/10 uppercase text-[10px] font-bold tracking-wide">
-          {{ pricingLabel }}
+          {{ categoryLabel }}
         </span>
       </div>
       <!-- Bookmark Button -->
       <button
         type="button"
-        class="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary flex items-center justify-center"
+        class="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-black/60 text-white backdrop-blur-md opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-primary flex items-center justify-center"
         aria-label="Bookmark tool"
         @click.prevent
       >
@@ -79,14 +75,9 @@ const toolLink = computed(() => {
     <!-- Content -->
     <div class="p-5 flex flex-col flex-1 gap-3">
       <div class="flex justify-between items-start">
-        <div>
-          <h3 class="font-bold text-lg group-hover:text-primary transition-colors">
-            {{ name }}
-          </h3>
-          <p v-if="categoryLabel" class="text-xs text-primary font-medium mt-1 px-2 py-0.5 rounded bg-primary/10 w-fit border border-primary/20">
-            {{ categoryLabel }}
-          </p>
-        </div>
+        <h3 class="font-bold text-lg">
+          {{ name }}
+        </h3>
         <!-- Rating -->
         <div v-if="rating > 0" class="flex items-center gap-1 text-yellow-500">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -101,6 +92,7 @@ const toolLink = computed(() => {
       <!-- Footer -->
       <div class="mt-auto pt-4 flex items-center justify-end border-t border-border/50">
         <RouterLink
+          v-if="visitLabel"
           :to="toolLink"
           class="text-foreground hover:text-primary text-sm font-medium transition-colors flex items-center gap-1"
         >

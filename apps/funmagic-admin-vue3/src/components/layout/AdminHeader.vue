@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NIcon, NDropdown } from 'naive-ui'
+import { NIcon, NDropdown, type DropdownOption } from 'naive-ui'
 import {
   MenuOutline,
   PersonCircleOutline,
@@ -28,10 +28,19 @@ const { locale, t } = useI18n()
 const toggleSidebar = inject<() => void>('toggleSidebar', () => appStore.toggleSidebar())
 
 // Locale switcher options
-const localeOptions = SUPPORTED_LOCALES.map((loc) => ({
-  key: loc,
-  label: LOCALE_LABELS[loc],
-}))
+const localeOptions: DropdownOption[] = [
+  {
+    key: 'header',
+    type: 'render',
+    render: () =>
+      h('div', { class: 'px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider', style: 'min-width:220px' }, 'Language'),
+  },
+  { type: 'divider', key: 'd0' },
+  ...SUPPORTED_LOCALES.map((loc) => ({
+    key: loc,
+    label: LOCALE_LABELS[loc],
+  })),
+]
 
 async function handleLocaleSelect(key: string) {
   await setLocale(key as SupportedLocale)
@@ -63,6 +72,7 @@ async function handleUserSelect(key: string) {
       <!-- Sidebar toggle -->
       <button
         class="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-accent"
+        aria-label="Toggle sidebar"
         @click="toggleSidebar()"
       >
         <NIcon :size="20">
@@ -77,16 +87,40 @@ async function handleUserSelect(key: string) {
       <NDropdown
         trigger="click"
         :options="localeOptions"
-        :value="locale"
         @select="handleLocaleSelect"
       >
         <button
           class="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-accent"
+          aria-label="Change language"
         >
           <NIcon :size="20">
             <LanguageOutline />
           </NIcon>
         </button>
+        <template #renderLabel="{ option }">
+          <div
+            class="flex items-center gap-3 min-w-[160px] py-0.5 rounded"
+            :style="option.key === locale ? { background: 'color-mix(in oklch, var(--primary) 15%, transparent)' } : undefined"
+          >
+            <span
+              :class="['inline-flex h-5 w-7 items-center justify-center rounded text-[10px] font-bold uppercase shrink-0', option.key === locale ? 'bg-primary/20' : 'bg-muted text-muted-foreground']"
+              :style="option.key === locale ? { color: 'var(--foreground)' } : undefined"
+            >
+              {{ (option.key as string).toUpperCase() }}
+            </span>
+            <span
+              class="text-sm flex-1"
+              :style="option.key === locale ? { color: 'var(--foreground)', fontWeight: 600 } : undefined"
+            >
+              {{ option.label }}
+            </span>
+            <span
+              v-if="option.key === locale"
+              class="text-xs shrink-0"
+              :style="{ color: 'var(--foreground)' }"
+            >&#10003;</span>
+          </div>
+        </template>
       </NDropdown>
 
       <!-- Theme switcher -->
@@ -95,6 +129,7 @@ async function handleUserSelect(key: string) {
       <!-- Dark mode toggle -->
       <button
         class="flex h-9 w-9 items-center justify-center rounded-lg transition-colors hover:bg-accent"
+        :aria-label="appStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
         @click="appStore.toggleDark()"
       >
         <NIcon :size="20">
@@ -114,6 +149,7 @@ async function handleUserSelect(key: string) {
       >
         <button
           class="flex items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors hover:bg-accent"
+          aria-label="User menu"
         >
           <NIcon :size="20">
             <PersonCircleOutline />

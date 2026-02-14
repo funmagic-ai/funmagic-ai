@@ -67,7 +67,7 @@ export const ToolsListSchema = z.object({
   categories: z.array(z.object({
     id: z.string(),
     name: z.string(),
-    displayName: z.string(),
+    title: z.string(),
   })).optional(),
 }).openapi('ToolsList')
 
@@ -77,7 +77,6 @@ export const ToolDetailSchema = z.object({
     slug: z.string(),
     title: z.string(),
     description: z.string().nullable(),
-    shortDescription: z.string().nullable(),
     thumbnail: z.string().nullable(),
     config: z.any(),
     isActive: z.boolean(),

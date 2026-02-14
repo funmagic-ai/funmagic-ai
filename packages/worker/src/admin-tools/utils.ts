@@ -1,6 +1,7 @@
 import type { QuotedImage, GeneratedImage, AdminWorkerContext } from './types';
 import { createAdminProgressTracker } from './progress';
-import { uploadBufferWithoutRecord, getAdminDownloadUrl } from '../lib/storage';
+import { uploadBufferAdmin, getAdminDownloadUrl } from '../lib/storage';
+import { ASSET_MODULE } from '@funmagic/shared';
 
 /**
  * Get presigned URL for a storage key or return the URL as-is if it's already a full URL
@@ -36,9 +37,7 @@ export async function fetchImageAsBase64(imageRef: QuotedImage): Promise<string>
 }
 
 /**
- * Upload base64 image data to S3 without creating a database record.
- * Admin AI Studio images don't need asset tracking and using uploadBuffer
- * would cause foreign key violations since adminId may not exist in users table.
+ * Upload base64 image data to S3 admin bucket with asset record.
  * Returns only storageKey - URL is generated on-demand via presigned URL endpoint.
  */
 export async function uploadBase64Image(
@@ -49,16 +48,15 @@ export async function uploadBase64Image(
 ): Promise<GeneratedImage> {
   const buffer = Buffer.from(base64Data, 'base64');
 
-  const result = await uploadBufferWithoutRecord({
+  const result = await uploadBufferAdmin({
     buffer,
     userId: context.adminId,
-    module: 'ai-studio',
-    taskId: context.messageId, // Use messageId as the task reference
+    module: ASSET_MODULE.AI_STUDIO,
+    taskId: context.messageId,
     filename: `${prefix}_${Date.now()}_${index}.png`,
     contentType: 'image/png',
   });
 
-  // Return only storageKey - URL is generated on-demand via presigned URL endpoint
   return {
     storageKey: result.storageKey,
     type: 'generated',
@@ -73,4 +71,4 @@ export function createProgressTracker(context: AdminWorkerContext) {
 }
 
 // Re-export storage functions for convenience
-export { uploadBuffer, uploadBufferWithoutRecord, uploadFromUrl, uploadFromUrlWithoutRecord, getDownloadUrl, getAdminDownloadUrl } from '../lib/storage';
+export { uploadBuffer, uploadBufferAdmin, uploadFromUrl, uploadFromUrlAdmin, getDownloadUrl, getAdminDownloadUrl } from '../lib/storage';

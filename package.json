@@ -29,6 +29,7 @@
     "api:generate": "bunx openapi-typescript http://localhost:8000/openapi.json -o packages/shared/src/api/types.ts"
   },
   "devDependencies": {
+    "knip": "^5.83.1",
     "openapi-typescript": "^7.10.1"
   }
 }

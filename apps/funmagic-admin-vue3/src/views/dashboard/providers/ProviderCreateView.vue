@@ -5,6 +5,7 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useMutation } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { validateForm } from '@/composables/useFormValidation'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
@@ -26,7 +27,7 @@ const formValue = ref({
 
 const rules: FormRules = {
   name: [{ required: true, message: t('validation.nameRequired'), trigger: 'blur' }],
-  displayName: [{ required: true, message: 'Display name is required', trigger: 'blur' }],
+  displayName: [{ required: true, message: t('validation.displayNameRequired'), trigger: 'blur' }],
 }
 
 const createMutation = useMutation({
@@ -57,12 +58,8 @@ const createMutation = useMutation({
 })
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-    createMutation.mutate()
-  } catch {
-    // validation failed
-  }
+  if (!await validateForm(formRef)) return
+  createMutation.mutate()
 }
 </script>
 
@@ -88,12 +85,16 @@ async function handleSubmit() {
         label-placement="left"
         label-width="160"
       >
-        <NFormItem label="Name (slug)" path="name">
-          <NInput v-model:value="formValue.name" placeholder="e.g. openai-main" />
+        <NFormItem :label="t('common.active')">
+          <NSwitch v-model:value="formValue.isActive" />
         </NFormItem>
 
-        <NFormItem label="Display Name" path="displayName">
-          <NInput v-model:value="formValue.displayName" placeholder="e.g. OpenAI (Main)" />
+        <NFormItem :label="t('common.nameSlug')" path="name">
+          <NInput v-model:value="formValue.name" :placeholder="t('placeholder.exampleSlug', { example: 'openai-main' })" />
+        </NFormItem>
+
+        <NFormItem :label="t('common.displayName')" path="displayName">
+          <NInput v-model:value="formValue.displayName" :placeholder="t('placeholder.exampleDisplayName', { example: 'OpenAI (Main)' })" />
         </NFormItem>
 
         <NFormItem :label="t('common.description')">
@@ -101,7 +102,7 @@ async function handleSubmit() {
             v-model:value="formValue.description"
             type="textarea"
             :rows="3"
-            placeholder="Optional description"
+            :placeholder="t('placeholder.optionalDescription')"
           />
         </NFormItem>
 
@@ -110,38 +111,34 @@ async function handleSubmit() {
             v-model:value="formValue.apiKey"
             type="password"
             show-password-on="click"
-            placeholder="API key (optional)"
+            :placeholder="t('placeholder.apiKeyOptional')"
           />
         </NFormItem>
 
-        <NFormItem label="API Secret">
+        <NFormItem :label="t('providers.apiSecret')">
           <NInput
             v-model:value="formValue.apiSecret"
             type="password"
             show-password-on="click"
-            placeholder="API secret (optional)"
+            :placeholder="t('placeholder.apiSecretOptional')"
           />
         </NFormItem>
 
         <NFormItem :label="t('providers.baseUrl')">
-          <NInput v-model:value="formValue.baseUrl" placeholder="https://api.example.com" />
+          <NInput v-model:value="formValue.baseUrl" :placeholder="t('placeholder.exampleUrl')" />
         </NFormItem>
 
-        <NFormItem label="Webhook Secret">
+        <NFormItem :label="t('providers.webhookSecret')">
           <NInput
             v-model:value="formValue.webhookSecret"
             type="password"
             show-password-on="click"
-            placeholder="Webhook secret (optional)"
+            :placeholder="t('placeholder.webhookSecretOptional')"
           />
         </NFormItem>
 
-        <NFormItem label="Health Check URL">
-          <NInput v-model:value="formValue.healthCheckUrl" placeholder="https://api.example.com/health" />
-        </NFormItem>
-
-        <NFormItem label="Active">
-          <NSwitch v-model:value="formValue.isActive" />
+        <NFormItem :label="t('providers.healthCheckUrl')">
+          <NInput v-model:value="formValue.healthCheckUrl" :placeholder="t('placeholder.exampleHealthCheckUrl')" />
         </NFormItem>
 
         <div class="flex justify-end gap-2 pt-4">

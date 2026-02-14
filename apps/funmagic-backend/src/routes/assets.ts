@@ -1,55 +1,21 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, assets } from '@funmagic/database';
 import { eq, and, isNull, desc } from 'drizzle-orm';
-import { S3Client, PutObjectCommand, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  generateStorageKey,
+  getBucketForVisibility,
+  getPresignedUploadUrl,
+  resolveAssetUrl,
+  getPublicCdnUrl,
+  copyObject,
+  deleteObject,
+} from '@funmagic/services';
+import { ASSET_VISIBILITY, type AssetVisibility } from '@funmagic/shared';
 
-// Environment variables for URL expirations
-const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE ?? '900', 10);
-const PRESIGNED_URL_EXPIRATION_UPLOAD = parseInt(process.env.PRESIGNED_URL_EXPIRATION_UPLOAD ?? '3600', 10);
-
-// S3 Configuration
-const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT!,
-  region: process.env.S3_REGION!,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY!,
-    secretAccessKey: process.env.S3_SECRET_KEY!,
-  },
-  forcePathStyle: true, // Required for MinIO
-});
-
-// Bucket configuration
-const BUCKETS = {
-  public: process.env.S3_BUCKET_PUBLIC!,
-  private: process.env.S3_BUCKET_PRIVATE!,
-  admin: process.env.S3_BUCKET_ADMIN!,
-} as const;
-
-// CDN configuration
-const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
-const PRIVATE_CDN_BASE_URL = process.env.PRIVATE_CDN_BASE_URL || '';
-
-// Helper to generate storage keys
-function generateStorageKey(userId: string, module: string, filename: string): string {
-  const timestamp = Date.now();
-  const sanitizedFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-  return `${userId}/${module}/${timestamp}_${sanitizedFilename}`;
-}
-
-// Helper to get bucket for visibility
-function getBucketForVisibility(visibility: 'public' | 'private' | 'admin-private'): string {
-  switch (visibility) {
-    case 'public':
-      return BUCKETS.public;
-    case 'private':
-      return BUCKETS.private;
-    case 'admin-private':
-      return BUCKETS.admin;
-    default:
-      return BUCKETS.private;
-  }
-}
+// Environment variables
+const ALLOWED_CONTENT_TYPES = process.env.ALLOWED_UPLOAD_TYPES!.split(',').map(t => t.trim());
+const MAX_IMAGE_UPLOAD_SIZE = parseInt(process.env.MAX_IMAGE_UPLOAD_SIZE!, 10);
+const MAX_FILE_UPLOAD_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE!, 10);
 
 // Schemas
 const AssetSchema = z.object({
@@ -76,6 +42,7 @@ const UploadRequestSchema = z.object({
   contentType: z.string().min(1, 'Content type is required'),
   size: z.number().positive('Size must be positive'),
   module: z.string().min(1, 'Module is required'),
+  visibility: z.enum(['public', 'private', 'admin-private']).optional().default('private'),
 }).openapi('UploadRequest');
 
 const UploadResponseSchema = z.object({
@@ -204,9 +171,21 @@ const deleteAssetRoute = createRoute({
 export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } } }>()
   .openapi(uploadRoute, async (c) => {
     const user = c.get('user');
-    const { filename, contentType, size, module } = c.req.valid('json');
+    const { filename, contentType, size, module, visibility } = c.req.valid('json');
 
-    const bucket = BUCKETS.private; // Default to private bucket
+    // Validate content type
+    if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
+      return c.json({ error: `Content type "${contentType}" is not allowed. Allowed types: ${ALLOWED_CONTENT_TYPES.join(', ')}` } as any, 400 as any);
+    }
+
+    // Validate file size (different limits for images vs other files)
+    const isImage = contentType.startsWith('image/');
+    const maxSize = isImage ? MAX_IMAGE_UPLOAD_SIZE : MAX_FILE_UPLOAD_SIZE;
+    if (size > maxSize) {
+      return c.json({ error: `File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB` } as any, 400 as any);
+    }
+
+    const bucket = getBucketForVisibility(visibility);
     const storageKey = generateStorageKey(user.id, module, filename);
 
     // Create asset record first
@@ -217,19 +196,17 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
       filename,
       mimeType: contentType,
       size,
-      visibility: 'private',
+      visibility,
       module,
     }).returning();
 
     // Generate presigned PUT URL
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: storageKey,
-      ContentType: contentType,
-      ContentLength: size,
+    const presignedUrl = await getPresignedUploadUrl({
+      bucket,
+      storageKey,
+      contentType,
+      contentLength: size,
     });
-
-    const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: PRESIGNED_URL_EXPIRATION_UPLOAD });
 
     return c.json({
       presignedUrl,
@@ -250,38 +227,11 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
       return c.json({ error: 'Asset not found' }, 404);
     }
 
-    // Handle visibility-based URL resolution
-    switch (asset.visibility) {
-      case 'public': {
-        // For public bucket, use direct URL (CDN or MinIO public endpoint)
-        // MinIO bucket has public download policy, no presigned URL needed
-        const url = CDN_BASE_URL
-          ? `${CDN_BASE_URL}/${asset.storageKey}`
-          : `${process.env.S3_ENDPOINT}/${BUCKETS.public}/${asset.storageKey}`;
-        return c.json({ url, expiresIn: -1 }, 200);
-      }
-      case 'private': {
-        // Verify ownership for private assets
-        if (asset.userId !== user.id) {
-          return c.json({ error: 'Forbidden' }, 403);
-        }
-        // Generate presigned download URL
-        const url = await getSignedUrl(s3Client, new GetObjectCommand({
-          Bucket: asset.bucket,
-          Key: asset.storageKey,
-        }), { expiresIn: PRESIGNED_URL_EXPIRATION_PRIVATE });
-        return c.json({ url, expiresIn: PRESIGNED_URL_EXPIRATION_PRIVATE }, 200);
-      }
-      case 'admin-private': {
-        // S3 direct presigned URL for admin assets
-        const url = await getSignedUrl(s3Client, new GetObjectCommand({
-          Bucket: asset.bucket,
-          Key: asset.storageKey,
-        }), { expiresIn: PRESIGNED_URL_EXPIRATION_PRIVATE });
-        return c.json({ url, expiresIn: PRESIGNED_URL_EXPIRATION_PRIVATE }, 200);
-      }
-      default:
-        return c.json({ error: 'Invalid visibility' }, 403);
+    try {
+      const result = await resolveAssetUrl({ ...asset, visibility: asset.visibility as AssetVisibility }, user.id);
+      return c.json(result, 200);
+    } catch (e) {
+      return c.json({ error: e instanceof Error ? e.message : 'Forbidden' }, 403);
     }
   })
   .openapi(listAssetsRoute, async (c) => {
@@ -316,7 +266,7 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
         filename: a.filename,
         mimeType: a.mimeType,
         size: a.size,
-        visibility: a.visibility as 'private' | 'public' | 'admin-private',
+        visibility: a.visibility as AssetVisibility,
         module: a.module,
         createdAt: a.createdAt.toISOString(),
       })),
@@ -345,43 +295,30 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
     }
 
     // Already public
-    if (asset.visibility === 'public') {
-      const url = CDN_BASE_URL
-        ? `${CDN_BASE_URL}/${asset.storageKey}`
-        : `${process.env.S3_ENDPOINT}/${asset.bucket}/${asset.storageKey}`;
-      return c.json({ url }, 200);
+    if (asset.visibility === ASSET_VISIBILITY.PUBLIC) {
+      return c.json({ url: getPublicCdnUrl(asset.storageKey) }, 200);
     }
 
     // Copy from private to public bucket
+    const publicBucket = getBucketForVisibility(ASSET_VISIBILITY.PUBLIC);
     const newStorageKey = `shared/${asset.userId}/${asset.id}/${asset.filename}`;
 
-    await s3Client.send(new CopyObjectCommand({
-      Bucket: BUCKETS.public,
-      Key: newStorageKey,
-      CopySource: `${asset.bucket}/${asset.storageKey}`,
-    }));
+    await copyObject(asset.bucket, asset.storageKey, publicBucket, newStorageKey);
 
     // Update asset record
     await db.update(assets)
       .set({
-        bucket: BUCKETS.public,
+        bucket: publicBucket,
         storageKey: newStorageKey,
-        visibility: 'public',
+        visibility: ASSET_VISIBILITY.PUBLIC,
         publishedAt: new Date(),
       })
       .where(eq(assets.id, id));
 
     // Delete from private bucket
-    await s3Client.send(new DeleteObjectCommand({
-      Bucket: asset.bucket,
-      Key: asset.storageKey,
-    }));
+    await deleteObject(asset.bucket, asset.storageKey);
 
-    const url = CDN_BASE_URL
-      ? `${CDN_BASE_URL}/${newStorageKey}`
-      : `${process.env.S3_ENDPOINT}/${BUCKETS.public}/${newStorageKey}`;
-
-    return c.json({ url }, 200);
+    return c.json({ url: getPublicCdnUrl(newStorageKey) }, 200);
   })
   .openapi(deleteAssetRoute, async (c) => {
     const user = c.get('user');

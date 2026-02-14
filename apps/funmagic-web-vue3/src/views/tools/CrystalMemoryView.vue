@@ -62,7 +62,7 @@ const { data: toolData } = useQuery({
 
 const toolInfo = computed(() => toolData.value?.tool)
 const toolTitle = computed(() => toolInfo.value?.title ?? 'Crystal Memory')
-const toolDescription = computed(() => toolInfo.value?.description ?? toolInfo.value?.shortDescription ?? '')
+const toolDescription = computed(() => toolInfo.value?.description ?? '')
 const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; [key: string]: unknown }> })
 const step0 = computed(() => toolConfig.value.steps[0])
 const step1 = computed(() => toolConfig.value.steps[1])
@@ -149,7 +149,7 @@ const submitMutation = useMutation({
     return data
   },
   onSuccess: (data) => {
-    bgRemoveTaskId.value = data.task?.id ?? data.id
+    bgRemoveTaskId.value = data.task.id
     currentStep.value = 1
   },
 })
@@ -171,7 +171,7 @@ const cloudMutation = useMutation({
     return data
   },
   onSuccess: (data) => {
-    cloudTaskId.value = data.task?.id ?? data.id
+    cloudTaskId.value = data.task.id
   },
 })
 

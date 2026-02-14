@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Field, StringField, NumberField, BooleanField, ArrayField, ObjectField } from '@funmagic/shared/tool-registry'
+import ConfigImageUpload from './ConfigImageUpload.vue'
 
 const props = defineProps<{
   name: string
@@ -27,19 +28,19 @@ const fieldLabel = computed(() =>
         @update:value="onChange"
       />
       <template v-if="field.description" #feedback>
-        <span class="text-xs text-gray-500">{{ field.description }}</span>
+        <span class="text-xs text-muted-foreground">{{ field.description }}</span>
       </template>
     </n-form-item>
 
-    <!-- String with upload => file upload (simplified - just a text input for URL) -->
+    <!-- String with upload => image upload zone -->
     <n-form-item v-else-if="(field as StringField).upload" :label="fieldLabel">
-      <n-input
+      <ConfigImageUpload
         :value="(value as string) ?? ''"
-        @update:value="onChange"
-        :placeholder="(field as StringField).placeholder ?? 'URL or file path'"
+        :on-change="onChange"
+        :placeholder="(field as StringField).placeholder"
       />
       <template v-if="field.description" #feedback>
-        <span class="text-xs text-gray-500">{{ field.description }}</span>
+        <span class="text-xs text-muted-foreground">{{ field.description }}</span>
       </template>
     </n-form-item>
 
@@ -53,7 +54,7 @@ const fieldLabel = computed(() =>
         :rows="3"
       />
       <template v-if="field.description" #feedback>
-        <span class="text-xs text-gray-500">{{ field.description }}</span>
+        <span class="text-xs text-muted-foreground">{{ field.description }}</span>
       </template>
     </n-form-item>
   </template>
@@ -68,7 +69,7 @@ const fieldLabel = computed(() =>
       class="w-full"
     />
     <template v-if="field.description" #feedback>
-      <span class="text-xs text-gray-500">{{ field.description }}</span>
+      <span class="text-xs text-muted-foreground">{{ field.description }}</span>
     </template>
   </n-form-item>
 
@@ -79,7 +80,7 @@ const fieldLabel = computed(() =>
       @update:value="onChange"
     />
     <template v-if="field.description" #feedback>
-      <span class="text-xs text-gray-500">{{ field.description }}</span>
+      <span class="text-xs text-muted-foreground">{{ field.description }}</span>
     </template>
   </n-form-item>
 
@@ -87,7 +88,7 @@ const fieldLabel = computed(() =>
   <template v-else-if="field.type === 'array'">
     <n-form-item :label="fieldLabel">
       <div class="w-full space-y-2">
-        <div v-if="field.description" class="text-xs text-gray-500 mb-2">{{ field.description }}</div>
+        <div v-if="field.description" class="text-xs text-muted-foreground mb-2">{{ field.description }}</div>
         <div
           v-for="(item, idx) in ((value as Record<string, unknown>[]) ?? [])"
           :key="idx"
@@ -166,7 +167,7 @@ const fieldLabel = computed(() =>
   </template>
 
   <!-- Unknown -->
-  <div v-else class="text-sm text-gray-500">
+  <div v-else class="text-sm text-muted-foreground">
     Unknown field type for {{ name }}
   </div>
 </template>

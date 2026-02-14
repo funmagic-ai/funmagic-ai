@@ -26,6 +26,7 @@ const AdminProviderSchema = z.object({
   // Credentials are masked in list/get responses
   hasApiKey: z.boolean(),
   hasApiSecret: z.boolean(),
+  apiKeyPreview: z.string().nullable(),
 }).openapi('AdminProvider');
 
 const AdminProvidersListSchema = z.object({
@@ -147,6 +148,18 @@ const deleteAdminProviderRoute = createRoute({
   },
 });
 
+// Get masked preview of a credential (e.g. "••••ab3F")
+function getKeyPreview(encrypted: string | null): string | null {
+  if (!encrypted) return null;
+  try {
+    const decrypted = decryptCredential(encrypted);
+    if (!decrypted || decrypted.length < 4) return '••••';
+    return '••••' + decrypted.slice(-4);
+  } catch {
+    return '••••';
+  }
+}
+
 // Helper function to format admin provider (masking credentials)
 function formatAdminProvider(p: typeof adminProviders.$inferSelect) {
   return {
@@ -162,6 +175,7 @@ function formatAdminProvider(p: typeof adminProviders.$inferSelect) {
     // Indicate if credentials exist but don't expose them
     hasApiKey: !!p.apiKey,
     hasApiSecret: !!p.apiSecret,
+    apiKeyPreview: getKeyPreview(p.apiKey),
   };
 }
 

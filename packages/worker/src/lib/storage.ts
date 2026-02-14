@@ -1,23 +1,13 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { db, assets } from '@funmagic/database';
+import {
+  getBucketForVisibility,
+  getPresignedDownloadUrl,
+  putObject,
+} from '@funmagic/services';
+import { ASSET_VISIBILITY } from '@funmagic/shared';
 
-// Environment variable for URL expiration
-const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE ?? '900', 10);
-
-// S3 Configuration
-const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT!,
-  region: process.env.S3_REGION!,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY!,
-    secretAccessKey: process.env.S3_SECRET_KEY!,
-  },
-  forcePathStyle: true,
-});
-
-const BUCKET_PRIVATE = process.env.S3_BUCKET_PRIVATE!;
-const BUCKET_ADMIN = process.env.S3_BUCKET_ADMIN!;
+const BUCKET_PRIVATE = getBucketForVisibility(ASSET_VISIBILITY.PRIVATE);
+const BUCKET_ADMIN = getBucketForVisibility(ASSET_VISIBILITY.ADMIN_PRIVATE);
 
 interface UploadResult {
   id: string;
@@ -38,7 +28,6 @@ export async function uploadFromUrl(params: {
 }): Promise<UploadResult> {
   const { url, userId, module, taskId, filename } = params;
 
-  // Fetch the file from the URL
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch file from ${url}: ${response.status}`);
@@ -47,21 +36,18 @@ export async function uploadFromUrl(params: {
   const contentType = response.headers.get('content-type') || 'application/octet-stream';
   const buffer = await response.arrayBuffer();
 
-  // Generate storage key
   const timestamp = Date.now();
   const extension = getExtensionFromContentType(contentType);
   const finalFilename = filename || `result_${timestamp}${extension}`;
   const storageKey = `${userId}/${module}/${timestamp}_${finalFilename}`;
 
-  // Upload to S3
-  await s3Client.send(new PutObjectCommand({
-    Bucket: BUCKET_PRIVATE,
-    Key: storageKey,
-    Body: Buffer.from(buffer),
-    ContentType: contentType,
-  }));
+  await putObject({
+    bucket: BUCKET_PRIVATE,
+    storageKey,
+    body: buffer,
+    contentType,
+  });
 
-  // Create asset record
   const [asset] = await db.insert(assets).values({
     userId,
     storageKey,
@@ -69,16 +55,12 @@ export async function uploadFromUrl(params: {
     filename: finalFilename,
     mimeType: contentType,
     size: buffer.byteLength,
-    visibility: 'private',
+    visibility: ASSET_VISIBILITY.PRIVATE,
     module,
     taskId,
   }).returning();
 
-  return {
-    id: asset.id,
-    storageKey,
-    bucket: BUCKET_PRIVATE,
-  };
+  return { id: asset.id, storageKey, bucket: BUCKET_PRIVATE };
 }
 
 /**
@@ -97,20 +79,17 @@ export async function uploadBuffer(params: {
   const timestamp = Date.now();
   const storageKey = `${userId}/${module}/${timestamp}_${filename}`;
 
-  // Convert to Uint8Array for S3 upload
   const bodyBytes = buffer instanceof ArrayBuffer
     ? new Uint8Array(buffer)
     : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-  // Upload to S3
-  await s3Client.send(new PutObjectCommand({
-    Bucket: BUCKET_PRIVATE,
-    Key: storageKey,
-    Body: bodyBytes,
-    ContentType: contentType,
-  }));
+  await putObject({
+    bucket: BUCKET_PRIVATE,
+    storageKey,
+    body: bodyBytes,
+    contentType,
+  });
 
-  // Create asset record
   const [asset] = await db.insert(assets).values({
     userId,
     storageKey,
@@ -118,69 +97,70 @@ export async function uploadBuffer(params: {
     filename,
     mimeType: contentType,
     size: bodyBytes.byteLength,
-    visibility: 'private',
+    visibility: ASSET_VISIBILITY.PRIVATE,
     module,
     taskId,
   }).returning();
 
-  return {
-    id: asset.id,
-    storageKey,
-    bucket: BUCKET_PRIVATE,
-  };
+  return { id: asset.id, storageKey, bucket: BUCKET_PRIVATE };
 }
 
 /**
- * Upload a buffer directly to S3 admin bucket without creating a database record.
- * Used for admin AI Studio images that don't need asset tracking.
+ * Upload a buffer directly to S3 admin bucket and create an asset record.
+ * Used for admin AI Studio images.
  */
-export async function uploadBufferWithoutRecord(params: {
+export async function uploadBufferAdmin(params: {
   buffer: Buffer | ArrayBuffer;
   userId: string;
   module: string;
   taskId: string;
   filename: string;
   contentType: string;
-}): Promise<{ storageKey: string; bucket: string }> {
+}): Promise<UploadResult> {
   const { buffer, userId, module, taskId, filename, contentType } = params;
 
   const timestamp = Date.now();
   const storageKey = `${userId}/${module}/${timestamp}_${filename}`;
 
-  // Convert to Uint8Array for S3 upload
   const bodyBytes = buffer instanceof ArrayBuffer
     ? new Uint8Array(buffer)
     : new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
 
-  // Upload to admin bucket - no database record
-  await s3Client.send(new PutObjectCommand({
-    Bucket: BUCKET_ADMIN,
-    Key: storageKey,
-    Body: bodyBytes,
-    ContentType: contentType,
-  }));
+  await putObject({
+    bucket: BUCKET_ADMIN,
+    storageKey,
+    body: bodyBytes,
+    contentType,
+  });
 
-  return {
+  const [asset] = await db.insert(assets).values({
+    userId,
     storageKey,
     bucket: BUCKET_ADMIN,
-  };
+    filename,
+    mimeType: contentType,
+    size: bodyBytes.byteLength,
+    visibility: ASSET_VISIBILITY.ADMIN_PRIVATE,
+    module,
+  }).returning();
+
+  return { id: asset.id, storageKey, bucket: BUCKET_ADMIN };
 }
 
 /**
- * Download a file from a URL and upload it to S3 admin bucket without creating a database record.
- * Used for admin AI Studio images that don't need asset tracking.
+ * Download a file from a URL and upload it to S3 admin bucket with asset record.
+ * Used for admin AI Studio images.
  * Returns a presigned URL for immediate display.
  */
-export async function uploadFromUrlWithoutRecord(params: {
+export async function uploadFromUrlAdmin(params: {
   url: string;
   userId: string;
   module: string;
   taskId: string;
   filename?: string;
-}): Promise<{ storageKey: string; bucket: string; presignedUrl: string }> {
+}): Promise<{ id: string; storageKey: string; bucket: string; presignedUrl: string }> {
   const { url, userId, module, taskId, filename } = params;
 
-  // Fetch the file from the URL
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch file from ${url}: ${response.status}`);
@@ -189,55 +169,46 @@ export async function uploadFromUrlWithoutRecord(params: {
   const contentType = response.headers.get('content-type') || 'application/octet-stream';
   const buffer = await response.arrayBuffer();
 
-  // Generate storage key
   const timestamp = Date.now();
   const extension = getExtensionFromContentType(contentType);
   const finalFilename = filename || `result_${timestamp}${extension}`;
   const storageKey = `${userId}/${module}/${timestamp}_${finalFilename}`;
 
-  // Upload to admin bucket - no database record
-  await s3Client.send(new PutObjectCommand({
-    Bucket: BUCKET_ADMIN,
-    Key: storageKey,
-    Body: Buffer.from(buffer),
-    ContentType: contentType,
-  }));
-
-  // Generate presigned URL for immediate display
-  const presignedUrl = await getSignedUrl(s3Client, new GetObjectCommand({
-    Bucket: BUCKET_ADMIN,
-    Key: storageKey,
-  }), { expiresIn: PRESIGNED_URL_EXPIRATION_PRIVATE });
-
-  return {
+  await putObject({
+    bucket: BUCKET_ADMIN,
     storageKey,
-    bucket: BUCKET_PRIVATE,
-    presignedUrl,
-  };
+    body: buffer,
+    contentType,
+  });
+
+  const [asset] = await db.insert(assets).values({
+    userId,
+    storageKey,
+    bucket: BUCKET_ADMIN,
+    filename: finalFilename,
+    mimeType: contentType,
+    size: buffer.byteLength,
+    visibility: ASSET_VISIBILITY.ADMIN_PRIVATE,
+    module,
+  }).returning();
+
+  const presignedUrl = await getPresignedDownloadUrl({ bucket: BUCKET_ADMIN, storageKey });
+
+  return { id: asset.id, storageKey, bucket: BUCKET_ADMIN, presignedUrl };
 }
 
 /**
  * Get a presigned download URL for a private asset
  */
-export async function getDownloadUrl(storageKey: string, expiresIn: number = PRESIGNED_URL_EXPIRATION_PRIVATE): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: BUCKET_PRIVATE,
-    Key: storageKey,
-  });
-
-  return getSignedUrl(s3Client, command, { expiresIn });
+export async function getDownloadUrl(storageKey: string, expiresIn?: number): Promise<string> {
+  return getPresignedDownloadUrl({ bucket: BUCKET_PRIVATE, storageKey, expiresIn });
 }
 
 /**
  * Get a presigned download URL for an admin asset
  */
-export async function getAdminDownloadUrl(storageKey: string, expiresIn: number = PRESIGNED_URL_EXPIRATION_PRIVATE): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: BUCKET_ADMIN,
-    Key: storageKey,
-  });
-
-  return getSignedUrl(s3Client, command, { expiresIn });
+export async function getAdminDownloadUrl(storageKey: string, expiresIn?: number): Promise<string> {
+  return getPresignedDownloadUrl({ bucket: BUCKET_ADMIN, storageKey, expiresIn });
 }
 
 /**

@@ -61,28 +61,26 @@ const mainBanners = computed(() => {
 const sideBanners = computed(() => sideBannersData.value?.banners ?? [])
 const tools = computed(() => toolsData.value?.tools ?? [])
 
-function getToolPricing(tool: any): 'free' | 'freemium' | 'paid' {
-  const config = tool.config as { steps?: Array<{ cost?: number; [key: string]: unknown }> } | undefined
-  if (!config?.steps || config.steps.length === 0) return 'free'
-  const hasPaidStep = config.steps.some((step) => (step.cost ?? 0) > 0)
-  return hasPaidStep ? 'paid' : 'free'
-}
-
-function getToolPricingLabel(tool: any): string {
-  if (tool.pricingLabel) return tool.pricingLabel
-  const pricing = getToolPricing(tool)
-  return pricing === 'free' ? t('pricing.free') : t('pricing.paid')
-}
-
 function navigateToTools() {
   router.push({ name: 'tools', params: { locale: locale.value } })
+}
+
+function localizeLink(link: string | undefined | null): string {
+  if (!link) return `/${locale.value}/tools`
+  if (link.startsWith('http://') || link.startsWith('https://') || link.startsWith('//')) {
+    return link
+  }
+  if (link.startsWith('/')) {
+    return `/${locale.value}${link}`
+  }
+  return link
 }
 </script>
 
 <template>
   <AppLayout>
-    <main class="flex-1 flex flex-col items-center w-full px-4 sm:px-6 lg:px-8 pt-6 pb-12 md:pt-8 md:pb-16">
-      <div class="w-full max-w-7xl flex flex-col gap-16">
+    <main class="flex-1 pt-6 pb-12 md:pt-8 md:pb-16">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col gap-16">
 
         <!-- Hero Section: Carousel + Side Banners -->
         <section>
@@ -96,8 +94,8 @@ function navigateToTools() {
             <!-- Side Banners -->
             <div class="lg:col-span-4 flex flex-col gap-6">
               <template v-if="loadingSideBanners">
-                <div class="aspect-[21/9] lg:flex-1 rounded-2xl bg-muted animate-pulse" />
-                <div class="aspect-[21/9] lg:flex-1 rounded-2xl bg-muted animate-pulse" />
+                <div class="aspect-[21/9] lg:aspect-auto lg:flex-1 rounded-2xl bg-muted animate-pulse" />
+                <div class="aspect-[21/9] lg:aspect-auto lg:flex-1 rounded-2xl bg-muted animate-pulse" />
               </template>
               <template v-else-if="sideBanners.length > 0">
                 <SideBanner
@@ -108,16 +106,12 @@ function navigateToTools() {
                   :label="banner.badge ?? banner.linkText ?? 'Explore'"
                   :label-color="idx === 0 ? 'primary' : 'teal'"
                   :image="banner.thumbnail"
-                  :href="banner.link || `/${locale}/tools`"
+                  :href="localizeLink(banner.link)"
                 />
               </template>
               <template v-else>
-                <div class="aspect-[21/9] lg:flex-1 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-end p-6">
-                  <div>
-                    <p class="text-sm font-semibold text-primary uppercase tracking-wider">{{ t('home.getStarted') }}</p>
-                    <h3 class="text-xl font-bold leading-tight mt-1">{{ t('home.heroTitle') }}</h3>
-                  </div>
-                </div>
+                <div class="aspect-[21/9] lg:aspect-auto lg:flex-1 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5" />
+                <div class="aspect-[21/9] lg:aspect-auto lg:flex-1 rounded-2xl bg-gradient-to-br from-muted to-muted/50" />
               </template>
             </div>
           </div>
@@ -148,8 +142,12 @@ function navigateToTools() {
           </div>
 
           <!-- Empty State -->
-          <div v-else-if="tools.length === 0" class="text-center py-12">
-            <p class="text-muted-foreground">{{ t('tools.noTools') }}</p>
+          <div v-else-if="tools.length === 0" class="text-center py-16">
+            <div class="mx-auto max-w-sm space-y-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto text-muted-foreground/50"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+              <p class="text-muted-foreground">{{ t('tools.noTools') }}</p>
+              <p class="text-sm text-muted-foreground/70">{{ t('home.heroSubtitle') }}</p>
+            </div>
           </div>
 
           <!-- Tools Grid -->
@@ -161,11 +159,8 @@ function navigateToTools() {
               :name="tool.title"
               :description="tool.description ?? ''"
               :category="tool.category ?? ''"
-              :category-label="tool.categoryLabel ?? tool.category ?? ''"
+              :category-label="tool.category ?? ''"
               :image="tool.thumbnail ?? ''"
-              :rating="tool.rating ?? 0"
-              :pricing="getToolPricing(tool)"
-              :pricing-label="getToolPricingLabel(tool)"
               :visit-label="t('tools.tryNow')"
               :locale="locale"
             />

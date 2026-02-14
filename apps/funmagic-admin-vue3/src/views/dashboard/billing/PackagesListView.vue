@@ -92,18 +92,18 @@ const columns = computed<DataTableColumns>(() => [
     width: 100,
   },
   {
-    title: 'Bonus',
+    title: t('common.bonus'),
     key: 'bonusCredits',
     width: 100,
   },
   {
-    title: 'Popular',
+    title: t('common.popular'),
     key: 'isPopular',
     width: 100,
-    render: (row: any) => row.isPopular ? 'Yes' : 'No',
+    render: (row: any) => row.isPopular ? t('common.yes') : t('common.no'),
   },
   {
-    title: 'Order',
+    title: t('common.order'),
     key: 'sortOrder',
     width: 80,
   },
@@ -185,7 +185,7 @@ const columns = computed<DataTableColumns>(() => [
     <DeleteConfirmDialog
       v-model:show="showDeleteDialog"
       :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
-      message="Are you sure you want to delete this package? This action cannot be undone."
+      :message="t('common.deleteConfirm')"
       :loading="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

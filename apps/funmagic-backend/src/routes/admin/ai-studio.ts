@@ -3,24 +3,12 @@ import { db, adminChats, adminMessages, adminProviders } from '@funmagic/databas
 import type { AdminMessageImage, AdminTaskInput } from '@funmagic/database';
 import { eq, desc, asc, and, isNotNull, inArray } from 'drizzle-orm';
 import { streamSSE } from 'hono/streaming';
-import { redis, createRedisConnection } from '@funmagic/services';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { redis, createRedisConnection, getPresignedDownloadUrl, getBucketForVisibility } from '@funmagic/services';
+import { ASSET_VISIBILITY } from '@funmagic/shared';
 import { addAdminMessageJob, removeAdminMessageJob } from '../../lib/queue';
 import { decryptCredential } from './admin-providers';
 
-// S3 Configuration for presigned URLs
-const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT!,
-  region: process.env.S3_REGION!,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY!,
-    secretAccessKey: process.env.S3_SECRET_KEY!,
-  },
-  forcePathStyle: true,
-});
-const BUCKET_ADMIN = process.env.S3_BUCKET_ADMIN!;
-const PRESIGNED_URL_EXPIRATION = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE ?? '900', 10);
+const BUCKET_ADMIN = getBucketForVisibility(ASSET_VISIBILITY.ADMIN_PRIVATE);
 
 // Schemas
 const ChatSchema = z.object({
@@ -922,16 +910,9 @@ export const aiStudioRoutes = new OpenAPIHono<{ Variables: { user: { id: string 
     }
 
     try {
-      const url = await getSignedUrl(
-        s3Client,
-        new GetObjectCommand({
-          Bucket: BUCKET_ADMIN,
-          Key: storageKey,
-        }),
-        { expiresIn: PRESIGNED_URL_EXPIRATION }
-      );
+      const url = await getPresignedDownloadUrl({ bucket: BUCKET_ADMIN, storageKey });
 
-      return c.json({ url, expiresIn: PRESIGNED_URL_EXPIRATION }, 200);
+      return c.json({ url, expiresIn: -1 }, 200);
     } catch (error) {
       console.error('[AI Studio] Failed to generate presigned URL:', error);
       return c.json({ error: 'Failed to generate URL' }, 400);

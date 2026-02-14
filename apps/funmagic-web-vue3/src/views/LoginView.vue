@@ -81,6 +81,7 @@ async function handleSubmit() {
                 v-model:value="formValue.email"
                 type="text"
                 :placeholder="t('auth.email')"
+                :input-props="{ autocomplete: 'email' }"
                 size="large"
                 @keydown.enter="handleSubmit"
               />
@@ -92,6 +93,7 @@ async function handleSubmit() {
                 type="password"
                 show-password-on="click"
                 :placeholder="t('auth.password')"
+                :input-props="{ autocomplete: 'current-password' }"
                 size="large"
                 @keydown.enter="handleSubmit"
               />

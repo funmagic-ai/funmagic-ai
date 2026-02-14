@@ -98,8 +98,8 @@ function goBack() {
             </div>
             <div class="flex-1">
               <h1 class="text-3xl font-bold text-foreground">{{ tool.title }}</h1>
-              <p v-if="tool.shortDescription" class="mt-2 text-muted-foreground">
-                {{ tool.shortDescription }}
+              <p v-if="tool.description" class="mt-2 text-muted-foreground">
+                {{ tool.description }}
               </p>
               <div class="mt-3 flex items-center gap-3">
                 <n-tag v-if="tool.isFeatured" type="warning" size="small">

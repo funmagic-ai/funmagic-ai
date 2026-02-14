@@ -4,7 +4,7 @@ import AppFooter from './AppFooter.vue'
 </script>
 
 <template>
-  <div class="flex min-h-screen min-w-[320px] flex-col bg-background text-foreground">
+  <div class="flex min-h-dvh min-w-[320px] flex-col bg-background text-foreground">
     <AppHeader />
     <main class="flex-1">
       <slot />

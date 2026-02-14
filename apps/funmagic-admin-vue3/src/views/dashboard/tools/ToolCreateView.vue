@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
   NButton,
-  NInput,
   NForm,
   NFormItem,
   NSwitch,
@@ -15,16 +14,30 @@ import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ImageUploadZone from '@/components/shared/ImageUploadZone.vue'
 import TranslationsEditor from '@/components/translations/TranslationsEditor.vue'
 import ToolConfigForm from '@/components/tools/ToolConfigForm.vue'
+import { useUpload } from '@/composables/useUpload'
+import { validateForm, scrollToElement } from '@/composables/useFormValidation'
 import { getAllToolDefinitions, getToolDefinition } from '@funmagic/shared/tool-registry'
 import type { SavedToolConfig, StepConfig, ToolDefinition } from '@funmagic/shared/tool-registry'
+import { SUPPORTED_LOCALES } from '@funmagic/shared/config/locales'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
 
+const upload = useUpload({ module: 'tools', visibility: 'public' })
 const formRef = ref<FormInst | null>(null)
+
+function handleFileSelect(file: File | null) {
+  if (file) {
+    upload.setFile(file)
+  } else {
+    upload.reset()
+    formData.thumbnail = ''
+  }
+}
 
 // Fetch tool types for the select
 const { data: toolTypesData, isLoading: toolTypesLoading } = useQuery({
@@ -38,7 +51,7 @@ const { data: toolTypesData, isLoading: toolTypesLoading } = useQuery({
 
 const toolTypeOptions = computed(() =>
   (toolTypesData.value?.toolTypes ?? []).map((tt) => ({
-    label: tt.displayName,
+    label: tt.title,
     value: tt.id,
   })),
 )
@@ -48,7 +61,7 @@ const { data: existingToolsData } = useQuery({
   queryKey: ['admin', 'tools', 'all'],
   queryFn: async () => {
     const { data, error } = await api.GET('/api/admin/tools', {
-      params: { query: { includeInactive: true } },
+      params: { query: { includeInactive: 'true' } },
     })
     if (error) throw new Error('Failed to fetch existing tools')
     return data
@@ -92,10 +105,8 @@ const slugOptions = computed<SelectOption[]>(() =>
 
 // Form model
 const formData = reactive({
-  title: '',
   slug: '' as string,
-  description: '',
-  shortDescription: '',
+  thumbnail: '',
   toolTypeId: null as string | null,
   isActive: true,
   isFeatured: false,
@@ -104,10 +115,11 @@ const formData = reactive({
 const translations = ref<Record<string, Record<string, string>>>({})
 const toolConfig = ref<SavedToolConfig>({ steps: [] })
 
+const translationsRef = ref<{ validate: () => string | null } | null>(null)
+
 const translationFields = [
-  { key: 'title', label: 'Title' },
-  { key: 'description', label: 'Description', type: 'textarea' as const },
-  { key: 'shortDescription', label: 'Short Description' },
+  { key: 'title', label: t('common.title'), required: true },
+  { key: 'description', label: t('common.description'), type: 'textarea' as const },
 ]
 
 // Current tool definition based on selected slug
@@ -124,8 +136,6 @@ function buildInitialConfig(slug: string): SavedToolConfig {
     steps: def.steps.map((stepDef) => {
       const stepConfig: StepConfig = {
         id: stepDef.id,
-        name: stepDef.name,
-        description: stepDef.description,
         provider: {
           name: stepDef.provider.name,
           model: stepDef.provider.model,
@@ -142,46 +152,74 @@ function buildInitialConfig(slug: string): SavedToolConfig {
   }
 }
 
-// On slug selection: auto-fill title and build initial config
+// On slug selection: auto-fill and build initial config
 function handleSlugChange(slug: string) {
   formData.slug = slug
   const def = getToolDefinition(slug)
   if (def) {
-    formData.title = def.displayName || def.name
-    formData.description = def.description || ''
     toolConfig.value = buildInitialConfig(slug)
-    // Pre-populate English translation
-    translations.value = {
-      ...translations.value,
+    // Pre-populate all supported locales with translations from definition
+    const stepsData = Object.fromEntries(
+      def.steps.map((s) => [s.id, { name: s.name, description: s.description ?? '' }]),
+    )
+    const newTranslations: Record<string, any> = {
       en: {
         title: def.displayName || def.name,
         description: def.description || '',
-        shortDescription: formData.shortDescription || '',
+        steps: stepsData,
       },
     }
+    for (const locale of SUPPORTED_LOCALES) {
+      if (locale === 'en') continue
+      const i18nData = def.i18n?.[locale]
+      if (i18nData) {
+        newTranslations[locale] = {
+          title: i18nData.title,
+          description: i18nData.description ?? '',
+          steps: i18nData.steps ?? {},
+        }
+      } else {
+        newTranslations[locale] = {
+          title: '',
+          description: '',
+          steps: Object.fromEntries(
+            def.steps.map((s) => [s.id, { name: '', description: '' }]),
+          ),
+        }
+      }
+    }
+    translations.value = newTranslations
   }
 }
 
 const rules: FormRules = {
-  title: [{ required: true, message: t('validation.titleRequired'), trigger: 'blur' }],
   slug: [
-    { required: true, message: 'Tool slug is required', trigger: 'change' },
+    { required: true, message: t('validation.slugRequired'), trigger: 'change' },
   ],
-  toolTypeId: [{ required: true, message: 'Tool type is required', trigger: 'change' }],
+  toolTypeId: [{ required: true, message: t('validation.toolTypeRequired'), trigger: 'change' }],
 }
 
 // Create mutation
 const createMutation = useMutation({
   mutationFn: async () => {
+    let thumbnailValue = formData.thumbnail
+
+    if (upload.pendingFile.value) {
+      const result = await upload.uploadOnSubmit()
+      if (!result) throw new Error(upload.error.value ?? 'Upload failed')
+      thumbnailValue = result.storageKey
+    }
+
+    const enTranslation = translations.value.en ?? {}
     const body = {
-      title: formData.title,
+      title: enTranslation.title || formData.slug,
       slug: formData.slug,
-      description: formData.description || undefined,
-      shortDescription: formData.shortDescription || undefined,
+      description: enTranslation.description || undefined,
+      thumbnail: thumbnailValue || undefined,
       toolTypeId: formData.toolTypeId!,
       isActive: formData.isActive,
       isFeatured: formData.isFeatured,
-      translations: translations.value,
+      translations: translations.value as any,
       config: toolConfig.value as Record<string, unknown>,
     }
     const { data, error } = await api.POST('/api/admin/tools', { body })
@@ -198,9 +236,11 @@ const createMutation = useMutation({
 })
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-  } catch {
+  if (!await validateForm(formRef)) return
+  const translationError = translationsRef.value?.validate()
+  if (translationError) {
+    message.error(translationError)
+    scrollToElement(translationsRef as Ref<any>)
     return
   }
   createMutation.mutate()
@@ -232,54 +272,45 @@ async function handleSubmit() {
             label-placement="top"
             require-mark-placement="right-hanging"
           >
-            <NFormItem label="Tool Definition (Slug)" path="slug">
-              <NSelect
-                :value="formData.slug || null"
-                :options="slugOptions"
-                placeholder="Select a tool definition"
-                filterable
-                @update:value="handleSlugChange"
-              />
-            </NFormItem>
-
-            <NFormItem :label="t('common.name')" path="title">
-              <NInput v-model:value="formData.title" placeholder="Enter tool title" />
-            </NFormItem>
-
-            <NFormItem :label="t('common.description')" path="description">
-              <NInput
-                v-model:value="formData.description"
-                type="textarea"
-                :rows="3"
-                placeholder="Enter description"
-              />
-            </NFormItem>
-
-            <NFormItem label="Short Description" path="shortDescription">
-              <NInput
-                v-model:value="formData.shortDescription"
-                placeholder="Brief description"
-              />
-            </NFormItem>
-
-            <NFormItem :label="t('tools.toolType')" path="toolTypeId">
-              <NSelect
-                v-model:value="formData.toolTypeId"
-                :options="toolTypeOptions"
-                placeholder="Select tool type"
-                filterable
-              />
-            </NFormItem>
-
             <div class="grid grid-cols-2 gap-4">
               <NFormItem :label="t('common.active')" path="isActive">
                 <NSwitch v-model:value="formData.isActive" />
               </NFormItem>
 
-              <NFormItem label="Featured" path="isFeatured">
+              <NFormItem :label="t('common.featured')" path="isFeatured">
                 <NSwitch v-model:value="formData.isFeatured" />
               </NFormItem>
             </div>
+
+            <NFormItem :label="t('tools.toolType')" path="toolTypeId">
+              <NSelect
+                v-model:value="formData.toolTypeId"
+                :options="toolTypeOptions"
+                :placeholder="t('tools.selectToolType')"
+                filterable
+              />
+            </NFormItem>
+
+            <NFormItem :label="t('tools.toolDefinition')" path="slug">
+              <NSelect
+                :value="formData.slug || null"
+                :options="slugOptions"
+                :placeholder="t('tools.selectToolDefinition')"
+                filterable
+                @update:value="handleSlugChange"
+              />
+            </NFormItem>
+
+            <NFormItem :label="t('tools.thumbnail')">
+              <ImageUploadZone
+                v-model="formData.thumbnail"
+                :file-preview="upload.preview.value"
+                :uploading="upload.isUploading.value"
+                :progress="upload.progress.value"
+                aspect-ratio="16/9"
+                @file-select="handleFileSelect"
+              />
+            </NFormItem>
           </NForm>
         </div>
       </div>
@@ -288,11 +319,15 @@ async function handleSubmit() {
         v-model="toolConfig"
         :definition="currentDefinition"
         :providers="providers"
+        :title="t('tools.configuration')"
       />
 
       <TranslationsEditor
+        ref="translationsRef"
         v-model="translations"
         :fields="translationFields"
+        :steps="currentDefinition?.steps.map(s => ({ id: s.id, name: s.name })) ?? []"
+        :title="t('tools.translations')"
       />
 
       <div class="flex justify-end gap-2">
@@ -301,8 +336,8 @@ async function handleSubmit() {
         </NButton>
         <NButton
           type="primary"
-          :loading="createMutation.isPending.value"
-          :disabled="createMutation.isPending.value"
+          :loading="createMutation.isPending.value || upload.isUploading.value"
+          :disabled="createMutation.isPending.value || upload.isUploading.value"
           @click="handleSubmit"
         >
           {{ t('common.create') }}

@@ -9,11 +9,11 @@ import {
   ShieldCheckmarkOutline,
   PeopleOutline,
   ClipboardOutline,
-  DocumentTextOutline,
+  ChatbubblesOutline,
   WalletOutline,
   ImagesOutline,
   LayersOutline,
-  ChatboxOutline,
+  ColorPaletteOutline,
   SpeedometerOutline,
 } from '@vicons/ionicons5'
 import { useAppStore } from '@/stores/app'
@@ -32,11 +32,11 @@ function renderIcon(icon: Component) {
 
 const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
   const items: (MenuOption | MenuGroupOption)[] = [
-    // Main
+    // Overview
     {
       type: 'group',
-      label: 'Main',
-      key: 'main-group',
+      label: t('nav.groups.overview'),
+      key: 'overview-group',
       children: [
         {
           label: t('nav.dashboard'),
@@ -45,11 +45,11 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
         },
       ],
     },
-    // Content
+    // Catalog
     {
       type: 'group',
-      label: 'Content',
-      key: 'content-group',
+      label: t('nav.groups.catalog'),
+      key: 'catalog-group',
       children: [
         {
           label: t('nav.tools'),
@@ -63,33 +63,24 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
         },
       ],
     },
-    // Infrastructure
+    // Providers
     {
       type: 'group',
-      label: 'Infrastructure',
-      key: 'infra-group',
+      label: t('nav.groups.providers'),
+      key: 'providers-group',
       children: [
         {
           label: t('nav.providers'),
           key: 'providers',
           icon: renderIcon(ServerOutline),
         },
-        ...(authStore.isSuperAdmin
-          ? [
-              {
-                label: t('nav.adminProviders'),
-                key: 'admin-providers',
-                icon: renderIcon(ShieldCheckmarkOutline),
-              },
-            ]
-          : []),
       ],
     },
-    // Users & Tasks
+    // Operations
     {
       type: 'group',
-      label: 'Users & Tasks',
-      key: 'users-tasks-group',
+      label: t('nav.groups.operations'),
+      key: 'operations-group',
       children: [
         {
           label: t('nav.users'),
@@ -97,21 +88,16 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
           icon: renderIcon(PeopleOutline),
         },
         {
-          label: t('nav.tasks'),
+          label: t('nav.taskHistory'),
           key: 'tasks',
           icon: renderIcon(ClipboardOutline),
-        },
-        {
-          label: t('nav.aiTasks'),
-          key: 'ai-tasks',
-          icon: renderIcon(DocumentTextOutline),
         },
       ],
     },
     // Business
     {
       type: 'group',
-      label: 'Business',
+      label: t('nav.groups.business'),
       key: 'business-group',
       children: [
         {
@@ -126,21 +112,43 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
         },
       ],
     },
+    // Creative Studio
+    {
+      type: 'group',
+      label: t('nav.groups.creativeStudio'),
+      key: 'creative-studio-group',
+      children: [
+        {
+          label: t('nav.aiChat'),
+          key: 'ai-studio',
+          icon: renderIcon(ColorPaletteOutline),
+        },
+        {
+          label: t('nav.conversations'),
+          key: 'ai-tasks',
+          icon: renderIcon(ChatbubblesOutline),
+        },
+        ...(authStore.isSuperAdmin
+          ? [
+              {
+                label: t('nav.systemProviders'),
+                key: 'admin-providers',
+                icon: renderIcon(ShieldCheckmarkOutline),
+              },
+            ]
+          : []),
+      ],
+    },
     // System
     {
       type: 'group',
-      label: 'System',
+      label: t('nav.groups.system'),
       key: 'system-group',
       children: [
         {
           label: t('nav.queue'),
           key: 'queue',
           icon: renderIcon(LayersOutline),
-        },
-        {
-          label: t('nav.aiStudio'),
-          key: 'ai-studio',
-          icon: renderIcon(ChatboxOutline),
         },
       ],
     },
@@ -191,8 +199,8 @@ function handleUpdateValue(key: string) {
 
 <template>
   <aside
-    class="flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200"
-    :class="appStore.sidebarCollapsed ? 'w-16' : 'w-64'"
+    class="flex h-full flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 motion-reduce:transition-none overflow-hidden"
+    :class="appStore.sidebarCollapsed ? 'w-0 border-r-0' : 'w-64'"
   >
     <!-- Logo / Brand -->
     <div class="flex h-16 items-center border-b border-sidebar-border px-4">
@@ -210,7 +218,7 @@ function handleUpdateValue(key: string) {
     </div>
 
     <!-- Navigation Menu -->
-    <div class="flex-1 overflow-y-auto overflow-x-hidden py-2">
+    <div class="sidebar-scroll flex-1 overflow-y-auto overflow-x-hidden py-2">
       <NMenu
         :value="activeKey"
         :collapsed="appStore.sidebarCollapsed"
@@ -232,5 +240,28 @@ function handleUpdateValue(key: string) {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* Theme-aware scrollbar */
+.sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-border) transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-border);
+  border-radius: 4px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }
 </style>

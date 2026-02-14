@@ -11,6 +11,7 @@ import {
   type TranslationsRecord,
   type BannerTranslationContent,
 } from '@funmagic/shared';
+import { getPublicCdnUrl } from '@funmagic/services';
 
 // Schemas
 const BannerSchema = z.object({
@@ -35,7 +36,7 @@ const BannersListSchema = z.object({
 const CreateBannerSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  thumbnail: z.string().url('Thumbnail must be a valid URL'),
+  thumbnail: z.string().min(1, 'Thumbnail is required'),
   link: z.string().url().optional(),
   linkText: z.string().min(1, 'Link text is required').default('Learn More'),
   linkTarget: z.enum(['_self', '_blank']).default('_self'),
@@ -263,7 +264,7 @@ export const bannersPublicRoutes = new OpenAPIHono()
           id: b.id,
           title: localizedContent.title,
           description: localizedContent.description ?? null,
-          thumbnail: b.thumbnail,
+          thumbnail: resolveThumbnailUrl(b.thumbnail),
           link: b.link,
           linkText: localizedContent.linkText ?? b.linkText,
           linkTarget: b.linkTarget,
@@ -277,13 +278,18 @@ export const bannersPublicRoutes = new OpenAPIHono()
     });
   });
 
+// Resolve thumbnail: legacy full URLs pass through, storageKeys get CDN URL
+function resolveThumbnailUrl(thumbnail: string): string {
+  return thumbnail.startsWith('http') ? thumbnail : getPublicCdnUrl(thumbnail);
+}
+
 // Helper to format banner for admin responses
 function formatBannerAdmin(b: typeof banners.$inferSelect) {
   return {
     id: b.id,
     title: b.title,
     description: b.description,
-    thumbnail: b.thumbnail,
+    thumbnail: resolveThumbnailUrl(b.thumbnail),
     link: b.link,
     linkText: b.linkText,
     linkTarget: b.linkTarget,

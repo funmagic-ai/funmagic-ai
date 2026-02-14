@@ -15,7 +15,6 @@ import { useI18n } from 'vue-i18n'
 import { EyeOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
 import PageHeader from '@/components/shared/PageHeader.vue'
-import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -87,13 +86,13 @@ const filteredChats = computed(() => {
   )
 })
 
-const statusTabs = [
-  { name: 'all', label: 'All' },
+const statusTabs = computed(() => [
+  { name: 'all', label: t('common.all') },
   { name: 'pending', label: t('tasks.pending') },
   { name: 'processing', label: t('tasks.processing') },
   { name: 'completed', label: t('tasks.completed') },
   { name: 'failed', label: t('tasks.failed') },
-]
+])
 
 function getStatusType(status: string): 'default' | 'info' | 'success' | 'warning' | 'error' {
   switch (status) {
@@ -105,14 +104,14 @@ function getStatusType(status: string): 'default' | 'info' | 'success' | 'warnin
   }
 }
 
-const columns: DataTableColumns<ChatRow> = [
+const columns = computed<DataTableColumns<ChatRow>>(() => [
   {
     title: t('aiTasks.conversations'),
     key: 'title',
     minWidth: 200,
     ellipsis: { tooltip: true },
     render(row) {
-      return row.title || 'Untitled Conversation'
+      return row.title || t('aiTasks.untitledConversation')
     },
   },
   {
@@ -120,7 +119,7 @@ const columns: DataTableColumns<ChatRow> = [
     key: 'messageCount',
     width: 120,
     render(row) {
-      return `${row.messageCount} tasks`
+      return `${row.messageCount} ${t('aiTasks.messages').toLowerCase()}`
     },
   },
   {
@@ -165,7 +164,7 @@ const columns: DataTableColumns<ChatRow> = [
       )
     },
   },
-]
+])
 </script>
 
 <template>

@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { NButton, NForm, NFormItem, NInput, NInputNumber, NIcon, NSwitch, NSelect, NImage, NProgress } from 'naive-ui'
+import { NButton, NForm, NFormItem, NInput, NInputNumber, NIcon, NSwitch, NSelect } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useMutation } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { validateForm } from '@/composables/useFormValidation'
 import PageHeader from '@/components/shared/PageHeader.vue'
+import ImageUploadZone from '@/components/shared/ImageUploadZone.vue'
 import TranslationsEditor from '@/components/translations/TranslationsEditor.vue'
 import { useUpload } from '@/composables/useUpload'
+import { SUPPORTED_LOCALES } from '@funmagic/shared/config/locales'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -30,13 +33,16 @@ const formValue = ref({
   isActive: true,
 })
 
-const translations = ref<Record<string, Record<string, string>>>({})
+const translations = ref<Record<string, Record<string, string>>>(
+  Object.fromEntries(SUPPORTED_LOCALES.map(locale => [locale, { title: '', description: '', linkText: '', badge: '' }]))
+)
+const translationsRef = ref<{ validate: () => string | null } | null>(null)
 
 const translationFields = [
-  { key: 'title', label: t('common.title') },
+  { key: 'title', label: t('common.title'), required: true },
   { key: 'description', label: t('common.description'), type: 'textarea' as const },
   { key: 'linkText', label: t('common.linkText') },
-  { key: 'badge', label: 'Badge' },
+  { key: 'badge', label: t('common.badge') },
 ]
 
 const rules: FormRules = {
@@ -53,22 +59,13 @@ const targetOptions = [
   { label: t('banners.targetBlank'), value: '_blank' },
 ]
 
-const fileInputRef = ref<HTMLInputElement | null>(null)
-
-function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  if (input.files && input.files[0]) {
-    upload.setFile(input.files[0])
+function handleFileSelect(file: File | null) {
+  if (file) {
+    upload.setFile(file)
+  } else {
+    upload.reset()
+    formValue.value.thumbnail = ''
   }
-}
-
-function triggerFileInput() {
-  fileInputRef.value?.click()
-}
-
-function clearFile() {
-  upload.reset()
-  if (fileInputRef.value) fileInputRef.value.value = ''
 }
 
 const createMutation = useMutation({
@@ -98,7 +95,7 @@ const createMutation = useMutation({
         translations: translations.value as any,
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create banner')
+    if (error) throw new Error((error as any).error ?? 'Failed to create banner')
     return data
   },
   onSuccess: () => {
@@ -111,12 +108,13 @@ const createMutation = useMutation({
 })
 
 async function handleSubmit() {
-  try {
-    await formRef.value?.validate()
-    createMutation.mutate()
-  } catch {
-    // validation failed
+  if (!await validateForm(formRef)) return
+  const translationError = translationsRef.value?.validate()
+  if (translationError) {
+    message.error(translationError)
+    return
   }
+  createMutation.mutate()
 }
 </script>
 
@@ -143,8 +141,12 @@ async function handleSubmit() {
             label-placement="left"
             label-width="140"
           >
+            <NFormItem :label="t('common.active')">
+              <NSwitch v-model:value="formValue.isActive" />
+            </NFormItem>
+
             <NFormItem :label="t('common.title')" path="title">
-              <NInput v-model:value="formValue.title" placeholder="Banner title" />
+              <NInput v-model:value="formValue.title" :placeholder="t('placeholder.bannerTitle')" />
             </NFormItem>
 
             <NFormItem :label="t('common.description')">
@@ -152,7 +154,7 @@ async function handleSubmit() {
                 v-model:value="formValue.description"
                 type="textarea"
                 :rows="3"
-                placeholder="Optional description"
+                :placeholder="t('placeholder.optionalDescription')"
               />
             </NFormItem>
 
@@ -160,87 +162,50 @@ async function handleSubmit() {
               <NSelect v-model:value="formValue.type" :options="typeOptions" />
             </NFormItem>
 
-            <NFormItem label="Banner Image">
-              <div class="w-full space-y-3">
-                <input
-                  ref="fileInputRef"
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="handleFileSelect"
-                />
-                <div v-if="upload.preview.value" class="relative">
-                  <NImage
-                    :src="upload.preview.value"
-                    :width="300"
-                    object-fit="cover"
-                    class="rounded-lg border"
-                  />
-                  <NButton size="tiny" class="mt-2" @click="clearFile">
-                    Remove
-                  </NButton>
-                </div>
-                <div v-else-if="formValue.thumbnail" class="relative">
-                  <NImage
-                    :src="formValue.thumbnail"
-                    :width="300"
-                    object-fit="cover"
-                    class="rounded-lg border"
-                  />
-                </div>
-                <div class="flex gap-2">
-                  <NButton @click="triggerFileInput">
-                    Upload Image
-                  </NButton>
-                </div>
-                <NProgress
-                  v-if="upload.isUploading.value"
-                  type="line"
-                  :percentage="upload.progress.value"
-                  :show-indicator="true"
-                />
-                <NInput
-                  v-model:value="formValue.thumbnail"
-                  placeholder="Or enter image URL directly"
-                  size="small"
-                />
-              </div>
-            </NFormItem>
-
             <NFormItem :label="t('content.linkUrl')">
               <NInput v-model:value="formValue.link" placeholder="https://example.com" />
             </NFormItem>
 
             <NFormItem :label="t('common.linkText')">
-              <NInput v-model:value="formValue.linkText" placeholder="Learn More" />
+              <NInput v-model:value="formValue.linkText" :placeholder="t('placeholder.linkText')" />
             </NFormItem>
 
             <NFormItem :label="t('common.linkTarget')">
               <NSelect v-model:value="formValue.linkTarget" :options="targetOptions" />
             </NFormItem>
 
-            <NFormItem label="Position">
+            <NFormItem :label="t('common.position')">
               <NInputNumber v-model:value="formValue.position" :min="0" class="w-full" />
             </NFormItem>
 
-            <NFormItem label="Badge">
-              <NInput v-model:value="formValue.badge" placeholder="e.g. New, Hot" />
+            <NFormItem :label="t('common.badge')">
+              <NInput v-model:value="formValue.badge" :placeholder="t('placeholder.exampleBadge')" />
             </NFormItem>
 
-            <NFormItem label="Badge Color">
-              <NInput v-model:value="formValue.badgeColor" placeholder="e.g. #ff0000" />
-            </NFormItem>
-
-            <NFormItem label="Active">
-              <NSwitch v-model:value="formValue.isActive" />
+            <NFormItem :label="t('common.badgeColor')">
+              <NInput v-model:value="formValue.badgeColor" :placeholder="t('placeholder.exampleColor')" />
             </NFormItem>
           </NForm>
         </div>
       </div>
 
+      <div class="rounded-xl border bg-card p-6 shadow-sm">
+        <h3 class="mb-4 text-base font-medium">{{ t('common.bannerImage') }}</h3>
+        <ImageUploadZone
+          v-model="formValue.thumbnail"
+          :file-preview="upload.preview.value"
+          :uploading="upload.isUploading.value"
+          :progress="upload.progress.value"
+          aspect-ratio="21/9"
+          @file-select="handleFileSelect"
+        />
+      </div>
+
       <TranslationsEditor
+        ref="translationsRef"
         v-model="translations"
         :fields="translationFields"
+        :title="t('tools.translations')"
       />
 
       <div class="flex justify-end gap-2">

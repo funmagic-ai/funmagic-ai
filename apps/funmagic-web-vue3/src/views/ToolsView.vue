@@ -92,24 +92,12 @@ function handlePageChange(page: number) {
   currentPage.value = page
 }
 
-function getToolPricing(tool: Record<string, unknown>): 'free' | 'freemium' | 'paid' {
-  const config = tool.config as { steps?: Array<{ cost?: number }> } | undefined
-  if (!config?.steps || config.steps.length === 0) return 'free'
-  const hasPaidStep = config.steps.some((step) => (step.cost ?? 0) > 0)
-  return hasPaidStep ? 'paid' : 'free'
-}
-
-function getToolPricingLabel(tool: Record<string, unknown>): string {
-  if (tool.pricingLabel) return tool.pricingLabel as string
-  const pricing = getToolPricing(tool)
-  return pricing === 'free' ? t('pricing.free') : t('pricing.paid')
-}
 </script>
 
 <template>
   <AppLayout>
-    <main class="flex-1 flex flex-col items-center w-full px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-      <div class="w-full max-w-7xl">
+    <main class="flex-1 py-8 md:py-12">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
       <!-- Header -->
       <div class="mb-8">
         <h1 class="text-3xl font-bold text-foreground">{{ t('tools.allTools') }}</h1>
@@ -154,7 +142,7 @@ function getToolPricingLabel(tool: Record<string, unknown>): string {
             size="small"
             @click="handleCategoryChange(cat.name)"
           >
-            {{ cat.displayName }}
+            {{ cat.title }}
           </n-button>
         </n-space>
       </div>
@@ -194,8 +182,6 @@ function getToolPricingLabel(tool: Record<string, unknown>): string {
           :category="tool.category ?? ''"
           :category-label="tool.category ?? ''"
           :image="tool.thumbnail ?? ''"
-          :pricing="getToolPricing(tool as Record<string, unknown>)"
-          :pricing-label="getToolPricingLabel(tool as Record<string, unknown>)"
           :visit-label="t('tools.tryNow')"
           :locale="locale"
         />

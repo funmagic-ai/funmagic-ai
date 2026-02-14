@@ -11,6 +11,7 @@ export {
   getCloudFrontSignedUrl,
   getPublicCdnUrl,
   resolveAssetUrl,
+  putObject,
   copyObject,
   deleteObject,
   objectExists,

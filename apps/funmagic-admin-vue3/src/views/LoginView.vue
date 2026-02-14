@@ -22,24 +22,24 @@ const rules: FormRules = {
   email: [
     {
       required: true,
-      message: 'Email is required',
+      message: t('validation.emailRequired'),
       trigger: 'blur',
     },
     {
       type: 'email',
-      message: 'Please enter a valid email',
+      message: t('validation.emailFormat'),
       trigger: ['blur', 'input'],
     },
   ],
   password: [
     {
       required: true,
-      message: 'Password is required',
+      message: t('validation.passwordRequired'),
       trigger: 'blur',
     },
     {
       min: 6,
-      message: 'Password must be at least 6 characters',
+      message: t('validation.passwordMinLength'),
       trigger: 'blur',
     },
   ],
@@ -82,7 +82,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-background px-4">
+  <div class="flex min-h-dvh items-center justify-center bg-background px-4">
     <div class="w-full max-w-sm">
       <!-- Logo & Title -->
       <div class="mb-8 flex flex-col items-center gap-3">

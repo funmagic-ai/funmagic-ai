@@ -3,8 +3,8 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getSignedUrl as getCloudFrontSignedUrlFn } from '@aws-sdk/cloudfront-signer';
 
 // Environment variables for URL expirations
-const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE ?? '900', 10);
-const PRESIGNED_URL_EXPIRATION_UPLOAD = parseInt(process.env.PRESIGNED_URL_EXPIRATION_UPLOAD ?? '3600', 10);
+const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE!, 10);
+const PRESIGNED_URL_EXPIRATION_UPLOAD = parseInt(process.env.PRESIGNED_URL_EXPIRATION_UPLOAD!, 10);
 
 // Types
 export type Visibility = 'public' | 'private' | 'admin-private';
@@ -218,6 +218,28 @@ export async function resolveAssetUrl(
     default:
       throw new Error('Invalid visibility');
   }
+}
+
+/**
+ * Upload a buffer directly to S3
+ */
+export async function putObject(params: {
+  bucket: string;
+  storageKey: string;
+  body: Buffer | Uint8Array | ArrayBuffer;
+  contentType: string;
+}): Promise<void> {
+  const client = getS3Client();
+  const body = params.body instanceof ArrayBuffer
+    ? new Uint8Array(params.body)
+    : params.body;
+
+  await client.send(new PutObjectCommand({
+    Bucket: params.bucket,
+    Key: params.storageKey,
+    Body: body,
+    ContentType: params.contentType,
+  }));
 }
 
 /**

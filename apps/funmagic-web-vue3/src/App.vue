@@ -16,14 +16,14 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 
 const THEME_PRIMARY_COLORS: Record<ThemeName, string> = {
-  purple: '#9333ea',
-  blue: '#3b82f6',
-  green: '#22c55e',
-  orange: '#f97316',
-  red: '#ef4444',
-  teal: '#14b8a6',
-  indigo: '#6366f1',
-  slate: '#64748b',
+  purple: '#7c3aed',
+  blue: '#2563eb',
+  green: '#16a34a',
+  orange: '#ea580c',
+  red: '#dc2626',
+  teal: '#0d9488',
+  indigo: '#4f46e5',
+  slate: '#475569',
 }
 
 const themeOverrides = computed<GlobalThemeOverrides>(() => {
@@ -49,7 +49,7 @@ const theme = computed(() => (appStore.isDark ? darkTheme : null))
       <NMessageProvider>
         <NDialogProvider>
           <NNotificationProvider>
-            <div v-if="authStore.isLoading" class="flex h-screen items-center justify-center">
+            <div v-if="authStore.isLoading" class="flex h-dvh items-center justify-center">
               <n-spin size="large" />
             </div>
             <ErrorBoundary v-else>

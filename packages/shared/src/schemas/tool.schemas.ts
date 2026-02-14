@@ -1,17 +1,23 @@
 import { z } from 'zod'
 
+// Step translation schema
+const StepTranslationSchema = z.object({
+  name: z.string(),
+  description: z.string().optional(),
+})
+
 // Single locale translation schema for tools
 export const ToolTranslationSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  shortDescription: z.string().max(100, 'Short description must be 100 characters or less').optional(),
+  steps: z.record(z.string(), StepTranslationSchema).optional(),
 })
 
 // Partial translation schema for non-default locales
 export const PartialToolTranslationSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
-  shortDescription: z.string().max(100, 'Short description must be 100 characters or less').optional(),
+  steps: z.record(z.string(), StepTranslationSchema).optional(),
 })
 
 // Translations schema with explicit typing for all supported locales
@@ -41,10 +47,6 @@ export const ToolInputSchema = z.object({
     .min(1, 'Slug is required')
     .regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers, and hyphens'),
   title: z.string().min(1, 'Title is required'),
-  shortDescription: z
-    .string()
-    .max(100, 'Short description must be 100 characters or less')
-    .optional(),
   description: z.string().optional(),
   toolTypeId: z.string().min(1, 'Tool type is required'),
   thumbnail: z.string().optional(),

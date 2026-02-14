@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ToolDefinition, SavedToolConfig, StepConfig, StepProvider, Field, NumberField } from '@funmagic/shared/tool-registry'
+import { useI18n } from 'vue-i18n'
 import ConfigFieldRenderer from './ConfigFieldRenderer.vue'
 
 interface Provider {
@@ -9,15 +10,20 @@ interface Provider {
   isActive: boolean
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: SavedToolConfig
   definition: ToolDefinition | null
   providers?: Provider[]
-}>()
+  title?: string
+}>(), {
+  title: 'Tool Configuration',
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: SavedToolConfig]
 }>()
+
+const { t } = useI18n()
 
 const steps = computed(() => props.modelValue.steps ?? [])
 
@@ -29,8 +35,6 @@ const steps = computed(() => props.modelValue.steps ?? [])
 function buildDefaultStep(stepDef: typeof props.definition extends null ? never : NonNullable<typeof props.definition>['steps'][number]): StepConfig {
   const stepConfig: StepConfig = {
     id: stepDef.id,
-    name: stepDef.name,
-    description: stepDef.description,
     provider: {
       name: stepDef.provider.name,
       model: stepDef.provider.model,
@@ -221,28 +225,28 @@ function removeCustomOption(stepId: string, key: string) {
 </script>
 
 <template>
-  <n-card title="Tool Configuration">
-    <div v-if="!definition" class="text-center py-8 text-gray-500">
-      Select a tool definition to configure steps
+  <n-card :title="title">
+    <div v-if="!definition" class="text-center py-8 text-muted-foreground">
+      {{ t('tools.selectConfigHint') }}
     </div>
 
     <div v-else class="space-y-6">
       <div
         v-for="(stepDef, index) in definition.steps"
         :key="stepDef.id"
-        class="rounded-lg border bg-gray-50 dark:bg-gray-800/50 p-4 space-y-4"
+        class="rounded-lg border bg-muted/50 p-4 space-y-4"
       >
         <!-- Step Header -->
         <div>
-          <h3 class="text-base font-semibold">Step {{ index + 1 }}: {{ stepDef.name }}</h3>
-          <p v-if="stepDef.description" class="text-sm text-gray-500 mt-0.5">{{ stepDef.description }}</p>
+          <h3 class="text-base font-semibold">{{ t('tools.step') }} {{ index + 1 }}: {{ stepDef.name }}</h3>
+          <p v-if="stepDef.description" class="text-sm text-muted-foreground mt-0.5">{{ stepDef.description }}</p>
         </div>
 
         <!-- Provider + Model + Cost row -->
         <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
           <!-- Provider badge -->
           <div class="flex items-center gap-1.5">
-            <span class="text-gray-500">Provider:</span>
+            <span class="text-muted-foreground">{{ t('tools.provider') }}:</span>
             <n-tag
               :type="findProvider(stepDef.provider.name)?.isActive ? 'success' : findProvider(stepDef.provider.name) ? 'warning' : 'error'"
               size="small"
@@ -250,7 +254,7 @@ function removeCustomOption(stepId: string, key: string) {
               {{ findProvider(stepDef.provider.name)?.displayName || stepDef.provider.name }}
             </n-tag>
             <n-tag v-if="findProvider(stepDef.provider.name) && !findProvider(stepDef.provider.name)!.isActive" type="warning" size="small">
-              Inactive
+              {{ t('common.inactive') }}
             </n-tag>
             <n-tag v-if="!findProvider(stepDef.provider.name)" type="error" size="small">
               Not Configured
@@ -259,7 +263,7 @@ function removeCustomOption(stepId: string, key: string) {
 
           <!-- Model input -->
           <div class="flex items-center gap-1.5">
-            <span class="text-gray-500">Model:</span>
+            <span class="text-muted-foreground">{{ t('aiTasks.model') }}:</span>
             <n-input
               :value="(getStepConfig(stepDef.id).provider as StepProvider)?.model ?? stepDef.provider.model"
               @update:value="(v: string) => updateProviderModel(stepDef.id, v)"
@@ -271,7 +275,7 @@ function removeCustomOption(stepId: string, key: string) {
 
           <!-- Cost -->
           <div v-if="stepDef.fields.cost" class="flex items-center gap-1.5">
-            <span class="text-gray-500">Cost:</span>
+            <span class="text-muted-foreground">{{ t('tools.creditCost') }}:</span>
             <n-input-number
               :value="(getStepConfig(stepDef.id).cost as number | undefined) ?? (stepDef.fields.cost as NumberField).default"
               @update:value="(v: number | null) => updateStepField(stepDef.id, 'cost', v)"
@@ -297,10 +301,10 @@ function removeCustomOption(stepId: string, key: string) {
 
         <!-- Overridable options -->
         <div v-if="stepDef.overridableOptions && Object.keys(stepDef.overridableOptions).length > 0" class="space-y-3">
-          <div class="text-sm font-medium">Provider Options</div>
+          <div class="text-sm font-medium">{{ t('tools.providerOptions') }}</div>
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div v-for="(optionDef, optionName) in stepDef.overridableOptions" :key="optionName" class="space-y-1">
-              <div class="text-xs text-gray-500">
+              <div class="text-xs text-muted-foreground">
                 {{ String(optionName).split(/(?=[A-Z])/).join(' ').replace(/^\w/, (c: string) => c.toUpperCase()) }}
               </div>
               <!-- String with options -->
@@ -339,8 +343,8 @@ function removeCustomOption(stepId: string, key: string) {
 
         <!-- Custom options key-value editor -->
         <div class="space-y-2">
-          <div class="text-sm font-medium">Custom Options</div>
-          <div class="text-xs text-gray-500">Add custom key-value options to pass to the provider API</div>
+          <div class="text-sm font-medium">{{ t('tools.customOptions') }}</div>
+          <div class="text-xs text-muted-foreground">{{ t('tools.customOptionsHint') }}</div>
           <div
             v-for="(val, key) in ((getStepConfig(stepDef.id).provider as StepProvider)?.customProviderOptions ?? {})"
             :key="key"
@@ -358,13 +362,13 @@ function removeCustomOption(stepId: string, key: string) {
               size="small"
             />
             <n-button size="small" type="error" quaternary @click="removeCustomOption(stepDef.id, String(key))">
-              Remove
+              {{ t('common.remove') }}
             </n-button>
           </div>
           <div class="flex items-center gap-2">
-            <n-input v-model:value="newKey" placeholder="Key" size="small" class="!w-40" />
-            <n-input v-model:value="newValue" placeholder="Value" size="small" />
-            <n-button size="small" @click="addCustomOption(stepDef.id)">Add</n-button>
+            <n-input v-model:value="newKey" :placeholder="t('placeholder.key')" size="small" class="!w-40" />
+            <n-input v-model:value="newValue" :placeholder="t('placeholder.value')" size="small" />
+            <n-button size="small" @click="addCustomOption(stepDef.id)">{{ t('common.add') }}</n-button>
           </div>
         </div>
       </div>

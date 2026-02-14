@@ -40,7 +40,7 @@ const { data: toolData } = useQuery({
 
 const toolInfo = computed(() => toolData.value?.tool)
 const toolTitle = computed(() => toolInfo.value?.title ?? 'FigMe')
-const toolDescription = computed(() => toolInfo.value?.description ?? toolInfo.value?.shortDescription ?? '')
+const toolDescription = computed(() => toolInfo.value?.description ?? '')
 const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; styleReferences?: Array<{ id?: string; name?: string; imageUrl?: string; prompt?: string }>; [key: string]: unknown }> })
 const step0 = computed(() => toolConfig.value.steps[0])
 const step1 = computed(() => toolConfig.value.steps[1])
@@ -70,7 +70,7 @@ const availableStyles = computed(() => {
 })
 
 // Image generation progress
-const { progress: imageProgress, isCompleted: imageCompleted, isFailed: imageFailed } = useTaskProgress(
+const { progress: imageProgress, isFailed: imageFailed } = useTaskProgress(
   taskId,
   {
     onComplete: (output: unknown) => {
@@ -84,7 +84,7 @@ const { progress: imageProgress, isCompleted: imageCompleted, isFailed: imageFai
 )
 
 // 3D generation progress
-const { progress: threeDProgress, isCompleted: threeDCompleted, isFailed: threeDFailed } = useTaskProgress(
+const { progress: threeDProgress, isFailed: threeDFailed } = useTaskProgress(
   threeDTaskId,
   {
     onComplete: (output: unknown) => {
@@ -115,7 +115,7 @@ const submitMutation = useMutation({
     return data
   },
   onSuccess: (data) => {
-    taskId.value = data.task?.id ?? data.id
+    taskId.value = data.task.id
     currentStep.value = 1
   },
 })
@@ -137,7 +137,7 @@ const generate3DMutation = useMutation({
     return data
   },
   onSuccess: (data) => {
-    threeDTaskId.value = data.task?.id ?? data.id
+    threeDTaskId.value = data.task.id
     currentStep.value = 3
   },
 })

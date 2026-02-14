@@ -38,7 +38,7 @@ const filteredTools = computed(() => {
     (tool) =>
       tool.title.toLowerCase().includes(q) ||
       tool.slug.toLowerCase().includes(q) ||
-      (tool.toolType?.displayName?.toLowerCase().includes(q) ?? false),
+      (tool.toolType?.title?.toLowerCase().includes(q) ?? false),
   )
 })
 
@@ -101,7 +101,7 @@ function confirmDelete() {
 }
 
 // Table columns
-const columns: DataTableColumns = [
+const columns = computed<DataTableColumns>(() => [
   {
     title: t('common.name'),
     key: 'title',
@@ -119,11 +119,11 @@ const columns: DataTableColumns = [
     key: 'toolType',
     width: 140,
     render(row: any) {
-      return row.toolType?.displayName ?? '--'
+      return row.toolType?.title ?? '--'
     },
   },
   {
-    title: 'Usage',
+    title: t('common.usage'),
     key: 'usageCount',
     width: 80,
     sorter: (a: any, b: any) => a.usageCount - b.usageCount,
@@ -180,7 +180,7 @@ const columns: DataTableColumns = [
       ])
     },
   },
-]
+])
 
 // Reset page on search
 watch(search, () => {
@@ -225,11 +225,6 @@ watch(search, () => {
       <div v-else-if="isError" class="py-12 text-center">
         <p class="mb-4 text-sm text-destructive">{{ t('common.error') }}</p>
         <NButton @click="() => refetch()">{{ t('common.retry') }}</NButton>
-      </div>
-
-      <!-- Empty -->
-      <div v-else-if="filteredTools.length === 0" class="rounded-lg border border-dashed p-8 text-center md:p-12">
-        <NEmpty :description="t('common.noResults')" />
       </div>
 
       <!-- Table -->

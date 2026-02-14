@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NDataTable, NIcon, NTag, NSwitch } from 'naive-ui'
+import { NButton, NDataTable, NIcon, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -96,12 +96,11 @@ const columns = computed<DataTableColumns>(() => [
   },
   {
     title: t('providers.apiKey'),
-    key: 'hasApiKey',
-    width: 100,
+    key: 'apiKeyPreview',
+    width: 140,
     render: (row: any) => {
-      return h(NTag, { type: row.hasApiKey ? 'success' : 'default', size: 'small' }, {
-        default: () => row.hasApiKey ? 'Set' : 'Not set',
-      })
+      if (!row.apiKeyPreview) return h('span', { class: 'text-muted-foreground text-xs' }, t('providers.notSet'))
+      return h('code', { class: 'text-xs font-mono bg-muted px-1.5 py-0.5 rounded' }, row.apiKeyPreview)
     },
   },
   {

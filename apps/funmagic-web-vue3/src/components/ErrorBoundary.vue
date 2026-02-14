@@ -2,7 +2,7 @@
 import { NButton, NIcon, NResult } from 'naive-ui'
 import { RefreshOutline } from '@vicons/ionicons5'
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   fallbackTitle?: string
   fallbackDescription?: string
 }>(), {
@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{
 const error = ref<Error | null>(null)
 const errorInfo = ref('')
 
-onErrorCaptured((err: Error, instance, info) => {
+onErrorCaptured((err: Error, _instance, info) => {
   error.value = err
   errorInfo.value = info
   console.error('[ErrorBoundary]', info, err)

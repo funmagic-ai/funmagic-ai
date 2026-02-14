@@ -9,7 +9,7 @@ interface Slide {
   badge: string
 }
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   slides: Slide[]
   featuredLabel?: string
 }>(), {
@@ -50,7 +50,7 @@ watch(emblaApi, (api) => {
 </script>
 
 <template>
-  <div v-if="slides.length === 0" class="relative aspect-[21/9] overflow-hidden rounded-2xl bg-muted animate-pulse" />
+  <div v-if="slides.length === 0" class="relative aspect-[21/9] overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-muted/50" />
 
   <div v-else class="relative aspect-[21/9] overflow-hidden rounded-2xl group cursor-pointer">
     <div ref="emblaRef" class="h-full overflow-hidden">
@@ -62,7 +62,7 @@ watch(emblaApi, (api) => {
         >
           <!-- Background Image -->
           <div
-            class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+            class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             :style="{ backgroundImage: `url(${slide.image})` }"
           />
           <!-- Gradient Overlay -->
@@ -73,9 +73,9 @@ watch(emblaApi, (api) => {
           </span>
           <!-- Content -->
           <div class="absolute bottom-0 left-0 w-full p-6 md:p-8 flex flex-col gap-3">
-            <h1 class="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight">
+            <h2 class="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight">
               {{ slide.title }}
-            </h1>
+            </h2>
             <p class="text-muted-foreground text-sm md:text-base lg:text-lg max-w-2xl line-clamp-2">
               {{ slide.description }}
             </p>
@@ -87,7 +87,7 @@ watch(emblaApi, (api) => {
     <!-- Navigation Buttons -->
     <button
       type="button"
-      class="absolute top-1/2 left-4 -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
+      class="absolute top-1/2 left-4 -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-primary"
       aria-label="Previous slide"
       @click="scrollPrev"
     >
@@ -95,7 +95,7 @@ watch(emblaApi, (api) => {
     </button>
     <button
       type="button"
-      class="absolute top-1/2 right-4 -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary"
+      class="absolute top-1/2 right-4 -translate-y-1/2 h-10 w-10 rounded-full bg-black/30 backdrop-blur-sm border border-white/10 flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-primary"
       aria-label="Next slide"
       @click="scrollNext"
     >

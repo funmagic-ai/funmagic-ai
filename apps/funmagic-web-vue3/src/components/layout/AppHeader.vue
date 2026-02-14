@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import AppLogo from './AppLogo.vue'
+import AppWordmark from './AppWordmark.vue'
 import LocaleSwitcher from './LocaleSwitcher.vue'
 import UserMenu from './UserMenu.vue'
 import {
@@ -11,6 +12,7 @@ import {
   MenuOutline,
   CloseOutline,
 } from '@vicons/ionicons5'
+import ThemeSwitcher from './ThemeSwitcher.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -70,10 +72,10 @@ watch(() => route.fullPath, () => {
       <div class="flex items-center gap-1">
         <router-link
           :to="{ name: 'home', params: { locale: currentLocale } }"
-          class="flex items-center gap-2 text-xl font-bold text-foreground no-underline mr-4"
+          class="flex items-center gap-2 no-underline mr-4"
         >
           <AppLogo />
-          <span class="hidden sm:inline">FunMagic</span>
+          <AppWordmark class="hidden sm:inline-block" />
         </router-link>
 
         <!-- Desktop Navigation -->
@@ -95,8 +97,11 @@ watch(() => route.fullPath, () => {
         <!-- Locale Switcher -->
         <LocaleSwitcher />
 
+        <!-- Theme Switcher -->
+        <ThemeSwitcher />
+
         <!-- Dark Mode Toggle -->
-        <n-button quaternary circle @click="appStore.toggleDark">
+        <n-button quaternary circle :aria-label="appStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'" @click="appStore.toggleDark">
           <template #icon>
             <n-icon :size="20">
               <MoonOutline v-if="!appStore.isDark" />
@@ -135,6 +140,7 @@ watch(() => route.fullPath, () => {
           <n-button
             quaternary
             circle
+            :aria-label="mobileMenuOpen ? 'Close menu' : 'Open menu'"
             @click="mobileMenuOpen = !mobileMenuOpen"
           >
             <template #icon>
@@ -150,10 +156,10 @@ watch(() => route.fullPath, () => {
 
     <!-- Mobile Menu -->
     <Transition
-      enter-active-class="transition-all duration-200 ease-out"
+      enter-active-class="transition-all duration-200 ease-out motion-reduce:transition-none"
       enter-from-class="max-h-0 opacity-0"
       enter-to-class="max-h-96 opacity-100"
-      leave-active-class="transition-all duration-150 ease-in"
+      leave-active-class="transition-all duration-150 ease-in motion-reduce:transition-none"
       leave-from-class="max-h-96 opacity-100"
       leave-to-class="max-h-0 opacity-0"
     >

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NModal, NButton } from 'naive-ui'
+import { NModal } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(

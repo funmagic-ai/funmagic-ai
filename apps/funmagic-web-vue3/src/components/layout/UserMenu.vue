@@ -93,7 +93,7 @@ async function handleSelect(key: string) {
       trigger="click"
       @select="handleSelect"
     >
-      <button class="flex cursor-pointer items-center rounded-full border-0 bg-transparent p-0.5 transition-colors hover:bg-accent">
+      <button class="flex cursor-pointer items-center rounded-full border-0 bg-transparent p-0.5 transition-colors hover:bg-accent" aria-label="User menu">
         <n-avatar
           round
           :size="28"

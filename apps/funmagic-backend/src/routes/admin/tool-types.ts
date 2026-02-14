@@ -10,7 +10,7 @@ import {
 const ToolTypeSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  displayName: z.string(),
+  title: z.string(),
   description: z.string().nullable(),
   translations: ToolTypeTranslationsSchema,
   isActive: z.boolean(),
@@ -24,7 +24,7 @@ const ToolTypesListSchema = z.object({
 
 const CreateToolTypeSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  displayName: z.string().min(1, 'Display name is required'),
+  title: z.string().optional(),
   description: z.string().optional(),
   translations: ToolTypeTranslationsSchema.optional(),
   isActive: z.boolean().optional(),
@@ -181,7 +181,7 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
   return {
     id: t.id,
     name: t.name,
-    displayName: t.displayName,
+    title: t.title,
     description: t.description,
     translations: t.translations as ToolTypeTranslations,
     isActive: t.isActive,
@@ -190,16 +190,16 @@ function formatToolType(t: typeof toolTypes.$inferSelect) {
   };
 }
 
-// Helper to build translations from legacy fields
-function buildTranslationsFromLegacy(
-  displayName: string,
+// Helper to build translations from top-level fields
+function buildTranslations(
+  title: string,
   description?: string,
   existingTranslations?: ToolTypeTranslations
 ): ToolTypeTranslations {
   return {
     ...existingTranslations,
     en: {
-      displayName,
+      title,
       description: description ?? existingTranslations?.en?.description ?? '',
     },
   };
@@ -243,16 +243,15 @@ export const toolTypesRoutes = new OpenAPIHono()
       return c.json({ error: 'Tool type name already exists' }, 409);
     }
 
-    // Build translations: use provided translations or build from legacy fields
-    const translations = data.translations ?? buildTranslationsFromLegacy(
-      data.displayName,
-      data.description
-    );
+    const title = data.translations?.en?.title ?? data.title ?? data.name;
+    const description = data.translations?.en?.description ?? data.description;
+
+    const translations = data.translations ?? buildTranslations(title, description);
 
     const [toolType] = await db.insert(toolTypes).values({
       name: data.name,
-      displayName: data.displayName,
-      description: data.description,
+      title,
+      description,
       translations,
       isActive: data.isActive ?? true,
     }).returning();
@@ -275,16 +274,22 @@ export const toolTypesRoutes = new OpenAPIHono()
 
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name;
-    if (data.displayName !== undefined) updateData.displayName = data.displayName;
-    if (data.description !== undefined) updateData.description = data.description;
-    if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
 
-    // Sync legacy fields to translations.en if legacy fields change but translations don't
-    if (!data.translations && (data.displayName !== undefined || data.description !== undefined)) {
+    // Sync title/description from translations if provided
+    if (data.translations !== undefined) {
+      updateData.translations = data.translations;
+      if (data.translations.en?.title) updateData.title = data.translations.en.title;
+      if (data.translations.en?.description !== undefined) updateData.description = data.translations.en.description;
+    }
+
+    // If title/description provided directly without translations, sync to translations
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (!data.translations && (data.title !== undefined || data.description !== undefined)) {
       const existingTranslations = existing.translations as ToolTypeTranslations;
-      updateData.translations = buildTranslationsFromLegacy(
-        data.displayName ?? existing.displayName,
+      updateData.translations = buildTranslations(
+        data.title ?? existing.title,
         data.description ?? existing.description ?? undefined,
         existingTranslations
       );

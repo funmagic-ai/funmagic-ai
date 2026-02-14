@@ -254,6 +254,9 @@ async function executeImageGenStep(params: {
 
   let resultImageUrl: string;
 
+  let providerRequest: Record<string, unknown>;
+  let providerResponse: Record<string, unknown>;
+
   if (sourceImageUrl) {
     // Image edit mode - transform existing image with style reference
     await progress.updateProgress(25, 'Fetching style reference image');
@@ -283,6 +286,8 @@ async function executeImageGenStep(params: {
       ? configuredSize
       : '1024x1024') as OpenAIEditSize;
 
+    providerRequest = { method: 'images.edit', model, prompt, n: 1, size: editSize, imageCount: 2 };
+
     // Pass as array: style reference FIRST (higher fidelity), user image SECOND
     const response = await openai.images.edit({
       model,
@@ -291,6 +296,8 @@ async function executeImageGenStep(params: {
       n: 1,
       size: editSize,
     });
+
+    providerResponse = { data: response.data?.map(d => ({ url: d.url ? '[url]' : undefined, b64_json: d.b64_json ? '[base64]' : undefined, revised_prompt: d.revised_prompt })) };
 
     const imageData = response.data?.[0];
     if (!imageData?.url && !imageData?.b64_json) {
@@ -312,12 +319,16 @@ async function executeImageGenStep(params: {
 
     const generateSize = configuredSize as OpenAIGenerateSize;
 
+    providerRequest = { method: 'images.generate', model, prompt, n: 1, size: generateSize };
+
     const response = await openai.images.generate({
       model,
       prompt,
       n: 1,
       size: generateSize,
     });
+
+    providerResponse = { data: response.data?.map(d => ({ url: d.url ? '[url]' : undefined, b64_json: d.b64_json ? '[base64]' : undefined, revised_prompt: d.revised_prompt })) };
 
     const imageData = response.data?.[0];
     if (!imageData?.url && !imageData?.b64_json) {
@@ -361,6 +372,9 @@ async function executeImageGenStep(params: {
       // Flag indicating 3D generation is available as next step
       canGenerate3D: config.steps.length > 1,
     },
+    providerRequest,
+    providerResponse,
+    providerMeta: { provider: 'openai', model, stepId: step.id },
   };
 }
 
@@ -395,14 +409,16 @@ async function execute3DGenStep(params: {
 
   await progress.updateProgress(15, 'Creating 3D generation task');
 
+  const tripoProviderOptions = {
+    model_version: modelVersion as TripoOptions['model_version'],
+    pbr: true,
+  };
+
   // Create task using magi-3d SDK
   const tripoTaskId = await client.createTask({
     type: TaskType.IMAGE_TO_3D,
     input: sourceImageUrl,
-    providerOptions: {
-      model_version: modelVersion as TripoOptions['model_version'],
-      pbr: true,
-    },
+    providerOptions: tripoProviderOptions,
   });
 
   await progress.updateProgress(20, 'Processing 3D model');
@@ -464,5 +480,8 @@ async function execute3DGenStep(params: {
       previewStorageKey: previewAsset?.storageKey,
       parentTaskId: input.parentTaskId,
     },
+    providerRequest: { type: 'IMAGE_TO_3D', input: sourceImageUrl, providerOptions: tripoProviderOptions, tripoTaskId },
+    providerResponse: { status: result.status, result: { modelGlb: result.result.modelGlb, thumbnail: result.result.thumbnail } },
+    providerMeta: { provider: 'tripo', model: modelVersion, stepId: step.id, tripoTaskId },
   };
 }

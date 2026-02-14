@@ -17,7 +17,7 @@ const { data, isLoading, isError, error } = useQuery({
   queryKey: ['tool-types'],
   queryFn: async () => {
     const { data, error } = await api.GET('/api/admin/tool-types')
-    if (error) throw new Error(error.error ?? 'Failed to fetch tool types')
+    if (error) throw new Error((error as any).error ?? 'Failed to fetch tool types')
     return data
   },
 })
@@ -32,6 +32,7 @@ const toggleActiveMutation = useMutation({
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['tool-types'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'tool-types'] })
     message.success(t('common.statusUpdated'))
   },
   onError: (err: Error) => {
@@ -55,14 +56,15 @@ const deleteMutation = useMutation({
     showDeleteDialog.value = false
     deleteTarget.value = null
     queryClient.invalidateQueries({ queryKey: ['tool-types'] })
+    queryClient.invalidateQueries({ queryKey: ['admin', 'tool-types'] })
   },
   onError: (err: Error) => {
     message.error(err.message)
   },
 })
 
-function openDeleteDialog(item: { id: string; displayName: string }) {
-  deleteTarget.value = { id: item.id, name: item.displayName }
+function openDeleteDialog(item: { id: string; title: string }) {
+  deleteTarget.value = { id: item.id, name: item.title }
   showDeleteDialog.value = true
 }
 
@@ -77,11 +79,11 @@ const toolTypes = computed(() => data.value?.toolTypes ?? [])
 const columns = computed<DataTableColumns>(() => [
   {
     title: t('common.name'),
-    key: 'displayName',
+    key: 'title',
     ellipsis: { tooltip: true },
   },
   {
-    title: 'Slug',
+    title: t('common.slug'),
     key: 'name',
     ellipsis: { tooltip: true },
   },
@@ -126,7 +128,7 @@ const columns = computed<DataTableColumns>(() => [
             size: 'small',
             quaternary: true,
             type: 'error',
-            onClick: () => openDeleteDialog({ id: row.id, displayName: row.displayName }),
+            onClick: () => openDeleteDialog({ id: row.id, title: row.title }),
           },
           {
             icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
@@ -169,7 +171,7 @@ const columns = computed<DataTableColumns>(() => [
     <DeleteConfirmDialog
       v-model:show="showDeleteDialog"
       :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
-      message="Are you sure you want to delete this tool type? This action cannot be undone."
+      :message="t('common.deleteConfirm')"
       :loading="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

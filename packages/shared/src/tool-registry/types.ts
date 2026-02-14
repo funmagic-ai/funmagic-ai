@@ -106,6 +106,15 @@ export interface StepDefinition {
 }
 
 /**
+ * Localized content for a tool (title, description, step translations)
+ */
+export interface ToolI18nContent {
+  title: string;
+  description?: string;
+  steps?: Record<string, { name: string; description?: string }>;
+}
+
+/**
  * Tool definition - the complete schema for a tool type
  */
 export interface ToolDefinition {
@@ -117,6 +126,8 @@ export interface ToolDefinition {
   description?: string;
   /** Steps that make up this tool's workflow */
   steps: StepDefinition[];
+  /** Default translations for supported locales (used to pre-populate tool creation) */
+  i18n?: Partial<Record<string, ToolI18nContent>>;
 }
 
 /**
@@ -129,10 +140,6 @@ export type ToolRegistry = Record<string, ToolDefinition>;
  */
 export interface StepConfig {
   id: string;
-  /** Step name (copied from definition) */
-  name?: string;
-  /** Step description (copied from definition) */
-  description?: string;
   /** Provider configuration (copied from definition, with merged providerOptions) */
   provider?: StepProvider;
   /** Credit cost for this step */

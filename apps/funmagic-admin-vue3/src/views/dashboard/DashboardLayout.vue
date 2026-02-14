@@ -20,6 +20,16 @@ watch(
   },
 )
 
+// Close mobile sidebar on Escape key
+function handleEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape' && mobileOpen.value) {
+    mobileOpen.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('keydown', handleEscape))
+onUnmounted(() => document.removeEventListener('keydown', handleEscape))
+
 // Provide toggle function so AdminHeader can call it
 function toggleSidebar() {
   if (isMobile.value) {
@@ -33,7 +43,7 @@ provide('toggleSidebar', toggleSidebar)
 </script>
 
 <template>
-  <div class="flex h-screen w-screen overflow-hidden bg-background">
+  <div class="flex h-dvh w-screen overflow-hidden bg-background">
     <!-- Desktop Sidebar -->
     <div class="hidden md:flex shrink-0">
       <AdminSidebar />
@@ -61,7 +71,7 @@ provide('toggleSidebar', toggleSidebar)
     <!-- Main Content Area -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <AdminHeader />
-      <main class="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-8 md:pb-8 md:pt-6">
+      <main class="content-scroll flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-8 md:pb-8 md:pt-6">
         <div class="mx-auto max-w-7xl">
           <router-view />
         </div>
@@ -89,5 +99,38 @@ provide('toggleSidebar', toggleSidebar)
 .slide-enter-from,
 .slide-leave-to {
   transform: translateX(-100%);
+}
+
+/* Theme-aware scrollbar for content area */
+.content-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-border) transparent;
+}
+
+.content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.content-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.content-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-border);
+  border-radius: 6px;
+}
+
+.content-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .overlay-enter-active,
+  .overlay-leave-active,
+  .slide-enter-active,
+  .slide-leave-active {
+    transition: none;
+  }
 }
 </style>

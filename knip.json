@@ -1,0 +1,41 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    "apps/funmagic-backend": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/funmagic-web-vue3": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.{ts,tsx,vue}"],
+      "ignore": ["src/components/ui/**"]
+    },
+    "apps/funmagic-admin-vue3": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.{ts,tsx,vue}"],
+      "ignore": ["src/components/ui/**"]
+    },
+    "packages/database": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/auth": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/services": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/shared": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/worker": {
+      "entry": ["src/index.ts", "src/admin.ts"],
+      "project": ["src/**/*.ts"]
+    }
+  },
+  "ignoreDependencies": ["^@types/"],
+  "ignoreExportsUsedInFile": true
+}

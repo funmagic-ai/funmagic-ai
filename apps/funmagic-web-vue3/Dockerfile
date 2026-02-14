@@ -16,10 +16,8 @@ FROM base AS builder
 
 # Build-time environment variables
 ARG VITE_API_URL=https://api.funmagic.ai
-ARG VITE_APP_URL=https://funmagic.ai
 
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_APP_URL=$VITE_APP_URL
 
 # Copy root workspace files
 COPY package.json bun.lock ./
@@ -42,7 +40,7 @@ RUN bun run build
 FROM nginx:1.27-alpine AS runner
 
 # Copy nginx configuration
-COPY apps/funmagic-web-vue3/nginx.conf /etc/nginx/conf.d/default.conf
+COPY deploy/nginx/web.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets
 COPY --from=builder /app/apps/funmagic-web-vue3/dist /usr/share/nginx/html

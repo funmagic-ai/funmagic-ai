@@ -48,6 +48,9 @@ export interface StepResult {
   output?: Record<string, unknown>;
   assetId?: string;
   error?: string;
+  providerRequest?: Record<string, unknown>;
+  providerResponse?: Record<string, unknown>;
+  providerMeta?: Record<string, unknown>;
 }
 
 // Tool worker interface

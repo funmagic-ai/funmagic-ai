@@ -2,13 +2,13 @@ import { z } from 'zod'
 
 // Single locale translation schema for tool types
 export const ToolTypeTranslationSchema = z.object({
-  displayName: z.string().min(1, 'Display name is required'),
+  title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
 })
 
 // Partial translation schema for non-default locales
 export const PartialToolTypeTranslationSchema = z.object({
-  displayName: z.string().optional(),
+  title: z.string().optional(),
   description: z.string().optional(),
 })
 
@@ -31,7 +31,7 @@ export const ToolTypeFormSchema = z.object({
     .string()
     .min(1, 'Name is required')
     .regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers, and hyphens'),
-  displayName: z.string().min(1, 'Display name is required'),
+  title: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
 })
@@ -42,7 +42,7 @@ export const ToolTypeInputSchema = z.object({
     .string()
     .min(1, 'Name is required')
     .regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers, and hyphens'),
-  displayName: z.string().min(1, 'Display name is required'),
+  title: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().default(true),
   translations: ToolTypeTranslationsSchema.optional(),

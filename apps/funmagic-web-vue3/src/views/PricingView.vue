@@ -26,7 +26,7 @@ const packages = computed(() => {
   return [...pkgs].sort((a, b) => a.sortOrder - b.sortOrder)
 })
 
-function handleBuy(packageId: string) {
+function handleBuy(_packageId: string) {
   message.info(t('pricing.comingSoon'))
 }
 
@@ -61,8 +61,12 @@ function formatPrice(price: string, currency: string) {
       </div>
 
       <!-- Empty State -->
-      <div v-else-if="packages.length === 0" class="text-center py-12">
-        <p class="text-muted-foreground">{{ t('pricing.noPackages') }}</p>
+      <div v-else-if="packages.length === 0" class="text-center py-16">
+        <div class="mx-auto max-w-sm space-y-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mx-auto text-muted-foreground/50"><rect width="20" height="14" x="2" y="5" rx="2"/><path d="M2 10h20"/></svg>
+          <p class="text-muted-foreground">{{ t('pricing.noPackages') }}</p>
+          <p class="text-sm text-muted-foreground/70">{{ t('pricing.subtitle') }}</p>
+        </div>
       </div>
 
       <!-- Pricing Cards -->
@@ -84,6 +88,7 @@ function formatPrice(price: string, currency: string) {
           <div
             v-if="pkg.isPopular"
             class="absolute -top-3 left-1/2 -translate-x-1/2"
+            role="status"
           >
             <n-tag type="primary" size="small" round>
               {{ t('pricing.popular') }}

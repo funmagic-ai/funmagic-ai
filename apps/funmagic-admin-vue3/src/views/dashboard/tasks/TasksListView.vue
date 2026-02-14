@@ -8,18 +8,22 @@ import {
   NTabs,
   NTabPane,
   NPagination,
-  NTag,
 } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
-import { EyeOutline, GitBranchOutline } from '@vicons/ionicons5'
+import { EyeOutline, TrashOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const message = useMessage()
+const queryClient = useQueryClient()
+const authStore = useAuthStore()
 
 const statusFilter = ref<string>('all')
 const currentPage = ref(1)
@@ -58,15 +62,115 @@ const { data, isLoading } = useQuery({
 const allTasks = computed(() => (data.value?.tasks ?? []) as TaskRow[])
 const totalItems = computed(() => data.value?.total ?? 0)
 
-const statusTabs = [
-  { name: 'all', label: 'All' },
+// Expanded child tasks
+const expandedChildTasks = ref<Record<string, TaskRow[]>>({})
+const loadingChildren = ref<Record<string, boolean>>({})
+
+async function fetchChildren(parentId: string) {
+  if (expandedChildTasks.value[parentId]) return
+  loadingChildren.value[parentId] = true
+  try {
+    const { data, error } = await api.GET('/api/admin/tasks', {
+      params: {
+        query: {
+          parentTaskId: parentId,
+          limit: '100',
+          offset: '0',
+        },
+      },
+    })
+    if (error) throw new Error('Failed to fetch child tasks')
+    expandedChildTasks.value[parentId] = (data?.tasks ?? []) as TaskRow[]
+  } finally {
+    loadingChildren.value[parentId] = false
+  }
+}
+
+const expandedRowKeys = ref<string[]>([])
+
+function handleExpandChange(keys: string[]) {
+  expandedRowKeys.value = keys
+  for (const key of keys) {
+    fetchChildren(key)
+  }
+}
+
+// Delete task
+const showDeleteDialog = ref(false)
+const deleteTarget = ref<{ id: string; label: string } | null>(null)
+
+const deleteMutation = useMutation({
+  mutationFn: async (id: string) => {
+    const { error } = await api.DELETE('/api/admin/tasks/{id}', {
+      params: { path: { id } },
+    })
+    if (error) throw new Error((error as any).error ?? 'Failed to delete task')
+  },
+  onSuccess: () => {
+    message.success(t('common.deleteSuccess'))
+    showDeleteDialog.value = false
+    deleteTarget.value = null
+    // Clear cached children so they reload on next expand
+    expandedChildTasks.value = {}
+    queryClient.invalidateQueries({ queryKey: ['admin', 'tasks'] })
+  },
+  onError: (err: Error) => {
+    message.error(err.message)
+  },
+})
+
+function openDeleteDialog(task: TaskRow) {
+  deleteTarget.value = { id: task.id, label: task.tool?.title ?? task.id.substring(0, 8) }
+  showDeleteDialog.value = true
+}
+
+function confirmDelete() {
+  if (deleteTarget.value) {
+    deleteMutation.mutate(deleteTarget.value.id)
+  }
+}
+
+const statusTabs = computed(() => [
+  { name: 'all', label: t('common.all') },
   { name: 'pending', label: t('tasks.pending') },
   { name: 'processing', label: t('tasks.processing') },
   { name: 'completed', label: t('tasks.completed') },
   { name: 'failed', label: t('tasks.failed') },
-]
+])
 
-const columns: DataTableColumns<TaskRow> = [
+const columns = computed<DataTableColumns<TaskRow>>(() => [
+  {
+    type: 'expand',
+    expandable: (row) => row.childCount > 0,
+    renderExpand(row) {
+      const children = expandedChildTasks.value[row.id]
+      const loading = loadingChildren.value[row.id]
+
+      if (loading || !children) {
+        return h('div', { class: 'flex justify-center py-4' }, [
+          h(NSpin, { size: 'small' }),
+        ])
+      }
+
+      if (children.length === 0) {
+        return h('div', { class: 'py-3 text-center text-sm opacity-50' }, t('common.noResults'))
+      }
+
+      return h('div', { class: 'pl-8 py-2' }, [
+        h(NDataTable, {
+          columns: childColumns.value,
+          data: children,
+          bordered: false,
+          singleLine: false,
+          size: 'small',
+          rowProps: (childRow: any) => ({
+            style: 'cursor: pointer;',
+            onClick: () => router.push({ name: 'tasks-detail', params: { id: childRow.id } }),
+          }),
+        }),
+      ])
+    },
+  },
   {
     title: t('tasks.taskId'),
     key: 'id',
@@ -103,43 +207,7 @@ const columns: DataTableColumns<TaskRow> = [
     },
   },
   {
-    title: 'Hierarchy',
-    key: 'hierarchy',
-    width: 130,
-    render(row) {
-      const items = []
-      if (row.parentTaskId) {
-        items.push(
-          h(NTag, {
-            size: 'small',
-            type: 'info',
-            bordered: false,
-            class: 'cursor-pointer',
-            onClick: (e: Event) => {
-              e.stopPropagation()
-              router.push({ name: 'tasks-detail', params: { id: row.parentTaskId! } })
-            },
-          }, { default: () => 'Parent: ' + row.parentTaskId.substring(0, 6) }),
-        )
-      }
-      if (row.childCount > 0) {
-        items.push(
-          h(NTag, {
-            size: 'small',
-            bordered: false,
-          }, {
-            default: () => `${row.childCount} child${row.childCount > 1 ? 'ren' : ''}`,
-            icon: () => h(NIcon, { size: 14 }, { default: () => h(GitBranchOutline) }),
-          }),
-        )
-      }
-      return items.length > 0
-        ? h('div', { class: 'flex flex-col gap-0.5' }, items)
-        : '--'
-    },
-  },
-  {
-    title: 'Credits',
+    title: t('users.credits'),
     key: 'creditsCost',
     width: 80,
   },
@@ -154,26 +222,144 @@ const columns: DataTableColumns<TaskRow> = [
   {
     title: t('common.actions'),
     key: 'actions',
-    width: 80,
+    width: authStore.isAdmin ? 100 : 80,
     fixed: 'right',
     render(row) {
-      return h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          onClick: (e: Event) => {
-            e.stopPropagation()
-            router.push({ name: 'tasks-detail', params: { id: row.id } })
+      const buttons = [
+        h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              router.push({ name: 'tasks-detail', params: { id: row.id } })
+            },
           },
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
-        },
-      )
+          {
+            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
+          },
+        ),
+      ]
+      if (authStore.isAdmin) {
+        buttons.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                openDeleteDialog(row)
+              },
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        )
+      }
+      return h('div', { class: 'flex items-center gap-1' }, buttons)
     },
   },
-]
+])
+
+// Child table columns — same as parent but without expand column
+const childColumns = computed<DataTableColumns<TaskRow>>(() => [
+  {
+    title: t('tasks.taskId'),
+    key: 'id',
+    width: 120,
+    ellipsis: { tooltip: true },
+    render(row) {
+      return row.id.substring(0, 8) + '...'
+    },
+  },
+  {
+    title: t('tasks.user'),
+    key: 'userName',
+    width: 140,
+    ellipsis: { tooltip: true },
+    render(row) {
+      return row.userName ?? row.userEmail
+    },
+  },
+  {
+    title: t('tasks.tool'),
+    key: 'tool',
+    minWidth: 140,
+    ellipsis: { tooltip: true },
+    render(row) {
+      return row.tool?.title ?? '--'
+    },
+  },
+  {
+    title: t('tasks.status'),
+    key: 'status',
+    width: 120,
+    render(row) {
+      return h(StatusBadge, { status: row.status })
+    },
+  },
+  {
+    title: t('users.credits'),
+    key: 'creditsCost',
+    width: 80,
+  },
+  {
+    title: t('common.createdAt'),
+    key: 'createdAt',
+    width: 160,
+    render(row) {
+      return new Date(row.createdAt).toLocaleString()
+    },
+  },
+  {
+    title: t('common.actions'),
+    key: 'actions',
+    width: authStore.isAdmin ? 100 : 80,
+    fixed: 'right',
+    render(row) {
+      const buttons = [
+        h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              router.push({ name: 'tasks-detail', params: { id: row.id } })
+            },
+          },
+          {
+            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
+          },
+        ),
+      ]
+      if (authStore.isAdmin) {
+        buttons.push(
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                openDeleteDialog(row)
+              },
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        )
+      }
+      return h('div', { class: 'flex items-center gap-1' }, buttons)
+    },
+  },
+])
 
 watch(statusFilter, () => {
   currentPage.value = 1
@@ -212,8 +398,11 @@ watch(statusFilter, () => {
             :data="allTasks"
             :bordered="false"
             :single-line="false"
+            :expanded-row-keys="expandedRowKeys"
+            :row-key="(row: TaskRow) => row.id"
             size="small"
             :row-props="(row: any) => ({ style: 'cursor: pointer;', onClick: () => router.push({ name: 'tasks-detail', params: { id: row.id } }) })"
+            @update:expanded-row-keys="handleExpandChange"
           />
         </div>
         <div v-if="totalItems > pageSize" class="flex justify-end">
@@ -226,5 +415,13 @@ watch(statusFilter, () => {
         </div>
       </template>
     </div>
+
+    <DeleteConfirmDialog
+      v-model:show="showDeleteDialog"
+      :title="`Delete task &quot;${deleteTarget?.label ?? ''}&quot;?`"
+      :message="t('common.deleteConfirm')"
+      :loading="deleteMutation.isPending.value"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

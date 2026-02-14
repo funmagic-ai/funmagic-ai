@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { NButton, NDataTable, NIcon, NSwitch, NTag } from 'naive-ui'
+import { NButton, NDataTable, NIcon, NSwitch, NTag, NPopover } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { AddOutline, CreateOutline, TrashOutline, LinkOutline, CopyOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
@@ -72,18 +72,24 @@ function confirmDelete() {
   }
 }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text)
+  message.success(t('common.copied'))
+}
+
 const banners = computed(() => data.value?.banners ?? [])
 
 const columns = computed<DataTableColumns>(() => [
   {
-    title: 'Title',
+    title: t('common.title'),
     key: 'title',
+    width: 200,
     ellipsis: { tooltip: true },
   },
   {
     title: t('content.bannerType'),
     key: 'type',
-    width: 100,
+    width: 120,
     render: (row: any) => {
       return h(NTag, { size: 'small', type: row.type === 'main' ? 'primary' : 'default' }, {
         default: () => row.type,
@@ -93,11 +99,28 @@ const columns = computed<DataTableColumns>(() => [
   {
     title: t('content.linkUrl'),
     key: 'link',
-    ellipsis: { tooltip: true },
-    render: (row: any) => row.link || '-',
+    width: 80,
+    render: (row: any) => {
+      if (!row.link) return '-'
+      return h(NPopover, { trigger: 'click', placement: 'bottom' }, {
+        trigger: () => h(NButton, { size: 'small', quaternary: true }, {
+          icon: () => h(NIcon, null, { default: () => h(LinkOutline) }),
+        }),
+        default: () => h('div', { class: 'flex items-center gap-2 max-w-xs' }, [
+          h('span', { class: 'text-sm break-all' }, row.link),
+          h(NButton, {
+            size: 'tiny',
+            quaternary: true,
+            onClick: () => copyToClipboard(row.link),
+          }, {
+            icon: () => h(NIcon, { size: 16 }, { default: () => h(CopyOutline) }),
+          }),
+        ]),
+      })
+    },
   },
   {
-    title: 'Position',
+    title: t('common.position'),
     key: 'position',
     width: 100,
     render: (row: any) => row.position ?? '-',
@@ -180,7 +203,7 @@ const columns = computed<DataTableColumns>(() => [
     <DeleteConfirmDialog
       v-model:show="showDeleteDialog"
       :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
-      message="Are you sure you want to delete this banner? This action cannot be undone."
+      :message="t('common.deleteConfirm')"
       :loading="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

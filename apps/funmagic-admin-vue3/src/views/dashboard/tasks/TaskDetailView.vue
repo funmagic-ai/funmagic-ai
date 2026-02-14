@@ -14,16 +14,19 @@ import {
 import type { DataTableColumns } from 'naive-ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
-import { ArrowBackOutline, RefreshOutline } from '@vicons/ionicons5'
+import { ArrowBackOutline, RefreshOutline, TrashOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
+import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 
 const taskId = computed(() => route.params.id as string)
 
@@ -97,12 +100,37 @@ function handleRetry() {
   retryMutation.mutate()
 }
 
+// Delete task
+const showDeleteDialog = ref(false)
+
+const deleteMutation = useMutation({
+  mutationFn: async (id: string) => {
+    const { error } = await api.DELETE('/api/admin/tasks/{id}', {
+      params: { path: { id } },
+    })
+    if (error) throw new Error((error as any).error ?? 'Failed to delete task')
+  },
+  onSuccess: () => {
+    message.success(t('common.deleteSuccess'))
+    showDeleteDialog.value = false
+    queryClient.invalidateQueries({ queryKey: ['admin', 'tasks'] })
+    router.push({ name: 'tasks' })
+  },
+  onError: (err: Error) => {
+    message.error(err.message)
+  },
+})
+
+function confirmDelete() {
+  deleteMutation.mutate(taskId.value)
+}
+
 function navigateToTask(id: string) {
   router.push({ name: 'tasks-detail', params: { id } })
 }
 
 // Child tasks table columns
-const childColumns: DataTableColumns = [
+const childColumns = computed<DataTableColumns>(() => [
   {
     title: t('tasks.taskId'),
     key: 'id',
@@ -128,7 +156,7 @@ const childColumns: DataTableColumns = [
     },
   },
   {
-    title: 'Credits',
+    title: t('users.credits'),
     key: 'creditsCost',
     width: 80,
   },
@@ -140,7 +168,7 @@ const childColumns: DataTableColumns = [
       return new Date(row.createdAt).toLocaleString()
     },
   },
-]
+])
 </script>
 
 <template>
@@ -165,6 +193,17 @@ const childColumns: DataTableColumns = [
           </template>
           {{ t('tasks.retryTask') }}
         </NButton>
+        <NButton
+          v-if="authStore.isAdmin"
+          type="error"
+          ghost
+          @click="showDeleteDialog = true"
+        >
+          <template #icon>
+            <NIcon><TrashOutline /></NIcon>
+          </template>
+          {{ t('common.delete') }}
+        </NButton>
       </template>
     </PageHeader>
 
@@ -175,7 +214,7 @@ const childColumns: DataTableColumns = [
 
     <!-- Error -->
     <div v-else-if="isError" class="py-12 text-center">
-      <NEmpty description="Task not found or failed to load">
+      <NEmpty :description="t('tasks.taskNotFound')">
         <template #extra>
           <NButton @click="() => refetch()">{{ t('common.retry') }}</NButton>
         </template>
@@ -186,7 +225,7 @@ const childColumns: DataTableColumns = [
     <template v-else-if="task">
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Task Info -->
-        <NCard title="Task Information" size="small">
+        <NCard :title="t('tasks.taskInformation')" size="small">
           <NDescriptions label-placement="left" :column="1" bordered>
             <NDescriptionsItem :label="t('tasks.taskId')">
               <code class="text-xs">{{ task.id }}</code>
@@ -197,7 +236,7 @@ const childColumns: DataTableColumns = [
             <NDescriptionsItem :label="t('tasks.tool')">
               <code class="text-xs">{{ task.toolId }}</code>
             </NDescriptionsItem>
-            <NDescriptionsItem v-if="parentTaskId" label="Parent Task">
+            <NDescriptionsItem v-if="parentTaskId" :label="t('tasks.parentTask')">
               <NTag
                 type="info"
                 size="small"
@@ -210,7 +249,7 @@ const childColumns: DataTableColumns = [
             <NDescriptionsItem :label="t('tasks.status')">
               <StatusBadge :status="task.status" />
             </NDescriptionsItem>
-            <NDescriptionsItem label="Credits Cost">
+            <NDescriptionsItem :label="t('tasks.creditsCost')">
               {{ task.creditsCost ?? '--' }}
             </NDescriptionsItem>
             <NDescriptionsItem :label="t('common.createdAt')">
@@ -223,12 +262,12 @@ const childColumns: DataTableColumns = [
         </NCard>
 
         <!-- Timestamps -->
-        <NCard title="Timeline" size="small">
+        <NCard :title="t('common.timeline')" size="small">
           <div class="space-y-4">
             <div class="flex items-center gap-3">
               <div class="h-3 w-3 rounded-full bg-blue-500" />
               <div>
-                <div class="text-sm font-medium text-foreground">Created</div>
+                <div class="text-sm font-medium text-foreground">{{ t('common.created') }}</div>
                 <div class="text-xs text-muted-foreground">
                   {{ new Date(task.createdAt).toLocaleString() }}
                 </div>
@@ -253,7 +292,7 @@ const childColumns: DataTableColumns = [
       </div>
 
       <!-- Child Tasks -->
-      <NCard v-if="childTasks.length > 0 || childrenLoading" title="Child Tasks" size="small" class="mt-6">
+      <NCard v-if="childTasks.length > 0 || childrenLoading" :title="t('tasks.childTasks')" size="small" class="mt-6">
         <div v-if="childrenLoading" class="flex justify-center py-4">
           <NSpin size="small" />
         </div>
@@ -268,7 +307,7 @@ const childColumns: DataTableColumns = [
         />
         <NEmpty
           v-else
-          description="No child tasks"
+          :description="t('tasks.noChildTasks')"
           class="py-4"
         />
       </NCard>
@@ -277,7 +316,7 @@ const childColumns: DataTableColumns = [
       <NCard :title="t('tasks.input')" size="small" class="mt-6">
         <NEmpty
           v-if="!task.payload?.input"
-          description="No input data"
+          :description="t('tasks.noInputData')"
           class="py-6"
         />
         <NCode
@@ -292,7 +331,7 @@ const childColumns: DataTableColumns = [
       <NCard :title="t('tasks.output')" size="small" class="mt-6">
         <NEmpty
           v-if="!task.payload?.output"
-          description="No output data"
+          :description="t('tasks.noOutputData')"
           class="py-6"
         />
         <NCode
@@ -303,5 +342,13 @@ const childColumns: DataTableColumns = [
         />
       </NCard>
     </template>
+
+    <DeleteConfirmDialog
+      v-model:show="showDeleteDialog"
+      :title="`Delete task &quot;${task?.id?.substring(0, 8) ?? ''}&quot;?`"
+      :message="t('common.deleteConfirm')"
+      :loading="deleteMutation.isPending.value"
+      @confirm="confirmDelete"
+    />
   </div>
 </template>

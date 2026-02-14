@@ -9,7 +9,8 @@ import {
   getPresignedUrl,
   createProgressTracker,
 } from '../utils';
-import { uploadFromUrlWithoutRecord } from '../../lib/storage';
+import { uploadFromUrlAdmin } from '../../lib/storage';
+import { ASSET_MODULE } from '@funmagic/shared';
 
 /**
  * Fal.ai Provider Worker
@@ -61,11 +62,11 @@ export const falWorker: AdminProviderWorker = {
           throw new Error('No image URL in fal.ai response');
         }
 
-        // Upload result to S3 (without DB record)
-        const asset = await uploadFromUrlWithoutRecord({
+        // Upload result to S3 with asset record
+        const asset = await uploadFromUrlAdmin({
           url: result.data.image.url,
           userId: adminId,
-          module: 'ai-studio',
+          module: ASSET_MODULE.AI_STUDIO,
           taskId: messageId, // Use messageId as the task reference
           filename: `bg_removed_${Date.now()}_${i}.png`,
         });

@@ -9,7 +9,7 @@ import { requireAuth, requireAdmin } from './middleware/auth';
 import { auth } from '@funmagic/auth/server';
 
 // Environment variables
-const CORS_ORIGINS = (process.env.CORS_ORIGINS ?? 'http://localhost:3000,http://localhost:3001').split(',');
+const CORS_ORIGINS = process.env.CORS_ORIGINS!.split(',');
 import { healthRoutes } from './routes/health';
 import { usersRoutes } from './routes/users';
 import { toolsRoutes } from './routes/tools';
@@ -17,7 +17,6 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
-import { uploadRoutes } from './routes/upload';
 import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, aiStudioRoutes, adminTasksRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
@@ -55,7 +54,6 @@ protectedApp.route('/users', usersRoutes);
 protectedApp.route('/tasks', tasksRoutes);
 protectedApp.route('/credits', creditsRoutes);
 protectedApp.route('/assets', assetsRoutes);
-protectedApp.route('/upload', uploadRoutes);
 
 app.route('/api', protectedApp);
 

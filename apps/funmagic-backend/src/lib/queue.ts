@@ -1,7 +1,7 @@
 import { Queue } from 'bullmq';
 import { createRedisConnection } from '@funmagic/services';
 
-const JOB_BACKOFF_DELAY = parseInt(process.env.JOB_BACKOFF_DELAY_MS ?? '1000', 10);
+const JOB_BACKOFF_DELAY = parseInt(process.env.JOB_BACKOFF_DELAY_MS!, 10);
 
 export const QUEUE_NAMES = {
   AI_TASKS: 'ai-tasks',

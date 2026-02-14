@@ -6,6 +6,8 @@ bun.lockb
 
 # Build outputs
 dist/
+*.vue.js
+*.tsbuildinfo
 .next/
 out/
 

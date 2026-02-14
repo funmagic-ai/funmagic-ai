@@ -35,7 +35,7 @@ const { data: toolData } = useQuery({
 
 const toolInfo = computed(() => toolData.value?.tool)
 const toolTitle = computed(() => toolInfo.value?.title ?? 'Background Remover')
-const toolDescription = computed(() => toolInfo.value?.description ?? toolInfo.value?.shortDescription ?? '')
+const toolDescription = computed(() => toolInfo.value?.description ?? '')
 const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; [key: string]: unknown }> })
 const firstStep = computed(() => toolConfig.value.steps[0])
 const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum + (s.cost ?? 0), 0))
@@ -46,7 +46,7 @@ const steps = computed(() => [
   { id: 'result', label: t('tools.result') },
 ])
 
-const { progress, isProcessing, isCompleted, isFailed } = useTaskProgress(
+const { progress, isFailed } = useTaskProgress(
   taskId,
   {
     onComplete: (output: unknown) => {
@@ -81,7 +81,7 @@ const submitMutation = useMutation({
     return data
   },
   onSuccess: (data) => {
-    taskId.value = data.task?.id ?? data.id
+    taskId.value = data.task.id
     currentStep.value = 1
   },
 })
