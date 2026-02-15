@@ -2,7 +2,7 @@
 import { NButton, NForm, NFormItem, NInput, NInputNumber, NIcon, NSwitch, NSelect } from 'naive-ui'
 import type { FormInst } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
@@ -17,6 +17,7 @@ import { SUPPORTED_LOCALES } from '@funmagic/shared/config/locales'
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const queryClient = useQueryClient()
 const { handleError } = useApiError()
 
 const upload = useUpload({ module: 'banners', visibility: 'public' })
@@ -99,6 +100,7 @@ const createMutation = useMutation({
     return data
   },
   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['banners'] })
     message.success(t('common.createSuccess'))
     router.push({ name: 'banners' })
   },

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/vue-query'
 
-export interface GenerationStreamEvent {
+interface GenerationStreamEvent {
   type: 'connected' | 'text_delta' | 'text_done' | 'partial_image' | 'image_done' | 'complete' | 'error' | 'heartbeat'
   messageId: string
   chunk?: string

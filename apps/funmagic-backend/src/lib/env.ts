@@ -30,15 +30,3 @@ export const BACKEND_REQUIRED_ENV = [
   'MAX_FILE_UPLOAD_SIZE',
 ] as const;
 
-/** Required env vars for the worker process */
-export const WORKER_REQUIRED_ENV = [
-  'DATABASE_URL',
-  'REDIS_URL',
-  'SECRET_KEY',
-  'S3_ENDPOINT',
-  'S3_ACCESS_KEY',
-  'S3_SECRET_KEY',
-  'S3_BUCKET_PUBLIC',
-  'S3_BUCKET_PRIVATE',
-  'S3_BUCKET_ADMIN',
-] as const;
