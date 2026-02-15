@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
@@ -15,13 +16,13 @@ const slug = computed(() => route.params.slug as string)
 const { data, isLoading, isError } = useQuery({
   queryKey: ['tool-detail', slug],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/tools/{slug}', {
+    const { data, error, response } = await api.GET('/api/tools/{slug}', {
       params: {
         path: { slug: slug.value },
         query: { locale: locale.value as SupportedLocale },
       },
     })
-    if (error) throw new Error(error.error)
+    if (error) throw extractApiError(error, response)
     return data
   },
   enabled: computed(() => !!slug.value),

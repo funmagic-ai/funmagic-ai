@@ -1,12 +1,28 @@
 import 'dotenv/config';
 
+import { validateEnv, BACKEND_REQUIRED_ENV } from './lib/env';
+validateEnv([...BACKEND_REQUIRED_ENV]);
+
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 
 import { requireAuth, requireAdmin } from './middleware/auth';
+import { securityHeaders } from './middleware/security-headers';
+import {
+  globalApiRateLimit,
+  userApiRateLimit,
+  taskCreationRateLimit,
+  authSessionRateLimit,
+  authActionRateLimit,
+  uploadRateLimit,
+} from './middleware/rate-limit';
 import { auth } from '@funmagic/auth/server';
+import { createLogger } from '@funmagic/services';
+import { AppError, ERROR_CODES } from '@funmagic/shared';
+
+const log = createLogger('Backend');
 
 // Environment variables
 const CORS_ORIGINS = process.env.CORS_ORIGINS!.split(',');
@@ -17,17 +33,25 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
-import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, aiStudioRoutes, adminTasksRoutes } from './routes/admin';
+import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, studioRoutes, adminTasksRoutes, settingsRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
 
 // Middleware
 app.use('*', logger());
 app.use('*', prettyJSON());
+app.use('*', securityHeaders);
 app.use('*', cors({
   origin: CORS_ORIGINS,
   credentials: true,
 }));
+
+// Rate limiting — Layer 1: IP-based ceiling on all API routes
+app.use('/api/*', globalApiRateLimit);
+// Auth: split session checks (generous) vs auth actions (strict)
+app.use('/api/auth/get-session', authSessionRateLimit);
+app.use('/api/auth/sign-in/*', authActionRateLimit);
+app.use('/api/auth/sign-up/*', authActionRateLimit);
 
 // =====================================
 // Auth routes (Better Auth handler)
@@ -49,10 +73,15 @@ app.route('/api/credits', creditsPublicRoutes);  // List credit packages
 // =====================================
 const protectedApp = new OpenAPIHono();
 protectedApp.use('*', requireAuth);
+// Layer 2: per-user rate limits on authenticated routes
+protectedApp.use('*', userApiRateLimit);
 
 protectedApp.route('/users', usersRoutes);
+// Layer 3: strict per-user limit on task creation
+protectedApp.use('/tasks', taskCreationRateLimit);
 protectedApp.route('/tasks', tasksRoutes);
 protectedApp.route('/credits', creditsRoutes);
+protectedApp.use('/assets/upload', uploadRateLimit);
 protectedApp.route('/assets', assetsRoutes);
 
 app.route('/api', protectedApp);
@@ -71,8 +100,9 @@ adminApp.route('/providers', providersRoutes);
 adminApp.route('/admin-providers', adminProvidersRoutes);
 adminApp.route('/packages', packagesRoutes);
 adminApp.route('/users', usersAdminRoutes);
-adminApp.route('/ai-studio', aiStudioRoutes);
+adminApp.route('/studio', studioRoutes);
 adminApp.route('/tasks', adminTasksRoutes);
+adminApp.route('/settings', settingsRoutes);
 
 app.route('/api/admin', adminApp);
 
@@ -99,16 +129,39 @@ app.get('/openapi.json', (c) => {
 });
 
 // 404 handler
-app.notFound((c) => c.json({ error: 'Not Found' }, 404));
+app.notFound((c) => {
+  return c.json({
+    error: { code: ERROR_CODES.NOT_FOUND, message: 'Not Found' },
+  }, 404);
+});
 
-// Error handler
+// Global error handler
 app.onError((err, c) => {
-  console.error(err);
-  return c.json({ error: 'Internal Server Error' }, 500);
+  // Known application errors — log at warn level
+  if (err instanceof AppError) {
+    log.warn({ err, code: err.code, details: err.details }, err.message);
+    return c.json(err.toJSON(), err.statusCode as 400);
+  }
+
+  // Zod validation errors from @hono/zod-openapi
+  if (err.name === 'ZodError' && 'issues' in err) {
+    const issues = (err as unknown as { issues: { message: string }[] }).issues;
+    const message = issues.map((i) => i.message).join('; ');
+    log.warn({ err }, 'Validation error');
+    return c.json({
+      error: { code: ERROR_CODES.VALIDATION_ERROR, message },
+    }, 400);
+  }
+
+  // Unknown errors — log at error level with full stack, return safe message
+  log.error({ err }, 'Unhandled error');
+  return c.json({
+    error: { code: ERROR_CODES.INTERNAL_ERROR, message: 'Internal Server Error' },
+  }, 500);
 });
 
 const port = Number(process.env.PORT) || 8000;
-console.log(`[Backend] Server running at http://localhost:${port}`);
+log.info({ port }, 'Server running');
 
 // Export app type for type inference
 export type AppType = typeof app;

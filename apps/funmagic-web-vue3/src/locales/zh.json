@@ -305,5 +305,31 @@
   },
   "footer": {
     "copyright": "保留所有权利。"
+  },
+  "rateLimit": {
+    "title": "请求过于频繁",
+    "description": "您的请求次数过多，请稍后再试。",
+    "countdown": "{seconds} 秒后可以重试",
+    "ready": "您现在可以重试了",
+    "goBack": "返回"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "系统出现问题，请稍后重试。",
+    "NOT_FOUND": "请求的资源未找到。",
+    "VALIDATION_ERROR": "请检查您的输入后重试。",
+    "AUTH_UNAUTHORIZED": "登录已过期，请重新登录。",
+    "AUTH_FORBIDDEN": "您没有权限执行此操作。",
+    "RATE_LIMIT_EXCEEDED": "请求过于频繁，请稍后再试。",
+    "CREDITS_INSUFFICIENT": "积分不足，请购买更多积分后继续。",
+    "TOOL_NOT_FOUND": "未找到该工具。",
+    "TOOL_INACTIVE": "该工具暂不可用。",
+    "TASK_NOT_FOUND": "未找到任务。",
+    "TASK_CREATION_FAILED": "启动处理失败，请重试。",
+    "UPLOAD_INVALID_TYPE": "不支持的文件类型。",
+    "UPLOAD_SIZE_EXCEEDED": "文件大小超过允许的上限。",
+    "UPLOAD_EXTENSION_MISMATCH": "文件扩展名与内容类型不匹配。",
+    "ASSET_NOT_FOUND": "未找到资源。",
+    "ASSET_FORBIDDEN": "您无权访问此资源。",
+    "fallback": "发生了意外错误。"
   }
 }

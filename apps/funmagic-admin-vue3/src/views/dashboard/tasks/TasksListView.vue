@@ -86,12 +86,12 @@ async function fetchChildren(parentId: string) {
   }
 }
 
-const expandedRowKeys = ref<string[]>([])
+const expandedRowKeys = ref<Array<string | number>>([])
 
-function handleExpandChange(keys: string[]) {
+function handleExpandChange(keys: Array<string | number>) {
   expandedRowKeys.value = keys
   for (const key of keys) {
-    fetchChildren(key)
+    fetchChildren(String(key))
   }
 }
 

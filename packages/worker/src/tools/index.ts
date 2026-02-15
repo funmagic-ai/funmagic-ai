@@ -19,12 +19,6 @@ export function getToolWorker(slug: string): ToolWorker | undefined {
   return toolWorkers[slug];
 }
 
-/**
- * Check if a worker exists for a tool slug
- */
-export function hasToolWorker(slug: string): boolean {
-  return slug in toolWorkers;
-}
 
 /**
  * Get all registered tool slugs

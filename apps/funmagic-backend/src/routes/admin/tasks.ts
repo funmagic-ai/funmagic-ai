@@ -1,6 +1,8 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tasks, tools, users } from '@funmagic/database';
-import { eq, desc, and, sql, isNull } from 'drizzle-orm';
+import { eq, desc, and, sql, isNull, inArray } from 'drizzle-orm';
+import { notFound } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 const TaskSchema = z.object({
   id: z.string().uuid(),
@@ -24,10 +26,6 @@ const TasksListSchema = z.object({
   tasks: z.array(TaskSchema),
   total: z.number(),
 }).openapi('AdminTasksList');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('AdminTasksError');
 
 const listTasksRoute = createRoute({
   method: 'get',
@@ -104,7 +102,7 @@ export const adminTasksRoutes = new OpenAPIHono()
     const userIds = [...new Set(allTasks.map(t => t.userId))];
     const usersData = userIds.length > 0
       ? await db.query.users.findMany({
-          where: sql`${users.id} IN ${userIds}`,
+          where: inArray(users.id, userIds),
         })
       : [];
     const usersMap = new Map(usersData.map(u => [u.id, u]));
@@ -117,7 +115,7 @@ export const adminTasksRoutes = new OpenAPIHono()
           count: sql<number>`count(*)::int`,
         })
         .from(tasks)
-        .where(sql`${tasks.parentTaskId} IN ${taskIds}`)
+        .where(inArray(tasks.parentTaskId, taskIds))
         .groupBy(tasks.parentTaskId)
       : [];
     const childCountMap = new Map(
@@ -152,7 +150,7 @@ export const adminTasksRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Task not found' }, 404);
+      throw notFound('Task');
     }
 
     // Soft delete the task and its children

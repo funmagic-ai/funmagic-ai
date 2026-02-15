@@ -11,7 +11,7 @@ export type AssetVisibility = (typeof ASSET_VISIBILITY)[keyof typeof ASSET_VISIB
 export const ASSET_MODULE = {
   TOOLS: 'tools',
   BANNERS: 'banners',
-  AI_STUDIO: 'ai-studio',
+  STUDIO: 'studio',
   TASKS: 'tasks',
 } as const
 

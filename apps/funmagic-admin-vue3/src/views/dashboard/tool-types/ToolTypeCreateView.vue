@@ -5,7 +5,9 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { validateForm } from '@/composables/useFormValidation'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import TranslationsEditor from '@/components/translations/TranslationsEditor.vue'
 import { SUPPORTED_LOCALES } from '@funmagic/shared/config/locales'
@@ -13,6 +15,7 @@ import { SUPPORTED_LOCALES } from '@funmagic/shared/config/locales'
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const formRef = ref<FormInst | null>(null)
@@ -37,14 +40,14 @@ const rules: FormRules = {
 
 const createMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/admin/tool-types', {
+    const { data, error, response } = await api.POST('/api/admin/tool-types', {
       body: {
         name: formValue.value.name,
         isActive: formValue.value.isActive,
         translations: translations.value as any,
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create tool type')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -53,9 +56,7 @@ const createMutation = useMutation({
     message.success(t('common.createSuccess'))
     router.push({ name: 'tool-types' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {

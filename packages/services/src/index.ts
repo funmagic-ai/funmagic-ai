@@ -55,3 +55,17 @@ export {
   redis,
   createRedisConnection,
 } from './redis';
+
+// Rate limit config
+export {
+  getRateLimitConfig,
+  updateRateLimitConfig,
+  getUserTier,
+  invalidateUserTierCache,
+} from './rate-limit-config';
+
+// Logger
+export {
+  type Logger,
+  createLogger,
+} from './logger';

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
@@ -23,12 +24,13 @@ const taskId = ref<string | null>(null)
 const resultUrl = ref<string | null>(null)
 
 // Fetch tool config from API
-const { data: toolData } = useQuery({
+const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
   queryKey: ['tool', 'background-remove', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/tools/{slug}', {
+    const { data, error, response } = await api.GET('/api/tools/{slug}', {
       params: { path: { slug: 'background-remove' }, query: { locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -70,14 +72,14 @@ const submitMutation = useMutation({
     if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
 
     // Create task
-    const { data, error } = await api.POST('/api/tasks', {
+    const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'background-remove',
         stepId: firstStep.value?.id ?? 'remove-bg',
         input: { imageStorageKey: uploadResult.storageKey },
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create task')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
@@ -121,8 +123,14 @@ function handleReset() {
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
+        <!-- Error State -->
+        <div v-if="toolError" class="flex flex-col items-center justify-center py-20">
+          <p class="text-lg text-muted-foreground mb-4">{{ toolErrorData?.message ?? t('common.error') }}</p>
+          <n-button type="primary" @click="$router.push({ name: 'tools', params: { locale } })">{{ t('common.back') }}</n-button>
+        </div>
+
         <!-- Auth Gate -->
-        <div v-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
+        <div v-else-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
           <p class="text-muted-foreground">{{ t('tools.signInRequired') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'login', params: { locale } })">
             {{ t('auth.signIn') }}
@@ -135,7 +143,7 @@ function handleReset() {
 
           <!-- Step 0: Upload -->
           <div v-if="currentStep === 0" class="space-y-6">
-            <div class="rounded-xl border bg-card p-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <ImagePicker
                 :preview="upload.preview.value"
                 :disabled="submitMutation.isPending.value || upload.isUploading.value"
@@ -159,14 +167,16 @@ function handleReset() {
 
           <!-- Step 1: Processing -->
           <div v-if="currentStep === 1">
-            <TaskProgressDisplay :progress="progress" />
-            <div v-if="isFailed" class="flex justify-center mt-4 gap-3">
-              <n-button @click="handleRetry">
-                {{ t('common.retry') }}
-              </n-button>
-              <n-button @click="handleReset">
-                {{ t('tools.processAnother') }}
-              </n-button>
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
+              <TaskProgressDisplay :progress="progress" />
+              <div v-if="isFailed" class="flex justify-center mt-4 gap-3">
+                <n-button @click="handleRetry">
+                  {{ t('common.retry') }}
+                </n-button>
+                <n-button @click="handleReset">
+                  {{ t('tools.processAnother') }}
+                </n-button>
+              </div>
             </div>
           </div>
 

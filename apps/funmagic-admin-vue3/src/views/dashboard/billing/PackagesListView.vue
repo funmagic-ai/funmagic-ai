@@ -5,38 +5,39 @@ import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['packages'],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/packages')
-    if (error) throw new Error('Failed to fetch packages')
+    const { data, error, response } = await api.GET('/api/admin/packages')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
 
 const toggleActiveMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { data, error } = await api.PATCH('/api/admin/packages/{id}/toggle-active', {
+    const { data, error, response } = await api.PATCH('/api/admin/packages/{id}/toggle-active', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to toggle status')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['packages'] })
     message.success(t('common.statusUpdated'))
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 // Delete package
@@ -45,10 +46,10 @@ const deleteTarget = ref<{ id: string; name: string } | null>(null)
 
 const deleteMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { error } = await api.DELETE('/api/admin/packages/{id}', {
+    const { error, response } = await api.DELETE('/api/admin/packages/{id}', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to delete package')
+    if (error) throw extractApiError(error, response)
   },
   onSuccess: () => {
     message.success(t('common.deleteSuccess'))
@@ -56,9 +57,7 @@ const deleteMutation = useMutation({
     deleteTarget.value = null
     queryClient.invalidateQueries({ queryKey: ['packages'] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function openDeleteDialog(item: { id: string; name: string }) {
@@ -74,7 +73,9 @@ function confirmDelete() {
 
 const packages = computed(() => data.value?.packages ?? [])
 
-const columns = computed<DataTableColumns>(() => [
+type PackageRow = (typeof packages.value)[number]
+
+const columns = computed<DataTableColumns<PackageRow>>(() => [
   {
     title: t('common.name'),
     key: 'name',
@@ -84,7 +85,7 @@ const columns = computed<DataTableColumns>(() => [
     title: t('billing.price'),
     key: 'price',
     width: 120,
-    render: (row: any) => `${row.currency?.toUpperCase() || 'USD'} ${row.price}`,
+    render: (row) => `${row.currency?.toUpperCase() || 'USD'} ${row.price}`,
   },
   {
     title: t('billing.credits'),
@@ -100,7 +101,7 @@ const columns = computed<DataTableColumns>(() => [
     title: t('common.popular'),
     key: 'isPopular',
     width: 100,
-    render: (row: any) => row.isPopular ? t('common.yes') : t('common.no'),
+    render: (row) => row.isPopular ? t('common.yes') : t('common.no'),
   },
   {
     title: t('common.order'),
@@ -111,7 +112,7 @@ const columns = computed<DataTableColumns>(() => [
     title: t('common.status'),
     key: 'isActive',
     width: 120,
-    render: (row: any) => {
+    render: (row) => {
       return h(NSwitch, {
         value: row.isActive,
         loading: toggleActiveMutation.isPending.value,
@@ -123,7 +124,7 @@ const columns = computed<DataTableColumns>(() => [
     title: t('common.actions'),
     key: 'actions',
     width: 120,
-    render: (row: any) => {
+    render: (row) => {
       return h('div', { class: 'flex items-center gap-1' }, [
         h(
           NButton,
@@ -177,7 +178,7 @@ const columns = computed<DataTableColumns>(() => [
           :data="packages"
           :loading="isLoading"
           :bordered="false"
-          :row-key="(row: any) => row.id"
+          :row-key="(row) => row.id"
         />
       </div>
     </div>

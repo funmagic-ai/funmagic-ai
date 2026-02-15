@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun --watch src/index.ts",
-    "dev:admin": "bun --watch src/admin-worker.ts",
+    "dev:studio": "bun --watch src/studio-worker.ts",
     "start": "bun src/index.ts",
-    "start:admin": "bun src/admin-worker.ts",
+    "start:studio": "bun src/studio-worker.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

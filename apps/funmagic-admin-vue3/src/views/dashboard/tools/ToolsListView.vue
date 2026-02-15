@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { NButton, NInput, NDataTable, NSpin, NEmpty, NIcon, NPagination, NSwitch } from 'naive-ui'
+import { NButton, NInput, NDataTable, NSpin, NIcon, NPagination, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { TrashOutline, CreateOutline, AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const search = ref('')
@@ -21,10 +24,10 @@ const pageSize = ref(20)
 const { data, isLoading, isError, refetch } = useQuery({
   queryKey: ['admin', 'tools'] as const,
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/tools', {
+    const { data, error, response } = await api.GET('/api/admin/tools', {
       params: { query: { includeInactive: 'true' } },
     })
-    if (error) throw new Error('Failed to fetch tools')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -51,20 +54,18 @@ const paginatedTools = computed(() => {
 // Toggle active status
 const toggleActiveMutation = useMutation({
   mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-    const { data, error } = await api.PUT('/api/admin/tools/{id}', {
+    const { data, error, response } = await api.PUT('/api/admin/tools/{id}', {
       params: { path: { id } },
       body: { isActive },
     })
-    if (error) throw new Error(error.error ?? 'Failed to toggle status')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['admin', 'tools'] })
     message.success(t('common.statusUpdated'))
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 // Delete tool
@@ -73,10 +74,10 @@ const deleteTarget = ref<{ id: string; title: string } | null>(null)
 
 const deleteMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { error } = await api.DELETE('/api/admin/tools/{id}', {
+    const { error, response } = await api.DELETE('/api/admin/tools/{id}', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to delete tool')
+    if (error) throw extractApiError(error, response)
   },
   onSuccess: () => {
     message.success(t('common.deleteSuccess'))
@@ -84,9 +85,7 @@ const deleteMutation = useMutation({
     deleteTarget.value = null
     queryClient.invalidateQueries({ queryKey: ['admin', 'tools'] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function openDeleteDialog(tool: { id: string; title: string }) {

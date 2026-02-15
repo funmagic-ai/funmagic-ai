@@ -1,4 +1,7 @@
 import { Redis, type RedisOptions } from 'ioredis';
+import { createLogger } from './logger';
+
+const log = createLogger('Redis');
 
 /**
  * Robust Redis connection options for handling reconnection scenarios.
@@ -38,19 +41,19 @@ export function getRedis(): Redis {
 
     // Add connection event listeners for observability
     _redis.on('error', (err) => {
-      console.error('[Redis] Connection error:', err.message);
+      log.error({ err }, 'Connection error');
     });
 
     _redis.on('close', () => {
-      console.warn('[Redis] Connection closed');
+      log.warn('Connection closed');
     });
 
     _redis.on('reconnecting', () => {
-      console.log('[Redis] Reconnecting...');
+      log.info('Reconnecting...');
     });
 
     _redis.on('ready', () => {
-      console.log('[Redis] Connection ready');
+      log.info('Connection ready');
     });
   }
   return _redis;
@@ -61,8 +64,8 @@ export function getRedis(): Redis {
  * Allows `import { redis } from '@funmagic/services'` syntax.
  */
 export const redis = new Proxy({} as Redis, {
-  get(_, prop) {
-    return (getRedis() as any)[prop];
+  get(_, prop: string | symbol) {
+    return Reflect.get(getRedis(), prop);
   },
 });
 

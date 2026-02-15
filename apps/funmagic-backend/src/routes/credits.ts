@@ -9,6 +9,7 @@ import {
   type TranslationsRecord,
   type CreditPackageTranslationContent,
 } from '@funmagic/shared';
+import { ErrorSchema } from '../schemas';
 
 // Schemas
 const BalanceSchema = z.object({
@@ -39,10 +40,6 @@ const TransactionsSchema = z.object({
     offset: z.number(),
   }),
 }).openapi('Transactions');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('CreditsError');
 
 const PackageSchema = z.object({
   id: z.string().uuid(),

@@ -1,9 +1,11 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tasks, taskPayloads, tools, credits, creditTransactions } from '@funmagic/database';
 import { eq, sql } from 'drizzle-orm';
+import { AppError, ERROR_CODES } from '@funmagic/shared';
 import { addAITaskJob } from '../lib/queue';
 import { redis, createRedisConnection } from '@funmagic/services';
 import { CreateTaskSchema, TaskSchema, TaskDetailSchema, ErrorSchema } from '../schemas';
+import { notFound, badRequest } from '../lib/errors';
 
 // Step config from tool.config
 interface StepConfig {
@@ -179,7 +181,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     const user = c.get('user');
 
     if (!user?.id) {
-      return c.json({ error: 'Authentication required' }, 401 as any);
+      throw new AppError({ code: ERROR_CODES.AUTH_UNAUTHORIZED, message: 'Authentication required', statusCode: 401 });
     }
 
     const userId = user.id;
@@ -190,11 +192,11 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     });
 
     if (!tool) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     if (!tool.isActive) {
-      return c.json({ error: 'Tool is not available' }, 400);
+      throw badRequest(ERROR_CODES.TOOL_INACTIVE, 'Tool is not available');
     }
 
     // Calculate cost from tool config
@@ -217,7 +219,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       if (!reserveResult.success) {
         // Rollback task creation
         await db.delete(tasks).where(eq(tasks.id, task.id));
-        return c.json({ error: reserveResult.error || 'Insufficient credits' }, 400);
+        throw badRequest(ERROR_CODES.CREDITS_INSUFFICIENT, reserveResult.error || 'Insufficient credits');
       }
     }
 
@@ -260,7 +262,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     });
 
     if (!task) {
-      return c.json({ error: 'Task not found' }, 404);
+      throw notFound('Task');
     }
 
     return c.json({
@@ -293,7 +295,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
 
     if (!task) {
       console.log(`[SSE] Task not found: ${taskId}`);
-      return c.json({ error: 'Task not found' }, 404);
+      throw notFound('Task');
     }
 
     console.log(`[SSE] Starting stream for task: ${taskId}, status: ${task.status}`);

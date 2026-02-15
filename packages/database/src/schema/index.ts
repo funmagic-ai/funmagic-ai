@@ -7,4 +7,5 @@ export * from './tasks';
 export * from './credits';
 export * from './banners';
 export * from './assets';
-export * from './admin-ai-studio';
+export * from './studio';
+export * from './rate-limit-settings';

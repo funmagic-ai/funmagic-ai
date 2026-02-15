@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { EyeOutline, SearchOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
@@ -36,10 +37,10 @@ const roleOptions = computed(() => [
 const { data, isLoading, isError, refetch } = useQuery({
   queryKey: ['admin', 'users'] as const,
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/users', {
+    const { data, error, response } = await api.GET('/api/admin/users', {
       params: { query: { limit: '500' } },
     })
-    if (error) throw new Error('Failed to fetch users')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })

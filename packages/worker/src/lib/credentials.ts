@@ -3,62 +3,49 @@ import type { ProviderCredentials } from '../types';
 
 // Encryption constants (must match admin backend)
 const ALGORITHM = 'aes-256-gcm';
-const AUTH_TAG_LENGTH = 16;
-const SALT = 'funmagic-salt';
 
-// Provider limits structure (stored in providers.config.limits)
-// Keep for future rate limiting implementation
-export interface ProviderLimits {
-  rpm?: number;           // requests per minute
-  rpd?: number;           // requests per day
-  concurrency?: number;   // max concurrent requests
-  costPerRequest?: number;
-  costPerToken?: number;
-  costPerSecond?: number;
-}
-
-// Provider type with config field
-interface ProviderWithConfig {
-  type: string;
-  baseUrl: string | null;
-  config: unknown;
-}
-
-// Get provider limits for future rate limiting
-export function getProviderLimits(provider: ProviderWithConfig): ProviderLimits {
-  const config = provider.config as Record<string, unknown> | null;
-  return (config?.limits as ProviderLimits) ?? {};
-}
 
 /**
- * Decrypt a single credential encrypted with the admin's encryptCredential
- * Format: iv:authTag:encryptedData (all base64)
+ * Decrypt a single credential encrypted with the admin's encryptCredential.
+ * Supports new format (4 parts: salt:iv:authTag:encrypted) and legacy format (3 parts: iv:authTag:encrypted).
  */
 function decryptCredential(encrypted: string | null): string | null {
   if (!encrypted) return null;
 
-  // Check if it's in encrypted format (contains colons)
   if (!encrypted.includes(':')) {
-    // Not encrypted, return as-is (legacy/unencrypted data)
     return encrypted;
   }
 
   const secretKey = process.env.SECRET_KEY;
   if (!secretKey) {
-    console.warn('[Worker] SECRET_KEY not configured, cannot decrypt');
+    throw new Error('[Worker] SECRET_KEY not configured - cannot decrypt credentials');
+  }
+
+  const parts = encrypted.split(':');
+
+  let salt: Buffer;
+  let ivBase64: string;
+  let authTagBase64: string;
+  let encryptedData: string;
+
+  if (parts.length === 4) {
+    [, ivBase64, authTagBase64, encryptedData] = parts;
+    salt = Buffer.from(parts[0], 'base64');
+  } else if (parts.length === 3) {
+    [ivBase64, authTagBase64, encryptedData] = parts;
+    salt = Buffer.from('funmagic-salt');
+  } else {
+    return encrypted;
+  }
+
+  if (!ivBase64 || !authTagBase64 || !encryptedData) {
     return encrypted;
   }
 
   try {
-    const [ivBase64, authTagBase64, encryptedData] = encrypted.split(':');
-
-    if (!ivBase64 || !authTagBase64 || !encryptedData) {
-      return encrypted; // Invalid format, return as-is
-    }
-
+    const key = scryptSync(secretKey, salt, 32);
     const iv = Buffer.from(ivBase64, 'base64');
     const authTag = Buffer.from(authTagBase64, 'base64');
-    const key = scryptSync(secretKey, SALT, 32);
 
     const decipher = createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
@@ -69,7 +56,7 @@ function decryptCredential(encrypted: string | null): string | null {
     return decrypted;
   } catch (error) {
     console.error('[Worker] Failed to decrypt credential:', error);
-    return encrypted; // Return as-is on error
+    return null;
   }
 }
 
@@ -88,11 +75,4 @@ export function decryptCredentials(provider: {
     baseUrl: provider.baseUrl || undefined,
     config: provider.config as Record<string, unknown> | undefined,
   };
-}
-
-// Mask credentials for logging
-export function maskCredential(value: string | undefined): string {
-  if (!value) return '[not set]';
-  if (value.length <= 8) return '***';
-  return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
@@ -28,12 +29,13 @@ const threeDResult = ref<string | null>(null)
 const selectedStyle = ref<string | null>(null)
 
 // Fetch tool config from API
-const { data: toolData } = useQuery({
+const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
   queryKey: ['tool', 'figme', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/tools/{slug}', {
+    const { data, error, response } = await api.GET('/api/tools/{slug}', {
       params: { path: { slug: 'figme' }, query: { locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -101,7 +103,7 @@ const submitMutation = useMutation({
     const uploadResult = await upload.uploadOnSubmit()
     if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
 
-    const { data, error } = await api.POST('/api/tasks', {
+    const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'figme',
         stepId: step0Id.value,
@@ -111,7 +113,7 @@ const submitMutation = useMutation({
         },
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create task')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
@@ -122,7 +124,7 @@ const submitMutation = useMutation({
 
 const generate3DMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/tasks', {
+    const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'figme',
         stepId: step1Id.value,
@@ -133,7 +135,7 @@ const generate3DMutation = useMutation({
         },
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create 3D task')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
@@ -180,8 +182,14 @@ function handleReset() {
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
+        <!-- Error State -->
+        <div v-if="toolError" class="flex flex-col items-center justify-center py-20">
+          <p class="text-lg text-muted-foreground mb-4">{{ toolErrorData?.message ?? t('common.error') }}</p>
+          <n-button type="primary" @click="$router.push({ name: 'tools', params: { locale } })">{{ t('common.back') }}</n-button>
+        </div>
+
         <!-- Auth Gate -->
-        <div v-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
+        <div v-else-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
           <p class="text-muted-foreground">{{ t('tools.signInRequired') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'login', params: { locale } })">
             {{ t('auth.signIn') }}
@@ -212,7 +220,7 @@ function handleReset() {
             </div>
 
             <!-- Upload -->
-            <div class="rounded-xl border bg-card p-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <ImagePicker
                 :preview="upload.preview.value"
                 :disabled="submitMutation.isPending.value"
@@ -237,10 +245,12 @@ function handleReset() {
 
           <!-- Step 1: Image Generation Progress -->
           <div v-if="currentStep === 1">
-            <TaskProgressDisplay :progress="imageProgress" />
-            <div v-if="imageFailed" class="flex justify-center mt-4 gap-3">
-              <n-button @click="currentStep = 0">{{ t('tools.tryAgain') }}</n-button>
-              <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
+              <TaskProgressDisplay :progress="imageProgress" />
+              <div v-if="imageFailed" class="flex justify-center mt-4 gap-3">
+                <n-button @click="currentStep = 0">{{ t('tools.tryAgain') }}</n-button>
+                <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+              </div>
             </div>
           </div>
 
@@ -276,10 +286,12 @@ function handleReset() {
 
           <!-- Step 3: 3D Generation Progress -->
           <div v-if="currentStep === 3">
-            <TaskProgressDisplay :progress="threeDProgress" />
-            <div v-if="threeDFailed" class="flex justify-center mt-4 gap-3">
-              <n-button @click="currentStep = 2">{{ t('tools.backToImage') }}</n-button>
-              <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
+              <TaskProgressDisplay :progress="threeDProgress" />
+              <div v-if="threeDFailed" class="flex justify-center mt-4 gap-3">
+                <n-button @click="currentStep = 2">{{ t('tools.backToImage') }}</n-button>
+                <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+              </div>
             </div>
           </div>
 

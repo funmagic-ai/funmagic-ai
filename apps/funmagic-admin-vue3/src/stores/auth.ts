@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { authClient } from '@/lib/auth-client'
+import router from '@/router'
 import type { UserRole } from '@funmagic/shared/types'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -15,6 +16,10 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchSession() {
     try {
       const { data, error } = await authClient.getSession()
+      if (error?.status === 429) {
+        router.push({ path: '/rate-limit', query: { retry: '60' } })
+        return
+      }
       if (data && !error) {
         sessionData.value = data
       }

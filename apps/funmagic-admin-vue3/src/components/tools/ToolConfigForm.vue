@@ -263,7 +263,7 @@ function removeCustomOption(stepId: string, key: string) {
 
           <!-- Model input -->
           <div class="flex items-center gap-1.5">
-            <span class="text-muted-foreground">{{ t('aiTasks.model') }}:</span>
+            <span class="text-muted-foreground">{{ t('studio.model') }}:</span>
             <n-input
               :value="(getStepConfig(stepDef.id).provider as StepProvider)?.model ?? stepDef.provider.model"
               @update:value="(v: string) => updateProviderModel(stepDef.id, v)"

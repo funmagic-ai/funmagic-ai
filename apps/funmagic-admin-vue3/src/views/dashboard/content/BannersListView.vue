@@ -5,38 +5,39 @@ import { AddOutline, CreateOutline, TrashOutline, LinkOutline, CopyOutline } fro
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['banners'],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/banners')
-    if (error) throw new Error('Failed to fetch banners')
+    const { data, error, response } = await api.GET('/api/admin/banners')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
 
 const toggleActiveMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { data, error } = await api.PATCH('/api/admin/banners/{id}/toggle-active', {
+    const { data, error, response } = await api.PATCH('/api/admin/banners/{id}/toggle-active', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to toggle status')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['banners'] })
     message.success(t('common.statusUpdated'))
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 // Delete banner
@@ -45,10 +46,10 @@ const deleteTarget = ref<{ id: string; name: string } | null>(null)
 
 const deleteMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { error } = await api.DELETE('/api/admin/banners/{id}', {
+    const { error, response } = await api.DELETE('/api/admin/banners/{id}', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to delete banner')
+    if (error) throw extractApiError(error, response)
   },
   onSuccess: () => {
     message.success(t('common.deleteSuccess'))
@@ -56,9 +57,7 @@ const deleteMutation = useMutation({
     deleteTarget.value = null
     queryClient.invalidateQueries({ queryKey: ['banners'] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function openDeleteDialog(item: { id: string; title: string }) {

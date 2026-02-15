@@ -7,17 +7,30 @@ interface Slide {
   description: string
   image: string
   badge: string
+  link?: string
 }
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   slides: Slide[]
   featuredLabel?: string
 }>(), {
   featuredLabel: 'Featured',
 })
 
+const router = useRouter()
+
+function onSlideClick(slide: Slide) {
+  if (!slide.link) return
+  if (slide.link.startsWith('http://') || slide.link.startsWith('https://') || slide.link.startsWith('//')) {
+    window.open(slide.link, '_blank', 'noopener')
+  } else {
+    router.push(slide.link)
+  }
+}
+
 const [emblaRef, emblaApi] = emblaCarouselVue({ loop: true })
 const selectedIndex = ref(0)
+let autoScrollInterval: ReturnType<typeof setInterval> | undefined
 
 function scrollPrev() {
   emblaApi.value?.scrollPrev()
@@ -40,45 +53,50 @@ watch(emblaApi, (api) => {
   // Auto-scroll
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   if (!prefersReducedMotion) {
-    const interval = setInterval(() => {
+    clearInterval(autoScrollInterval)
+    autoScrollInterval = setInterval(() => {
       api.scrollNext()
     }, 5000)
-
-    onUnmounted(() => clearInterval(interval))
   }
+})
+
+onUnmounted(() => {
+  clearInterval(autoScrollInterval)
 })
 </script>
 
 <template>
   <div v-if="slides.length === 0" class="relative aspect-[21/9] overflow-hidden rounded-2xl bg-gradient-to-br from-muted to-muted/50" />
 
-  <div v-else class="relative aspect-[21/9] overflow-hidden rounded-2xl group cursor-pointer">
+  <div v-else class="relative aspect-[21/9] overflow-hidden rounded-2xl group">
     <div ref="emblaRef" class="h-full overflow-hidden">
       <div class="flex h-full">
         <div
           v-for="slide in slides"
           :key="slide.id"
           class="relative h-full min-w-0 flex-[0_0_100%]"
+          :class="slide.link ? 'cursor-pointer' : ''"
+          @click="onSlideClick(slide)"
         >
           <!-- Background Image -->
           <div
             class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"
             :style="{ backgroundImage: `url(${slide.image})` }"
           />
-          <!-- Gradient Overlay -->
-          <div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent opacity-90" />
           <!-- Feature Label -->
           <span class="absolute top-6 left-6 md:top-8 md:left-8 inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-primary text-primary-foreground border border-primary/50">
             {{ featuredLabel }}
           </span>
           <!-- Content -->
-          <div class="absolute bottom-0 left-0 w-full p-6 md:p-8 flex flex-col gap-3">
-            <h2 class="text-2xl md:text-4xl lg:text-5xl font-bold tracking-tight">
-              {{ slide.title }}
-            </h2>
-            <p class="text-muted-foreground text-sm md:text-base lg:text-lg max-w-2xl line-clamp-2">
-              {{ slide.description }}
-            </p>
+          <div class="absolute bottom-0 left-0 w-full p-6 pb-12 md:p-8 md:pb-14">
+            <div class="inline-flex flex-col gap-2 px-4 py-3 rounded-xl bg-black/40 backdrop-blur-md text-white">
+              <h2 class="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight">
+                {{ slide.title }}
+              </h2>
+              <p class="text-white/85 text-sm md:text-base lg:text-lg max-w-2xl line-clamp-2">
+                {{ slide.description }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -103,12 +121,12 @@ watch(emblaApi, (api) => {
     </button>
 
     <!-- Dots Indicator -->
-    <div class="absolute bottom-4 left-4 md:bottom-6 md:left-6 flex gap-0" role="tablist" aria-label="Carousel slides">
+    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-0" role="tablist" aria-label="Carousel slides">
       <button
         v-for="(slide, index) in slides"
         :key="slide.id"
         type="button"
-        class="flex items-center justify-center h-11 w-11 -mx-1"
+        class="flex items-center justify-center h-8 w-8"
         role="tab"
         :aria-selected="selectedIndex === index"
         :aria-label="`Go to slide ${index + 1}`"

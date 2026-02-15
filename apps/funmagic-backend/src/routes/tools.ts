@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, tools, toolTypes } from '@funmagic/database';
 import { eq, and, ilike, or, count, isNull } from 'drizzle-orm';
 import { ToolsListSchema, ToolDetailSchema, ErrorSchema } from '../schemas';
+import { notFound } from '../lib/errors';
 import {
   SUPPORTED_LOCALES,
   DEFAULT_LOCALE,
@@ -166,7 +167,7 @@ export const toolsRoutes = new OpenAPIHono()
     });
 
     if (!tool) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     const localizedContent = getLocalizedToolContent(

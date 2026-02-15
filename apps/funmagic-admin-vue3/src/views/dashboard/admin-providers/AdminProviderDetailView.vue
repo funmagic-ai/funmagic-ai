@@ -5,13 +5,16 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { validateForm } from '@/composables/useFormValidation'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const id = computed(() => route.params.id as string)
@@ -35,10 +38,10 @@ const rules: FormRules = {
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['admin-providers', id],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/admin-providers/{id}', {
+    const { data, error, response } = await api.GET('/api/admin/admin-providers/{id}', {
       params: { path: { id: id.value } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to fetch admin provider')
+    if (error) throw extractApiError(error, response)
     return data
   },
   select: (data) => {
@@ -58,7 +61,7 @@ const { data, isLoading, isError, error } = useQuery({
 
 const updateMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.PUT('/api/admin/admin-providers/{id}', {
+    const { data, error, response } = await api.PUT('/api/admin/admin-providers/{id}', {
       params: { path: { id: id.value } },
       body: {
         name: formValue.value.name,
@@ -70,7 +73,7 @@ const updateMutation = useMutation({
         ...(formValue.value.baseUrl ? { baseUrl: formValue.value.baseUrl } : {}),
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to update admin provider')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -78,9 +81,7 @@ const updateMutation = useMutation({
     message.success(t('common.updateSuccess'))
     router.push({ name: 'admin-providers' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {

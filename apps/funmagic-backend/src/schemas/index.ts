@@ -1,26 +1,12 @@
 import { z } from '@hono/zod-openapi'
 
-// Import base schemas from shared (for validation logic and types)
-import {
-  ErrorResponseSchema as BaseErrorSchema,
-  MessageResponseSchema as BaseMessageSchema,
-  CreateTaskInputSchema as BaseCreateTaskSchema,
-  ToolSchema as BaseToolSchema,
-  HealthResponseSchema as BaseHealthSchema,
-  HealthAllResponseSchema as BaseHealthAllSchema,
-} from '@funmagic/shared/schemas'
-
-// Re-create schemas with OpenAPI registration
-// Note: @hono/zod-openapi requires using its own z instance for .openapi() method
-
 // Common schemas
 export const ErrorSchema = z.object({
-  error: z.string(),
+  error: z.object({
+    code: z.string(),
+    message: z.string(),
+  }),
 }).openapi('Error')
-
-export const MessageSchema = z.object({
-  message: z.string(),
-}).openapi('Message')
 
 // Health schemas
 export const HealthSchema = z.object({
@@ -88,8 +74,8 @@ export const ToolDetailSchema = z.object({
 // Task schemas
 export const CreateTaskSchema = z.object({
   toolSlug: z.string().min(1, 'Tool slug is required'),
-  stepId: z.string().optional(),  // For multi-step tools
-  parentTaskId: z.string().uuid().optional(),  // For child tasks (e.g., 3D gen after image gen)
+  stepId: z.string().optional(),
+  parentTaskId: z.string().uuid().optional(),
   input: z.record(z.string(), z.any()),
 }).openapi('CreateTask')
 
@@ -124,22 +110,3 @@ export const TaskDetailSchema = z.object({
 export const UserMeSchema = z.object({
   message: z.string(),
 }).openapi('UserMe')
-
-// Credits schemas
-export const BalanceSchema = z.object({
-  message: z.string(),
-}).openapi('Balance')
-
-export const TransactionsSchema = z.object({
-  message: z.string(),
-}).openapi('Transactions')
-
-// Re-export shared schemas for direct use in validation (without OpenAPI wrapper)
-export {
-  BaseErrorSchema,
-  BaseMessageSchema,
-  BaseCreateTaskSchema,
-  BaseToolSchema,
-  BaseHealthSchema,
-  BaseHealthAllSchema,
-}

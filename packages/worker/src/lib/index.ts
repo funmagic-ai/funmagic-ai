@@ -1,5 +1,5 @@
 export { redis, createRedisConnection } from '@funmagic/services';
-export { decryptCredentials, maskCredential } from './credentials';
+export { decryptCredentials } from './credentials';
 export { uploadFromUrl, uploadBuffer, getDownloadUrl } from './storage';
 export {
   createProgressTracker,

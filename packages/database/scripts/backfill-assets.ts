@@ -4,7 +4,7 @@
  * Scans:
  *   1. tools.thumbnail → storageKeys in public bucket
  *   2. banners.thumbnail → full URLs or storageKeys in public bucket
- *   3. admin_messages.images → storageKeys in admin bucket
+ *   3. studio_generations.images → storageKeys in admin bucket
  *
  * Uses ON CONFLICT DO NOTHING on (bucket, storageKey) to skip duplicates.
  * Uses S3 HeadObject to verify existence and get size/content-type.
@@ -14,7 +14,7 @@
  */
 
 import 'dotenv/config';
-import { db, tools, banners, adminMessages, assets, users } from '../src';
+import { db, tools, banners, studioGenerations, assets, users } from '../src';
 import { isNull, isNotNull, eq, or } from 'drizzle-orm';
 import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { ASSET_VISIBILITY, ASSET_MODULE } from '@funmagic/shared';
@@ -182,14 +182,14 @@ async function backfillBannerThumbnails(fallbackUserId: string) {
   console.log(`  Banners: ${created} created, ${skipped} skipped, ${notFound} not found in S3`);
 }
 
-async function backfillAdminMessages(fallbackUserId: string) {
-  console.log('\n--- Backfilling admin message images ---');
+async function backfillStudioGenerations(fallbackUserId: string) {
+  console.log('\n--- Backfilling studio generation images ---');
 
-  const messagesWithImages = await db.query.adminMessages.findMany({
-    where: isNotNull(adminMessages.images),
+  const messagesWithImages = await db.query.studioGenerations.findMany({
+    where: isNotNull(studioGenerations.images),
     columns: { id: true, images: true },
     with: {
-      chat: { columns: { adminId: true } },
+      project: { columns: { adminId: true } },
     },
   });
 
@@ -201,7 +201,7 @@ async function backfillAdminMessages(fallbackUserId: string) {
     const images = msg.images;
     if (!images || !Array.isArray(images)) continue;
 
-    const userId = msg.chat?.adminId ?? fallbackUserId;
+    const userId = msg.project?.adminId ?? fallbackUserId;
 
     for (const img of images) {
       const storageKey = img.storageKey;
@@ -226,7 +226,7 @@ async function backfillAdminMessages(fallbackUserId: string) {
           mimeType: head.contentType,
           size: head.size,
           visibility: ASSET_VISIBILITY.ADMIN_PRIVATE,
-          module: ASSET_MODULE.AI_STUDIO,
+          module: ASSET_MODULE.STUDIO,
         }).onConflictDoNothing();
         created++;
       } catch (e) {
@@ -235,7 +235,7 @@ async function backfillAdminMessages(fallbackUserId: string) {
     }
   }
 
-  console.log(`  Admin messages: ${created} created, ${skipped} skipped, ${notFound} not found in S3`);
+  console.log(`  Studio generations: ${created} created, ${skipped} skipped, ${notFound} not found in S3`);
 }
 
 async function main() {
@@ -248,7 +248,7 @@ async function main() {
 
   await backfillToolThumbnails(fallbackUserId);
   await backfillBannerThumbnails(fallbackUserId);
-  await backfillAdminMessages(fallbackUserId);
+  await backfillStudioGenerations(fallbackUserId);
 
   console.log('\n=== Backfill complete ===');
   process.exit(0);

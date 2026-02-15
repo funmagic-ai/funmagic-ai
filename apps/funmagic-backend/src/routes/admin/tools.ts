@@ -4,8 +4,11 @@ import { eq, asc, isNull, and, count } from 'drizzle-orm';
 import {
   ToolTranslationsSchema,
   type ToolTranslations,
+  ERROR_CODES,
 } from '@funmagic/shared';
 import { getPublicCdnUrl } from '@funmagic/services/storage';
+import { notFound, conflict } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 // Schemas
 const ToolAdminSchema = z.object({
@@ -50,10 +53,6 @@ const UpdateToolSchema = CreateToolSchema.partial().openapi('UpdateTool');
 const ToolAdminDetailSchema = z.object({
   tool: ToolAdminSchema,
 }).openapi('ToolAdminDetail');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('ToolAdminError');
 
 // Routes
 const listToolsRoute = createRoute({
@@ -267,7 +266,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!tool) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     return c.json({
@@ -283,7 +282,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (existing) {
-      return c.json({ error: 'Tool slug already exists' }, 409);
+      throw conflict(ERROR_CODES.TOOL_SLUG_EXISTS, 'Tool slug already exists');
     }
 
     // Verify tool type exists
@@ -292,7 +291,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!toolType) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     // Build translations: use provided translations or build from legacy fields
@@ -331,7 +330,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -376,7 +375,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     // Check for active tasks referencing this tool
@@ -386,9 +385,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
       .where(and(eq(tasks.toolId, id), isNull(tasks.deletedAt)));
 
     if (Number(taskCount) > 0) {
-      return c.json({
-        error: `Cannot delete tool: ${taskCount} task(s) still reference this tool`
-      }, 409);
+      throw conflict(ERROR_CODES.TOOL_HAS_ACTIVE_TASKS, `Cannot delete tool: ${taskCount} task(s) still reference this tool`);
     }
 
     // Soft delete by setting deletedAt timestamp
@@ -406,7 +403,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     const [updated] = await db.update(tools)
@@ -424,7 +421,7 @@ export const toolsAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool not found' }, 404);
+      throw notFound('Tool');
     }
 
     const [updated] = await db.update(tools)

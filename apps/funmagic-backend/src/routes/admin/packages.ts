@@ -5,6 +5,8 @@ import {
   CreditPackageTranslationsSchema,
   type CreditPackageTranslations,
 } from '@funmagic/shared';
+import { notFound } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 // Schemas
 const PackageSchema = z.object({
@@ -45,10 +47,6 @@ const UpdatePackageSchema = CreatePackageSchema.partial().openapi('UpdateCreditP
 const PackageDetailSchema = z.object({
   package: PackageSchema,
 }).openapi('CreditPackageDetail');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('CreditPackageError');
 
 // Routes
 const listPackagesRoute = createRoute({
@@ -213,7 +211,7 @@ export const packagesRoutes = new OpenAPIHono()
     });
 
     if (!pkg) {
-      return c.json({ error: 'Credit package not found' }, 404);
+      throw notFound('Package');
     }
 
     return c.json({
@@ -255,7 +253,7 @@ export const packagesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Credit package not found' }, 404);
+      throw notFound('Package');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -297,7 +295,7 @@ export const packagesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Credit package not found' }, 404);
+      throw notFound('Package');
     }
 
     // Soft delete by setting deletedAt timestamp
@@ -315,7 +313,7 @@ export const packagesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Credit package not found' }, 404);
+      throw notFound('Package');
     }
 
     const [updated] = await db.update(creditPackages)

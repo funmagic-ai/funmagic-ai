@@ -15,6 +15,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import ImageUploadZone from '@/components/shared/ImageUploadZone.vue'
 import TranslationsEditor from '@/components/translations/TranslationsEditor.vue'
@@ -28,6 +30,7 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const upload = useUpload({ module: 'tools', visibility: 'public' })
@@ -52,10 +55,10 @@ const {
 } = useQuery({
   queryKey: computed(() => ['admin', 'tools', toolId.value]),
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/tools/{id}', {
+    const { data, error, response } = await api.GET('/api/admin/tools/{id}', {
       params: { path: { id: toolId.value } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to fetch tool')
+    if (error) throw extractApiError(error, response)
     return data
   },
   enabled: computed(() => !!toolId.value),
@@ -65,8 +68,8 @@ const {
 const { data: toolTypesData } = useQuery({
   queryKey: ['admin', 'tool-types'],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/tool-types')
-    if (error) throw new Error('Failed to fetch tool types')
+    const { data, error, response } = await api.GET('/api/admin/tool-types')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -82,8 +85,8 @@ const toolTypeOptions = computed(() =>
 const { data: providersData } = useQuery({
   queryKey: ['admin', 'providers'],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/providers')
-    if (error) throw new Error('Failed to fetch providers')
+    const { data, error, response } = await api.GET('/api/admin/providers')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -178,11 +181,11 @@ const updateMutation = useMutation({
       translations: translations.value as any,
       config: toolConfig.value,
     }
-    const { data, error } = await api.PUT('/api/admin/tools/{id}', {
+    const { data, error, response } = await api.PUT('/api/admin/tools/{id}', {
       params: { path: { id: toolId.value } },
       body,
     })
-    if (error) throw new Error(error.error ?? 'Failed to update tool')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -190,9 +193,7 @@ const updateMutation = useMutation({
     message.success(t('common.updateSuccess'))
     router.push({ name: 'tools' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {

@@ -1,7 +1,10 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, adminProviders } from '@funmagic/database';
+import { ERROR_CODES } from '@funmagic/shared';
 import { eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { notFound, conflict } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 // Environment variables
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -9,8 +12,7 @@ const SECRET_KEY = process.env.SECRET_KEY;
 // Encryption constants
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
-const AUTH_TAG_LENGTH = 16;
-const SALT = 'funmagic-salt'; // Static salt for key derivation
+const SALT_LENGTH = 32;
 
 // Schemas
 const AdminProviderSchema = z.object({
@@ -49,10 +51,6 @@ const UpdateAdminProviderSchema = CreateAdminProviderSchema.partial().openapi('U
 const AdminProviderDetailSchema = z.object({
   provider: AdminProviderSchema,
 }).openapi('AdminProviderDetail');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('AdminProviderError');
 
 // Routes
 const listAdminProvidersRoute = createRoute({
@@ -180,61 +178,72 @@ function formatAdminProvider(p: typeof adminProviders.$inferSelect) {
 }
 
 /**
- * Encrypt credential using AES-256-GCM
- * Format: iv:authTag:encryptedData (base64 encoded)
+ * Encrypt credential using AES-256-GCM with random salt per encryption.
+ * Format: salt:iv:authTag:encryptedData (all base64)
+ * Legacy format (3 parts): iv:authTag:encryptedData (static salt)
  */
 function encryptCredential(value: string | undefined): string | null {
   if (!value) return null;
 
   if (!SECRET_KEY || SECRET_KEY.length < 16) {
-    console.warn('[AdminProviders] SECRET_KEY not configured or too short, storing credential unencrypted');
-    return value;
+    throw new Error('[AdminProviders] SECRET_KEY not configured or too short - cannot encrypt credentials');
   }
 
-  try {
-    // Derive a 32-byte key from SECRET_KEY
-    const key = scryptSync(SECRET_KEY, SALT, 32);
-    const iv = randomBytes(IV_LENGTH);
+  const salt = randomBytes(SALT_LENGTH);
+  const key = scryptSync(SECRET_KEY, salt, 32);
+  const iv = randomBytes(IV_LENGTH);
 
-    const cipher = createCipheriv(ALGORITHM, key, iv);
-    let encrypted = cipher.update(value, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  let encrypted = cipher.update(value, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
 
-    const authTag = cipher.getAuthTag();
+  const authTag = cipher.getAuthTag();
 
-    // Return format: iv:authTag:encrypted (all base64)
-    return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
-  } catch (error) {
-    console.error('[AdminProviders] Encryption failed:', error);
-    return value;
-  }
+  // New format: salt:iv:authTag:encrypted (all base64)
+  return `${salt.toString('base64')}:${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted}`;
 }
 
 /**
- * Decrypt credential encrypted with encryptCredential
+ * Decrypt credential encrypted with encryptCredential.
+ * Supports both new format (4 parts with random salt) and legacy format (3 parts with static salt).
  */
 export function decryptCredential(encrypted: string | null): string | null {
   if (!encrypted) return null;
 
-  // Check if it's in encrypted format (contains colons)
+  // Not encrypted (no colons), return as-is (legacy plaintext data)
   if (!encrypted.includes(':')) {
-    // Not encrypted, return as-is (legacy data)
     return encrypted;
   }
 
   if (!SECRET_KEY || SECRET_KEY.length < 16) {
-    console.warn('[AdminProviders] SECRET_KEY not configured, cannot decrypt');
+    throw new Error('[AdminProviders] SECRET_KEY not configured - cannot decrypt credentials');
+  }
+
+  const parts = encrypted.split(':');
+
+  let salt: Buffer;
+  let ivBase64: string;
+  let authTagBase64: string;
+  let encryptedData: string;
+
+  if (parts.length === 4) {
+    // New format: salt:iv:authTag:encrypted
+    [, ivBase64, authTagBase64, encryptedData] = parts;
+    salt = Buffer.from(parts[0], 'base64');
+  } else if (parts.length === 3) {
+    // Legacy format: iv:authTag:encrypted (static salt)
+    [ivBase64, authTagBase64, encryptedData] = parts;
+    salt = Buffer.from('funmagic-salt');
+  } else {
+    return encrypted; // Unknown format, return as-is
+  }
+
+  if (!ivBase64 || !authTagBase64 || !encryptedData) {
     return encrypted;
   }
 
   try {
-    const [ivBase64, authTagBase64, encryptedData] = encrypted.split(':');
-
-    if (!ivBase64 || !authTagBase64 || !encryptedData) {
-      return encrypted; // Invalid format, return as-is
-    }
-
-    const key = scryptSync(SECRET_KEY, SALT, 32);
+    const key = scryptSync(SECRET_KEY, salt, 32);
     const iv = Buffer.from(ivBase64, 'base64');
     const authTag = Buffer.from(authTagBase64, 'base64');
 
@@ -269,7 +278,7 @@ export const adminProvidersRoutes = new OpenAPIHono()
     });
 
     if (!provider) {
-      return c.json({ error: 'Admin provider not found' }, 404);
+      throw notFound('Provider');
     }
 
     return c.json({
@@ -285,7 +294,7 @@ export const adminProvidersRoutes = new OpenAPIHono()
     });
 
     if (existing) {
-      return c.json({ error: 'Admin provider name already exists' }, 409);
+      throw conflict(ERROR_CODES.PROVIDER_SLUG_EXISTS, 'Admin provider name already exists');
     }
 
     const [provider] = await db.insert(adminProviders).values({
@@ -312,7 +321,7 @@ export const adminProvidersRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Admin provider not found' }, 404);
+      throw notFound('Provider');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -344,7 +353,7 @@ export const adminProvidersRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Admin provider not found' }, 404);
+      throw notFound('Provider');
     }
 
     await db.delete(adminProviders).where(eq(adminProviders.id, id));

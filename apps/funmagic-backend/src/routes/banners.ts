@@ -12,6 +12,8 @@ import {
   type BannerTranslationContent,
 } from '@funmagic/shared';
 import { getPublicCdnUrl } from '@funmagic/services';
+import { notFound } from '../lib/errors';
+import { ErrorSchema } from '../schemas';
 
 // Schemas
 const BannerSchema = z.object({
@@ -37,7 +39,7 @@ const CreateBannerSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   thumbnail: z.string().min(1, 'Thumbnail is required'),
-  link: z.string().url().optional(),
+  link: z.string().optional(),
   linkText: z.string().min(1, 'Link text is required').default('Learn More'),
   linkTarget: z.enum(['_self', '_blank']).default('_self'),
   type: z.enum(['main', 'side']).default('main'),
@@ -61,10 +63,6 @@ const BannerDetailSchema = z.object({
     updatedAt: z.string(),
   }),
 }).openapi('BannerDetail');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('BannerError');
 
 // Public route: List active banners
 const listActiveBannersRoute = createRoute({
@@ -348,7 +346,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     });
 
     if (!banner) {
-      return c.json({ error: 'Banner not found' }, 404);
+      throw notFound('Banner');
     }
 
     return c.json({
@@ -397,7 +395,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Banner not found' }, 404);
+      throw notFound('Banner');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -446,7 +444,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Banner not found' }, 404);
+      throw notFound('Banner');
     }
 
     // Soft delete by setting deletedAt timestamp
@@ -464,7 +462,7 @@ export const bannersAdminRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Banner not found' }, 404);
+      throw notFound('Banner');
     }
 
     const [updated] = await db.update(banners)

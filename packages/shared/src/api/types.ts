@@ -654,7 +654,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Asset not found */
@@ -663,7 +663,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -750,7 +750,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Asset not found */
@@ -759,7 +759,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -806,7 +806,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Asset not found */
@@ -815,7 +815,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AssetError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -916,7 +916,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BannerError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -951,7 +951,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BannerError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -983,7 +983,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BannerError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1032,7 +1032,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["BannerError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1097,7 +1097,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Tool slug already exists */
@@ -1106,7 +1106,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1150,7 +1150,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1185,7 +1185,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1217,7 +1217,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Tool is still referenced by active tasks */
@@ -1226,7 +1226,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1275,7 +1275,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1321,7 +1321,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolAdminError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1384,7 +1384,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1428,7 +1428,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1463,7 +1463,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1495,7 +1495,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Tool type is still referenced by active tools */
@@ -1504,7 +1504,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1547,7 +1547,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1599,7 +1599,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ToolTypeError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1662,7 +1662,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1706,7 +1706,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1741,7 +1741,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1773,7 +1773,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1818,7 +1818,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["ProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1885,7 +1885,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1929,7 +1929,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1964,7 +1964,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -1996,7 +1996,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminProviderError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2097,7 +2097,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CreditPackageError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2132,7 +2132,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CreditPackageError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2164,7 +2164,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CreditPackageError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2213,7 +2213,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["CreditPackageError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2290,7 +2290,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminUserError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2346,7 +2346,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminUserError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2392,7 +2392,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminUserError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description User not found */
@@ -2401,7 +2401,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminUserError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2412,7 +2412,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/chats": {
+    "/api/admin/studio/projects": {
         parameters: {
             query?: never;
             header?: never;
@@ -2428,13 +2428,13 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description List of chats */
+                /** @description List of projects */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminChatsList"];
+                        "application/json": components["schemas"]["StudioProjectsList"];
                     };
                 };
             };
@@ -2449,18 +2449,18 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["CreateAdminChat"];
+                    "application/json": components["schemas"]["CreateStudioProject"];
                 };
             };
             responses: {
-                /** @description Chat created */
+                /** @description Project created */
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            chat: components["schemas"]["AdminChat"];
+                            project: components["schemas"]["StudioProject"];
                         };
                     };
                 };
@@ -2472,7 +2472,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/chats/{chatId}": {
+    "/api/admin/studio/projects/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of projects with generation counts */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StudioProjectsSummaryList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/studio/projects/{projectId}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2484,28 +2519,28 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    chatId: string;
+                    projectId: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Chat with messages */
+                /** @description Project with generations */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminChatWithMessages"];
+                        "application/json": components["schemas"]["StudioProjectWithGenerations"];
                     };
                 };
-                /** @description Chat not found */
+                /** @description Project not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2517,13 +2552,13 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    chatId: string;
+                    projectId: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Chat deleted */
+                /** @description Project deleted */
                 200: {
                     headers: {
                         [name: string]: unknown;
@@ -2534,13 +2569,13 @@ export interface paths {
                         };
                     };
                 };
-                /** @description Chat not found */
+                /** @description Project not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2550,7 +2585,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/chats/{chatId}/messages": {
+    "/api/admin/studio/projects/{projectId}/generations": {
         parameters: {
             query?: never;
             header?: never;
@@ -2564,23 +2599,23 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    chatId: string;
+                    projectId: string;
                 };
                 cookie?: never;
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["SendAdminMessage"];
+                    "application/json": components["schemas"]["CreateStudioGeneration"];
                 };
             };
             responses: {
-                /** @description Message sent, task created */
+                /** @description Generation created, task queued */
                 201: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["SendAdminMessageResponse"];
+                        "application/json": components["schemas"]["CreateStudioGenerationResponse"];
                     };
                 };
                 /** @description Provider not configured */
@@ -2589,16 +2624,16 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
-                /** @description Chat not found */
+                /** @description Project not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
                 /** @description Internal error */
@@ -2607,7 +2642,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2618,7 +2653,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/messages/{messageId}/stream": {
+    "/api/admin/studio/generations/{generationId}/stream": {
         parameters: {
             query?: never;
             header?: never;
@@ -2630,26 +2665,26 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    messageId: string;
+                    generationId: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description SSE stream of message progress events */
+                /** @description SSE stream of generation progress events */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content?: never;
                 };
-                /** @description Message not found */
+                /** @description Generation not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2662,7 +2697,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/messages/{messageId}/status": {
+    "/api/admin/studio/generations/{generationId}/status": {
         parameters: {
             query?: never;
             header?: never;
@@ -2674,30 +2709,30 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    messageId: string;
+                    generationId: string;
                 };
                 cookie?: never;
             };
             requestBody?: never;
             responses: {
-                /** @description Message status */
+                /** @description Generation status */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
                         "application/json": {
-                            message: components["schemas"]["AdminMessageStatus"];
+                            generation: components["schemas"]["StudioGenerationStatus"];
                         };
                     };
                 };
-                /** @description Message not found */
+                /** @description Generation not found */
                 404: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
@@ -2710,7 +2745,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/providers": {
+    "/api/admin/studio/providers": {
         parameters: {
             query?: never;
             header?: never;
@@ -2732,7 +2767,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioProviders"];
+                        "application/json": components["schemas"]["StudioProviders"];
                     };
                 };
             };
@@ -2745,7 +2780,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/admin/ai-studio/assets/url": {
+    "/api/admin/studio/assets/url": {
         parameters: {
             query?: never;
             header?: never;
@@ -2781,13 +2816,72 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminAIStudioError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/studio/projects/{projectId}/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    projectId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["StudioBatchGeneration"];
+                };
+            };
+            responses: {
+                /** @description Batch generations created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StudioBatchGenerationResponse"];
+                    };
+                };
+                /** @description Provider not configured or too many images */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Project not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2870,11 +2964,78 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["AdminTasksError"];
+                        "application/json": components["schemas"]["Error"];
                     };
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/settings/rate-limit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Current rate limit configuration */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RateLimitConfigResponse"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["RateLimitConfig"];
+                };
+            };
+            responses: {
+                /** @description Updated rate limit configuration */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RateLimitConfigResponse"];
+                    };
+                };
+                /** @description Invalid configuration */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2945,7 +3106,10 @@ export interface components {
             };
         };
         Error: {
-            error: string;
+            error: {
+                code: string;
+                message: string;
+            };
         };
         BannersList: {
             banners: components["schemas"]["Banner"][];
@@ -3127,9 +3291,6 @@ export interface components {
             url: string;
             expiresIn: number;
         };
-        AssetError: {
-            error: string;
-        };
         AssetsList: {
             assets: components["schemas"]["Asset"][];
             pagination: {
@@ -3242,14 +3403,10 @@ export interface components {
                 updatedAt: string;
             };
         };
-        BannerError: {
-            error: string;
-        };
         CreateBanner: {
             title: string;
             description?: string;
             thumbnail: string;
-            /** Format: uri */
             link?: string;
             /** @default Learn More */
             linkText: string;
@@ -3332,7 +3489,6 @@ export interface components {
             title?: string;
             description?: string;
             thumbnail?: string;
-            /** Format: uri */
             link?: string;
             /** @default Learn More */
             linkText: string;
@@ -3536,9 +3692,6 @@ export interface components {
         };
         ToolAdminDetail: {
             tool: components["schemas"]["ToolAdmin"];
-        };
-        ToolAdminError: {
-            error: string;
         };
         CreateTool: {
             slug: string;
@@ -3809,9 +3962,6 @@ export interface components {
         ToolTypeDetail: {
             toolType: components["schemas"]["ToolType"];
         };
-        ToolTypeError: {
-            error: string;
-        };
         CreateToolType: {
             name: string;
             title?: string;
@@ -3935,9 +4085,6 @@ export interface components {
         ProviderDetail: {
             provider: components["schemas"]["Provider"];
         };
-        ProviderError: {
-            error: string;
-        };
         CreateProvider: {
             name: string;
             displayName: string;
@@ -3994,9 +4141,6 @@ export interface components {
         };
         AdminProviderDetail: {
             provider: components["schemas"]["AdminProvider"];
-        };
-        AdminProviderError: {
-            error: string;
         };
         CreateAdminProvider: {
             name: string;
@@ -4081,9 +4225,6 @@ export interface components {
         };
         CreditPackageDetail: {
             package: components["schemas"]["CreditPackage"];
-        };
-        CreditPackageError: {
-            error: string;
         };
         CreateCreditPackage: {
             name: string;
@@ -4237,9 +4378,6 @@ export interface components {
                 title: string;
             } | null;
         };
-        AdminUserError: {
-            error: string;
-        };
         AdminUserDetail: {
             user: components["schemas"]["AdminUserWithCredits"];
         };
@@ -4251,52 +4389,67 @@ export interface components {
             amount: number;
             description: string;
         };
-        AdminChatsList: {
-            chats: components["schemas"]["AdminChat"][];
+        StudioProjectsList: {
+            projects: components["schemas"]["StudioProject"][];
         };
-        AdminChat: {
+        StudioProject: {
             /** Format: uuid */
             id: string;
             title: string | null;
             createdAt: string;
             updatedAt: string;
         };
-        CreateAdminChat: {
+        StudioProjectsSummaryList: {
+            projects: components["schemas"]["StudioProjectSummary"][];
+        };
+        StudioProjectSummary: {
+            /** Format: uuid */
+            id: string;
+            title: string | null;
+            createdAt: string;
+            updatedAt: string;
+            generationCount: number;
+        };
+        CreateStudioProject: {
             title?: string;
         };
-        AdminChatWithMessages: {
-            chat: components["schemas"]["AdminChat"];
-            messages: components["schemas"]["AdminMessage"][];
+        StudioProjectWithGenerations: {
+            project: components["schemas"]["StudioProject"];
+            generations: components["schemas"]["StudioGeneration"][];
         };
-        AdminMessage: {
+        StudioGeneration: {
             /** Format: uuid */
             id: string;
             /** Format: uuid */
-            chatId: string;
+            projectId: string;
             /** @enum {string} */
             role: "user" | "assistant";
             content: string | null;
             quotedImageIds: string[] | null;
             provider: string | null;
             model: string | null;
-            images: components["schemas"]["AdminMessageImage"][] | null;
+            providerOptions?: {
+                [key: string]: unknown;
+            } | null;
+            images: components["schemas"]["StudioImage"][] | null;
             status: string;
             error: string | null;
+            input?: unknown;
+            rawRequest?: unknown;
+            rawResponse?: unknown;
             createdAt: string;
         };
-        AdminMessageImage: {
+        StudioImage: {
             storageKey: string;
             /** @enum {string} */
             type?: "generated" | "uploaded" | "quoted";
         };
-        AdminAIStudioError: {
-            error: string;
+        CreateStudioGenerationResponse: {
+            userGeneration: components["schemas"]["StudioGeneration"];
+            assistantGeneration: components["schemas"]["StudioGeneration"];
         };
-        SendAdminMessageResponse: {
-            userMessage: components["schemas"]["AdminMessage"];
-            assistantMessage: components["schemas"]["AdminMessage"];
-        };
-        SendAdminMessage: {
+        CreateStudioGeneration: {
+            /** @default  */
             content: string;
             quotedImageIds?: string[];
             uploadedImageUrls?: string[];
@@ -4315,6 +4468,8 @@ export interface components {
                     background?: "transparent" | "opaque";
                     /** @enum {string} */
                     moderation?: "low" | "auto";
+                    /** @enum {string} */
+                    imageModel?: "gpt-image-1" | "gpt-image-1.5";
                 };
                 google?: {
                     /** @enum {string} */
@@ -4322,22 +4477,62 @@ export interface components {
                     /** @enum {string} */
                     imageSize?: "1K" | "2K" | "4K";
                 };
+                fal?: {
+                    /** @enum {string} */
+                    tool?: "background-remove" | "upscale";
+                };
             };
         };
-        AdminMessageStatus: {
+        StudioGenerationStatus: {
             /** Format: uuid */
             id: string;
             status: string;
             progress: string | null;
-            images: components["schemas"]["AdminMessageImage"][] | null;
+            images: components["schemas"]["StudioImage"][] | null;
             content: string | null;
             error: string | null;
         };
-        AdminAIStudioProviders: {
+        StudioProviders: {
             providers: {
                 openai: boolean;
                 google: boolean;
                 fal: boolean;
+            };
+        };
+        StudioBatchGenerationResponse: {
+            generationIds: string[];
+        };
+        StudioBatchGeneration: {
+            prompt: string;
+            uploadedImageUrls: string[];
+            /** @enum {string} */
+            provider: "openai" | "google" | "fal";
+            model?: string;
+            options?: {
+                openai?: {
+                    /** @enum {string} */
+                    size?: "1024x1024" | "1536x1024" | "1024x1536" | "auto";
+                    /** @enum {string} */
+                    quality?: "low" | "medium" | "high";
+                    /** @enum {string} */
+                    format?: "png" | "jpeg" | "webp";
+                    /** @enum {string} */
+                    background?: "transparent" | "opaque";
+                    /** @enum {string} */
+                    moderation?: "low" | "auto";
+                    /** @enum {string} */
+                    imageModel?: "gpt-image-1" | "gpt-image-1.5";
+                };
+                google?: {
+                    /** @enum {string} */
+                    aspectRatio?: "1:1" | "2:3" | "3:2" | "3:4" | "4:3" | "4:5" | "5:4" | "9:16" | "16:9" | "21:9";
+                    /** @enum {string} */
+                    imageSize?: "1K" | "2K" | "4K";
+                };
+                fal?: {
+                    /** @enum {string} */
+                    tool?: "background-remove" | "upscale";
+                };
             };
         };
         AdminTasksList: {
@@ -4368,8 +4563,41 @@ export interface components {
         DeleteTaskSuccess: {
             success: boolean;
         };
-        AdminTasksError: {
-            error: string;
+        RateLimitConfigResponse: {
+            config: components["schemas"]["RateLimitConfig"];
+        };
+        RateLimitConfig: {
+            tiers: {
+                name: string;
+                minPurchased: number;
+                multiplier: number;
+            }[];
+            limits: {
+                userApi: {
+                    max: number;
+                    windowSeconds: number;
+                };
+                taskCreation: {
+                    max: number;
+                    windowSeconds: number;
+                };
+                upload: {
+                    max: number;
+                    windowSeconds: number;
+                };
+                authSession: {
+                    max: number;
+                    windowSeconds: number;
+                };
+                authAction: {
+                    max: number;
+                    windowSeconds: number;
+                };
+                globalApi: {
+                    max: number;
+                    windowSeconds: number;
+                };
+            };
         };
     };
     responses: never;

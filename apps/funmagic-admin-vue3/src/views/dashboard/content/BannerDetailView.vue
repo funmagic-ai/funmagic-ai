@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { NButton, NForm, NFormItem, NInput, NInputNumber, NIcon, NSwitch, NSelect, NSpin } from 'naive-ui'
-import type { FormInst, FormRules } from 'naive-ui'
+import type { FormInst } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { validateForm } from '@/composables/useFormValidation'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import ImageUploadZone from '@/components/shared/ImageUploadZone.vue'
 import TranslationsEditor from '@/components/translations/TranslationsEditor.vue'
@@ -16,6 +18,7 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const id = computed(() => route.params.id as string)
@@ -24,15 +27,11 @@ const upload = useUpload({ module: 'banners', visibility: 'public' })
 
 const formRef = ref<FormInst | null>(null)
 const formValue = ref({
-  title: '',
-  description: '',
   type: 'main' as 'main' | 'side',
   thumbnail: '',
   link: '',
-  linkText: t('banners.defaultLinkText'),
   linkTarget: '_self' as '_self' | '_blank',
   position: 0,
-  badge: '',
   badgeColor: '',
   isActive: true,
 })
@@ -49,9 +48,7 @@ const translationFields = [
   { key: 'badge', label: t('common.badge') },
 ]
 
-const rules: FormRules = {
-  title: [{ required: true, message: t('validation.titleRequired'), trigger: 'blur' }],
-}
+const rules = {}
 
 const typeOptions = [
   { label: t('banners.typeMain'), value: 'main' },
@@ -75,24 +72,20 @@ function handleFileSelect(file: File | null) {
 const { isLoading, isError, error } = useQuery({
   queryKey: ['banners', id],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/banners/{id}', {
+    const { data, error, response } = await api.GET('/api/admin/banners/{id}', {
       params: { path: { id: id.value } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to fetch banner')
+    if (error) throw extractApiError(error, response)
     return data
   },
   select: (data) => {
     const b = data.banner
     formValue.value = {
-      title: b.title,
-      description: b.description ?? '',
       type: (b.type as 'main' | 'side') || 'main',
       thumbnail: b.thumbnail,
       link: b.link ?? '',
-      linkText: b.linkText || t('banners.defaultLinkText'),
       linkTarget: (b.linkTarget as '_self' | '_blank') || '_self',
       position: b.position ?? 0,
-      badge: b.badge ?? '',
       badgeColor: b.badgeColor ?? '',
       isActive: b.isActive,
     }
@@ -114,24 +107,27 @@ const updateMutation = useMutation({
       thumbnailValue = result.storageKey
     }
 
-    const { data, error } = await api.PUT('/api/admin/banners/{id}', {
+    // Populate legacy fields from English translations
+    const en = translations.value.en || {}
+
+    const { data, error, response } = await api.PUT('/api/admin/banners/{id}', {
       params: { path: { id: id.value } },
       body: {
-        title: formValue.value.title,
-        description: formValue.value.description || undefined,
+        title: en.title || 'Untitled',
+        description: en.description || undefined,
         type: formValue.value.type,
         thumbnail: thumbnailValue,
         link: formValue.value.link || undefined,
-        linkText: formValue.value.linkText,
+        linkText: en.linkText || t('banners.defaultLinkText'),
         linkTarget: formValue.value.linkTarget,
         position: formValue.value.position,
-        badge: formValue.value.badge || undefined,
+        badge: en.badge || undefined,
         badgeColor: formValue.value.badgeColor || undefined,
         isActive: formValue.value.isActive,
         translations: translations.value as any,
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to update banner')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -139,9 +135,7 @@ const updateMutation = useMutation({
     message.success(t('common.updateSuccess'))
     router.push({ name: 'banners' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {
@@ -190,29 +184,12 @@ async function handleSubmit() {
               <NSwitch v-model:value="formValue.isActive" />
             </NFormItem>
 
-            <NFormItem :label="t('common.title')" path="title">
-              <NInput v-model:value="formValue.title" :placeholder="t('placeholder.bannerTitle')" />
-            </NFormItem>
-
-            <NFormItem :label="t('common.description')">
-              <NInput
-                v-model:value="formValue.description"
-                type="textarea"
-                :rows="3"
-                :placeholder="t('placeholder.optionalDescription')"
-              />
-            </NFormItem>
-
             <NFormItem :label="t('content.bannerType')">
               <NSelect v-model:value="formValue.type" :options="typeOptions" />
             </NFormItem>
 
             <NFormItem :label="t('content.linkUrl')">
-              <NInput v-model:value="formValue.link" placeholder="https://example.com" />
-            </NFormItem>
-
-            <NFormItem :label="t('common.linkText')">
-              <NInput v-model:value="formValue.linkText" :placeholder="t('placeholder.linkText')" />
+              <NInput v-model:value="formValue.link" placeholder="/tools/figme or https://example.com" />
             </NFormItem>
 
             <NFormItem :label="t('common.linkTarget')">
@@ -221,10 +198,6 @@ async function handleSubmit() {
 
             <NFormItem :label="t('common.position')">
               <NInputNumber v-model:value="formValue.position" :min="0" class="w-full" />
-            </NFormItem>
-
-            <NFormItem :label="t('common.badge')">
-              <NInput v-model:value="formValue.badge" :placeholder="t('placeholder.exampleBadge')" />
             </NFormItem>
 
             <NFormItem :label="t('common.badgeColor')">

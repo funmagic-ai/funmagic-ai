@@ -1,6 +1,9 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, users, credits, creditTransactions, tasks } from '@funmagic/database';
+import { ERROR_CODES } from '@funmagic/shared';
 import { eq, desc } from 'drizzle-orm';
+import { notFound, badRequest } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 // Schemas
 const UserSchema = z.object({
@@ -64,10 +67,6 @@ const AdjustCreditsSchema = z.object({
   amount: z.number(),
   description: z.string().min(1, 'Description is required'),
 }).openapi('AdjustUserCredits');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('AdminUserError');
 
 // Routes
 const listUsersRoute = createRoute({
@@ -204,7 +203,7 @@ export const usersRoutes = new OpenAPIHono()
     });
 
     if (!user) {
-      return c.json({ error: 'User not found' }, 404);
+      throw notFound('User');
     }
 
     const userCredit = await db.query.credits.findFirst({
@@ -255,7 +254,7 @@ export const usersRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'User not found' }, 404);
+      throw notFound('User');
     }
 
     await db.update(users)
@@ -286,7 +285,7 @@ export const usersRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'User not found' }, 404);
+      throw notFound('User');
     }
 
     const userCredit = await db.query.credits.findFirst({
@@ -297,7 +296,7 @@ export const usersRoutes = new OpenAPIHono()
     const newBalance = currentBalance + amount;
 
     if (newBalance < 0) {
-      return c.json({ error: 'Insufficient credits' }, 400);
+      throw badRequest(ERROR_CODES.CREDITS_INSUFFICIENT, 'Insufficient credits');
     }
 
     if (userCredit) {

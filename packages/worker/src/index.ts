@@ -1,16 +1,36 @@
 import 'dotenv/config';
 
+// Validate required env vars before importing anything else
+const WORKER_REQUIRED_ENV = [
+  'DATABASE_URL',
+  'REDIS_URL',
+  'SECRET_KEY',
+  'S3_ENDPOINT',
+  'S3_ACCESS_KEY',
+  'S3_SECRET_KEY',
+  'S3_BUCKET_PUBLIC',
+  'S3_BUCKET_PRIVATE',
+  'S3_BUCKET_ADMIN',
+];
+const missingEnv = WORKER_REQUIRED_ENV.filter((v) => !process.env[v]);
+if (missingEnv.length > 0) {
+  console.error(`[Worker] Missing required environment variables:\n${missingEnv.map((v) => `  - ${v}`).join('\n')}`);
+  process.exit(1);
+}
+
 import { Worker, Job } from 'bullmq';
 import { db, tasks, taskPayloads, credits, creditTransactions } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis } from '@funmagic/services';
+import { createRedisConnection, redis, createLogger } from '@funmagic/services';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
 import { confirmCharge, releaseCredits } from '@funmagic/services/credit';
 import type { AITaskJobData } from './types';
 
-console.log('[Worker] Starting...');
-console.log(`[Worker] Registered tools: ${getRegisteredTools().join(', ')}`);
+const log = createLogger('Worker');
+
+log.info('Starting...');
+log.info({ tools: getRegisteredTools() }, 'Registered tools');
 
 // AI Task Worker
 const aiTaskWorker = new Worker<AITaskJobData>(
@@ -18,7 +38,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
   async (job: Job<AITaskJobData>) => {
     const { taskId, toolSlug, stepId, input, userId, parentTaskId } = job.data;
 
-    console.log(`\n[Worker] Processing task ${taskId} for tool "${toolSlug}"${stepId ? ` (step: ${stepId})` : ''}`);
+    log.info({ taskId, toolSlug, stepId }, 'Processing task');
 
     // Update task status to processing
     await db.update(tasks)
@@ -76,7 +96,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       });
 
       if (task?.creditsCost && task.creditsCost > 0) {
-        await confirmCharge(db as any, credits, creditTransactions, {
+        await confirmCharge(db, credits, creditTransactions, {
           userId,
           amount: task.creditsCost,
           taskId,
@@ -89,12 +109,12 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       // this notification. Output is already persisted in taskPayloads above.
       await publishTaskCompleted(redis, taskId);
 
-      console.log(`[Worker] Task ${taskId} completed successfully`);
+      log.info({ taskId }, 'Task completed successfully');
       return result.output;
 
     } else {
       const errorMessage = result.error || 'Tool execution failed';
-      console.error(`[Worker] Task ${taskId} failed:`, errorMessage);
+      log.error({ taskId, err: errorMessage }, 'Task failed');
 
       // Update task as failed
       await db.update(tasks)
@@ -115,7 +135,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       });
 
       if (task?.creditsCost && task.creditsCost > 0) {
-        await releaseCredits(db as any, credits, creditTransactions, {
+        await releaseCredits(db, credits, creditTransactions, {
           userId,
           amount: task.creditsCost,
           taskId,
@@ -136,29 +156,29 @@ const aiTaskWorker = new Worker<AITaskJobData>(
 );
 
 aiTaskWorker.on('completed', (job) => {
-  console.log(`[Worker] Job ${job.id} completed`);
+  log.info({ jobId: job.id }, 'Job completed');
 });
 
 aiTaskWorker.on('failed', (job, err) => {
-  console.error(`[Worker] Job ${job?.id} failed:`, err.message);
+  log.error({ jobId: job?.id, err }, 'Job failed');
 });
 
 aiTaskWorker.on('error', (err) => {
-  console.error('Worker error:', err);
+  log.error({ err }, 'Worker error');
 });
 
-console.log('[Worker] Started and listening for jobs');
+log.info('Started and listening for jobs');
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, closing worker...');
+  log.info('Received SIGTERM, closing worker...');
   await aiTaskWorker.close();
   await redis.quit();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('Received SIGINT, closing worker...');
+  log.info('Received SIGINT, closing worker...');
   await aiTaskWorker.close();
   await redis.quit();
   process.exit(0);

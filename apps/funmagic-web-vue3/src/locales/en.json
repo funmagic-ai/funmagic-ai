@@ -305,5 +305,31 @@
   },
   "footer": {
     "copyright": "All rights reserved."
+  },
+  "rateLimit": {
+    "title": "Slow Down",
+    "description": "You've made too many requests. Please wait before trying again.",
+    "countdown": "You can try again in {seconds} seconds",
+    "ready": "You can try again now",
+    "goBack": "Go Back"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "Something went wrong. Please try again later.",
+    "NOT_FOUND": "The requested resource was not found.",
+    "VALIDATION_ERROR": "Please check your input and try again.",
+    "AUTH_UNAUTHORIZED": "Your session has expired. Please sign in again.",
+    "AUTH_FORBIDDEN": "You don't have permission to perform this action.",
+    "RATE_LIMIT_EXCEEDED": "Too many requests. Please wait a moment and try again.",
+    "CREDITS_INSUFFICIENT": "Not enough credits. Please purchase more credits to continue.",
+    "TOOL_NOT_FOUND": "This tool could not be found.",
+    "TOOL_INACTIVE": "This tool is currently unavailable.",
+    "TASK_NOT_FOUND": "Task not found.",
+    "TASK_CREATION_FAILED": "Failed to start processing. Please try again.",
+    "UPLOAD_INVALID_TYPE": "This file type is not supported.",
+    "UPLOAD_SIZE_EXCEEDED": "File size exceeds the maximum allowed limit.",
+    "UPLOAD_EXTENSION_MISMATCH": "File extension does not match the content type.",
+    "ASSET_NOT_FOUND": "Asset not found.",
+    "ASSET_FORBIDDEN": "You don't have access to this asset.",
+    "fallback": "An unexpected error occurred."
   }
 }

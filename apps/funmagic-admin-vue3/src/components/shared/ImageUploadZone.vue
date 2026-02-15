@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NImage, NProgress } from 'naive-ui'
+import { NProgress } from 'naive-ui'
 import { useI18n } from 'vue-i18n'
 
 const props = withDefaults(defineProps<{

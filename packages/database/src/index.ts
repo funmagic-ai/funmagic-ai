@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
+export type DbInstance = ReturnType<typeof drizzle<typeof schema>>;
 type QueryClient = ReturnType<typeof postgres>;
 
 // Use globalThis to persist across HMR in development and serverless invocations

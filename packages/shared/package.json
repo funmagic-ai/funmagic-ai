@@ -9,7 +9,8 @@
     "./api": "./src/api/index.ts",
     "./schemas": "./src/schemas/index.ts",
     "./config/locales": "./src/config/locales.ts",
-    "./tool-registry": "./src/tool-registry/index.ts"
+    "./tool-registry": "./src/tool-registry/index.ts",
+    "./errors": "./src/errors/index.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

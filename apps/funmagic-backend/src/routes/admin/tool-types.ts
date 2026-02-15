@@ -4,7 +4,10 @@ import { eq, asc, isNull, and, count } from 'drizzle-orm';
 import {
   ToolTypeTranslationsSchema,
   type ToolTypeTranslations,
+  ERROR_CODES,
 } from '@funmagic/shared';
+import { notFound, conflict } from '../../lib/errors';
+import { ErrorSchema } from '../../schemas';
 
 // Schemas
 const ToolTypeSchema = z.object({
@@ -35,10 +38,6 @@ const UpdateToolTypeSchema = CreateToolTypeSchema.partial().openapi('UpdateToolT
 const ToolTypeDetailSchema = z.object({
   toolType: ToolTypeSchema,
 }).openapi('ToolTypeDetail');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('ToolTypeError');
 
 // Routes
 const listToolTypesRoute = createRoute({
@@ -224,7 +223,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (!toolType) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     return c.json({
@@ -240,7 +239,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (existing) {
-      return c.json({ error: 'Tool type name already exists' }, 409);
+      throw conflict(ERROR_CODES.TOOL_TYPE_SLUG_EXISTS, 'Tool type name already exists');
     }
 
     const title = data.translations?.en?.title ?? data.title ?? data.name;
@@ -269,7 +268,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     const updateData: Record<string, unknown> = {};
@@ -312,7 +311,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     // Check for active tools referencing this tool type
@@ -322,9 +321,7 @@ export const toolTypesRoutes = new OpenAPIHono()
       .where(and(eq(tools.toolTypeId, id), isNull(tools.deletedAt)));
 
     if (Number(toolCount) > 0) {
-      return c.json({
-        error: `Cannot delete tool type: ${toolCount} tool(s) still use this type`
-      }, 409);
+      throw conflict(ERROR_CODES.TOOL_TYPE_HAS_TOOLS, `Cannot delete tool type: ${toolCount} tool(s) still use this type`);
     }
 
     // Soft delete by setting deletedAt timestamp
@@ -342,7 +339,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     const [{ count: activeToolsCount }] = await db
@@ -364,7 +361,7 @@ export const toolTypesRoutes = new OpenAPIHono()
     });
 
     if (!existing) {
-      return c.json({ error: 'Tool type not found' }, 404);
+      throw notFound('Tool type');
     }
 
     const newIsActive = !existing.isActive;

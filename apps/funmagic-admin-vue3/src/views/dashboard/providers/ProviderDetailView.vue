@@ -5,13 +5,16 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { validateForm } from '@/composables/useFormValidation'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const id = computed(() => route.params.id as string)
@@ -37,10 +40,10 @@ const rules: FormRules = {
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['providers', id],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/providers/{id}', {
+    const { data, error, response } = await api.GET('/api/admin/providers/{id}', {
       params: { path: { id: id.value } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to fetch provider')
+    if (error) throw extractApiError(error, response)
     return data
   },
   select: (data) => {
@@ -62,7 +65,7 @@ const { data, isLoading, isError, error } = useQuery({
 
 const updateMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.PUT('/api/admin/providers/{id}', {
+    const { data, error, response } = await api.PUT('/api/admin/providers/{id}', {
       params: { path: { id: id.value } },
       body: {
         name: formValue.value.name,
@@ -76,7 +79,7 @@ const updateMutation = useMutation({
         ...(formValue.value.healthCheckUrl ? { healthCheckUrl: formValue.value.healthCheckUrl } : {}),
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to update provider')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -84,26 +87,22 @@ const updateMutation = useMutation({
     message.success(t('common.updateSuccess'))
     router.push({ name: 'providers' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 const healthCheckMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/admin/providers/{id}/health-check', {
+    const { data, error, response } = await api.POST('/api/admin/providers/{id}/health-check', {
       params: { path: { id: id.value } },
     })
-    if (error) throw new Error(error.error ?? 'Health check failed')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
     queryClient.invalidateQueries({ queryKey: ['providers', id] })
     message.success(data.isHealthy ? t('common.providerHealthy') : t('common.providerUnhealthy'))
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {

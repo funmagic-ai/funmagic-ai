@@ -5,12 +5,15 @@ import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useMutation } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { validateForm } from '@/composables/useFormValidation'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 
 const formRef = ref<FormInst | null>(null)
 const formValue = ref({
@@ -41,7 +44,7 @@ const currencyOptions = [
 
 const createMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/admin/packages', {
+    const { data, error, response } = await api.POST('/api/admin/packages', {
       body: {
         name: formValue.value.name,
         description: formValue.value.description || undefined,
@@ -54,16 +57,14 @@ const createMutation = useMutation({
         sortOrder: formValue.value.sortOrder,
       },
     })
-    if (error) throw new Error((error as any).error ?? 'Failed to create package')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     message.success(t('common.createSuccess'))
     router.push({ name: 'packages' })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 async function handleSubmit() {

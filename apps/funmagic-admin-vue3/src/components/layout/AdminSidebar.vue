@@ -15,6 +15,7 @@ import {
   LayersOutline,
   ColorPaletteOutline,
   SpeedometerOutline,
+  SettingsOutline,
 } from '@vicons/ionicons5'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -119,13 +120,13 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
       key: 'creative-studio-group',
       children: [
         {
-          label: t('nav.aiChat'),
-          key: 'ai-studio',
+          label: t('nav.studio'),
+          key: 'studio',
           icon: renderIcon(ColorPaletteOutline),
         },
         {
-          label: t('nav.conversations'),
-          key: 'ai-tasks',
+          label: t('nav.studioProjects'),
+          key: 'studio-projects',
           icon: renderIcon(ChatbubblesOutline),
         },
         ...(authStore.isSuperAdmin
@@ -150,6 +151,11 @@ const menuOptions = computed<(MenuOption | MenuGroupOption)[]>(() => {
           key: 'queue',
           icon: renderIcon(LayersOutline),
         },
+        {
+          label: t('nav.rateLimits'),
+          key: 'settings-rate-limits',
+          icon: renderIcon(SettingsOutline),
+        },
       ],
     },
   ]
@@ -164,13 +170,14 @@ const activeKey = computed(() => {
   if (name.startsWith('banners') || name === 'banners') return 'banners'
   if (name.startsWith('tool-types')) return 'tool-types'
   if (name.startsWith('admin-providers')) return 'admin-providers'
-  if (name.startsWith('ai-tasks')) return 'ai-tasks'
-  if (name.startsWith('ai-studio')) return 'ai-studio'
+  if (name.startsWith('studio-projects')) return 'studio-projects'
+  if (name.startsWith('studio')) return 'studio'
   if (name.startsWith('tools')) return 'tools'
   if (name.startsWith('providers')) return 'providers'
   if (name.startsWith('users')) return 'users'
   if (name.startsWith('tasks')) return 'tasks'
   if (name === 'queue') return 'queue'
+  if (name.startsWith('settings')) return 'settings-rate-limits'
   return 'dashboard'
 })
 
@@ -182,11 +189,12 @@ const ROUTE_MAP: Record<string, string> = {
   'admin-providers': '/dashboard/admin-providers',
   users: '/dashboard/users',
   tasks: '/dashboard/tasks',
-  'ai-tasks': '/dashboard/ai-tasks',
+  'studio-projects': '/dashboard/studio/projects',
   packages: '/dashboard/billing/packages',
   banners: '/dashboard/content/banners',
   queue: '/dashboard/queue',
-  'ai-studio': '/dashboard/ai-studio',
+  studio: '/dashboard/studio',
+  'settings-rate-limits': '/dashboard/settings/rate-limits',
 }
 
 function handleUpdateValue(key: string) {

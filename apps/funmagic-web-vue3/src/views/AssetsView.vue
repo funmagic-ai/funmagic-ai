@@ -2,12 +2,15 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
 const { t } = useI18n()
 const route = useRoute()
 const dialog = useDialog()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const locale = computed(() => (route.params.locale as string) || 'en')
@@ -40,18 +43,16 @@ const totalPages = computed(() => {
 // Delete mutation
 const deleteMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { error } = await api.DELETE('/api/assets/{id}', {
+    const { error, response } = await api.DELETE('/api/assets/{id}', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error)
+    if (error) throw extractApiError(error, response)
   },
   onSuccess: () => {
     message.success(t('assets.deleted'))
     queryClient.invalidateQueries({ queryKey: ['user-assets'] })
   },
-  onError: (err: Error) => {
-    message.error(err.message || t('assets.deleteFailed'))
-  },
+  onError: handleError,
 })
 
 function handleDelete(id: string) {

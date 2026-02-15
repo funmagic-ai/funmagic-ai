@@ -55,6 +55,7 @@ const mainBanners = computed(() => {
     description: b.description ?? '',
     image: b.thumbnail,
     badge: b.badge ?? '',
+    link: localizeLink(b.link),
   }))
 })
 

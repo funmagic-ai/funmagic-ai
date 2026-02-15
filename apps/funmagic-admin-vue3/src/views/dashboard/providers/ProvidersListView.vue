@@ -5,6 +5,8 @@ import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
@@ -12,13 +14,14 @@ import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['providers'],
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/providers')
-    if (error) throw new Error('Failed to fetch providers')
+    const { data, error, response } = await api.GET('/api/admin/providers')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -26,20 +29,18 @@ const { data, isLoading, isError, error } = useQuery({
 // Toggle active status
 const toggleActiveMutation = useMutation({
   mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
-    const { data, error } = await api.PUT('/api/admin/providers/{id}', {
+    const { data, error, response } = await api.PUT('/api/admin/providers/{id}', {
       params: { path: { id } },
       body: { isActive },
     })
-    if (error) throw new Error(error.error ?? 'Failed to toggle status')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: ['providers'] })
     message.success(t('common.updateSuccess'))
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 // Delete provider
@@ -48,10 +49,10 @@ const deleteTarget = ref<{ id: string; name: string } | null>(null)
 
 const deleteMutation = useMutation({
   mutationFn: async (id: string) => {
-    const { error } = await api.DELETE('/api/admin/providers/{id}', {
+    const { error, response } = await api.DELETE('/api/admin/providers/{id}', {
       params: { path: { id } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to delete provider')
+    if (error) throw extractApiError(error, response)
   },
   onSuccess: () => {
     message.success(t('common.deleteSuccess'))
@@ -59,9 +60,7 @@ const deleteMutation = useMutation({
     deleteTarget.value = null
     queryClient.invalidateQueries({ queryKey: ['providers'] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function openDeleteDialog(item: { id: string; displayName: string }) {

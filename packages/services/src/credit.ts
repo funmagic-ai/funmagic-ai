@@ -1,5 +1,6 @@
-import { eq, sql } from 'drizzle-orm';
-import type { credits, creditTransactions } from '@funmagic/database';
+import { eq, sql, and, gte } from 'drizzle-orm';
+import type { DbInstance, credits, creditTransactions } from '@funmagic/database';
+import { invalidateUserTierCache } from './rate-limit-config';
 
 // Types
 export interface CreditBalance {
@@ -29,26 +30,7 @@ export interface ReleaseCreditsParams {
   reason: string;
 }
 
-// Database types (to be compatible with any drizzle db instance)
-type DrizzleDB = {
-  query: {
-    credits: {
-      findFirst: (opts: { where: unknown }) => Promise<typeof credits.$inferSelect | null>;
-    };
-  };
-  insert: (table: unknown) => {
-    values: (values: unknown) => {
-      returning: () => Promise<unknown[]>;
-    };
-  };
-  update: (table: unknown) => {
-    set: (values: unknown) => {
-      where: (condition: unknown) => {
-        returning: () => Promise<unknown[]>;
-      };
-    };
-  };
-};
+type DrizzleDB = DbInstance;
 
 /**
  * Get the credit balance for a user
@@ -78,8 +60,9 @@ export async function getBalance(
 }
 
 /**
- * Reserve credits for a task (optimistic lock pattern)
- * This reduces available balance without affecting actual balance
+ * Reserve credits for a task using an atomic conditional UPDATE.
+ * The WHERE clause ensures sufficient available balance, preventing race conditions
+ * where concurrent requests could over-reserve credits.
  */
 export async function reserveCredits(
   db: DrizzleDB,
@@ -89,32 +72,40 @@ export async function reserveCredits(
 ): Promise<{ success: boolean; error?: string; balanceAfter?: number }> {
   const { userId, amount, taskId, description } = params;
 
-  // Get current balance
-  const balance = await getBalance(db, creditsTable, userId);
+  // Atomic conditional update: only succeeds if available balance is sufficient.
+  // The condition `balance - reserved_balance >= amount` is checked atomically
+  // by the database, eliminating the read-then-write race condition.
+  const updated = await db.update(creditsTable)
+    .set({
+      reservedBalance: sql`${creditsTable.reservedBalance} + ${amount}`,
+    })
+    .where(
+      and(
+        eq(creditsTable.userId, userId),
+        gte(sql`${creditsTable.balance} - ${creditsTable.reservedBalance}`, amount),
+      )
+    )
+    .returning() as unknown as (typeof credits.$inferSelect)[];
 
-  // Check if user has enough available credits
-  if (balance.availableBalance < amount) {
+  if (updated.length === 0) {
+    // Either user has no credit record or insufficient balance
+    const balance = await getBalance(db, creditsTable, userId);
     return {
       success: false,
       error: `Insufficient credits. Available: ${balance.availableBalance}, Required: ${amount}`,
     };
   }
 
-  // Reserve the credits (increment reservedBalance)
-  const [updated] = await db.update(creditsTable)
-    .set({
-      reservedBalance: sql`${creditsTable.reservedBalance} + ${amount}`,
-    })
-    .where(eq(creditsTable.userId, userId))
-    .returning() as unknown as [typeof credits.$inferSelect];
+  const row = updated[0];
+  const availableAfter = row.balance - (row.reservedBalance ?? 0);
 
   // Create a transaction record for the reservation
   const idempotencyKey = `reserve-${taskId}`;
   await db.insert(transactionsTable).values({
     userId,
     type: 'reservation',
-    amount: -amount, // Negative to indicate credits being held
-    balanceAfter: updated.balance - (updated.reservedBalance ?? 0),
+    amount: -amount,
+    balanceAfter: availableAfter,
     description: description || `Reserved for task ${taskId}`,
     referenceType: 'task',
     referenceId: taskId,
@@ -123,7 +114,7 @@ export async function reserveCredits(
 
   return {
     success: true,
-    balanceAfter: updated.balance - (updated.reservedBalance ?? 0),
+    balanceAfter: availableAfter,
   };
 }
 
@@ -193,7 +184,7 @@ export async function releaseCredits(
   await db.insert(transactionsTable).values({
     userId,
     type: 'release',
-    amount: amount, // Positive to indicate credits being returned
+    amount: amount,
     balanceAfter: updated.balance - (updated.reservedBalance ?? 0),
     description: reason,
     referenceType: 'task',
@@ -208,7 +199,8 @@ export async function releaseCredits(
 }
 
 /**
- * Add credits to a user's balance (purchase or bonus)
+ * Add credits to a user's balance (purchase or bonus).
+ * Uses INSERT ... ON CONFLICT for atomic upsert to prevent race conditions.
  */
 export async function addCredits(
   db: DrizzleDB,
@@ -226,37 +218,28 @@ export async function addCredits(
 ): Promise<{ success: boolean; balanceAfter?: number }> {
   const { userId, amount, type, description, referenceType, referenceId, idempotencyKey } = params;
 
-  // Get or create credit record
-  let creditRecord = await db.query.credits.findFirst({
-    where: eq(creditsTable.userId, userId),
-  });
+  // Upsert: create credit record if it doesn't exist, otherwise update atomically.
+  // This eliminates the read-then-write race in the original get-or-create pattern.
+  const lifetimePurchasedIncr = type === 'purchase' ? amount : 0;
+  const lifetimeRefundedIncr = type === 'refund' ? amount : 0;
 
-  if (!creditRecord) {
-    const [newRecord] = await db.insert(creditsTable).values({
+  const [updated] = await db.insert(creditsTable)
+    .values({
       userId,
-      balance: 0,
+      balance: amount,
       reservedBalance: 0,
-      lifetimePurchased: 0,
+      lifetimePurchased: lifetimePurchasedIncr,
       lifetimeUsed: 0,
-      lifetimeRefunded: 0,
-    }).returning() as unknown as [typeof credits.$inferSelect];
-    creditRecord = newRecord;
-  }
-
-  // Update balance based on type
-  const updateData: Record<string, unknown> = {
-    balance: sql`${creditsTable.balance} + ${amount}`,
-  };
-
-  if (type === 'purchase') {
-    updateData.lifetimePurchased = sql`${creditsTable.lifetimePurchased} + ${amount}`;
-  } else if (type === 'refund') {
-    updateData.lifetimeRefunded = sql`${creditsTable.lifetimeRefunded} + ${amount}`;
-  }
-
-  const [updated] = await db.update(creditsTable)
-    .set(updateData)
-    .where(eq(creditsTable.userId, userId))
+      lifetimeRefunded: lifetimeRefundedIncr,
+    })
+    .onConflictDoUpdate({
+      target: creditsTable.userId,
+      set: {
+        balance: sql`${creditsTable.balance} + ${amount}`,
+        lifetimePurchased: sql`${creditsTable.lifetimePurchased} + ${lifetimePurchasedIncr}`,
+        lifetimeRefunded: sql`${creditsTable.lifetimeRefunded} + ${lifetimeRefundedIncr}`,
+      },
+    })
     .returning() as unknown as [typeof credits.$inferSelect];
 
   // Create transaction record
@@ -270,6 +253,11 @@ export async function addCredits(
     referenceId,
     idempotencyKey,
   });
+
+  // Invalidate tier cache when credits are purchased so rate limits update
+  if (type === 'purchase') {
+    await invalidateUserTierCache(userId);
+  }
 
   return {
     success: true,

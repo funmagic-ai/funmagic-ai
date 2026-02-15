@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useMutation, useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
@@ -50,12 +51,13 @@ const loadingPointCloud = ref(false)
 const showExport = computed(() => route.query.query === 'bsltest')
 
 // Fetch tool config from API
-const { data: toolData } = useQuery({
+const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
   queryKey: ['tool', 'crystal-memory', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/tools/{slug}', {
+    const { data, error, response } = await api.GET('/api/tools/{slug}', {
       params: { path: { slug: 'crystal-memory' }, query: { locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -138,14 +140,14 @@ const submitMutation = useMutation({
     if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
 
     // Start bg-remove task
-    const { data, error } = await api.POST('/api/tasks', {
+    const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'crystal-memory',
         stepId: step0Id.value,
         input: { imageStorageKey: uploadResult.storageKey },
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create task')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
@@ -156,7 +158,7 @@ const submitMutation = useMutation({
 
 const cloudMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/tasks', {
+    const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'crystal-memory',
         stepId: step1Id.value,
@@ -167,7 +169,7 @@ const cloudMutation = useMutation({
         },
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to create cloud task')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: (data) => {
@@ -214,8 +216,14 @@ function handleReset() {
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
+        <!-- Error State -->
+        <div v-if="toolError" class="flex flex-col items-center justify-center py-20">
+          <p class="text-lg text-muted-foreground mb-4">{{ toolErrorData?.message ?? t('common.error') }}</p>
+          <n-button type="primary" @click="$router.push({ name: 'tools', params: { locale } })">{{ t('common.back') }}</n-button>
+        </div>
+
         <!-- Auth Gate -->
-        <div v-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
+        <div v-else-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
           <p class="text-muted-foreground">{{ t('tools.signInRequired') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'login', params: { locale } })">
             {{ t('auth.signIn') }}

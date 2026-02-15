@@ -26,7 +26,7 @@ export const LOCALE_LABELS: Record<SupportedLocale, string> = {
   ko: '한국어',
 }
 
-// Translation content interfaces (used by helper functions)
+// Translation content interfaces
 export interface ToolTranslationContent {
   title: string
   description?: string
@@ -43,6 +43,13 @@ export interface CreditPackageTranslationContent {
   description?: string
 }
 
+export interface BannerTranslationContent {
+  title: string
+  description?: string
+  linkText?: string
+  badge?: string
+}
+
 // Generic translations record type
 export type TranslationsRecord<T> = {
   en: T
@@ -50,19 +57,47 @@ export type TranslationsRecord<T> = {
   [K in Exclude<SupportedLocale, 'en'>]?: Partial<T>
 }
 
-// Helper to get localized tool content with fallback to English
+/**
+ * Generic localization helper with fallback to English.
+ * For each key, uses locale value if present, otherwise falls back to English.
+ */
+export function getLocalizedContent<T>(
+  translations: TranslationsRecord<T>,
+  locale: SupportedLocale
+): T {
+  const enContent = translations.en
+
+  if (!translations[locale] || locale === 'en') {
+    return enContent
+  }
+
+  const localeContent = translations[locale] as Partial<T>
+  const result = { ...enContent }
+
+  for (const key of Object.keys(enContent as object) as Array<keyof T>) {
+    const localeVal = localeContent[key]
+    if (localeVal !== undefined && localeVal !== null && localeVal !== '') {
+      result[key] = localeVal as T[keyof T]
+    }
+  }
+
+  return result
+}
+
+// Helper to get localized tool content with fallback to English (handles steps deep merge)
 export function getLocalizedToolContent(
   translations: TranslationsRecord<ToolTranslationContent>,
   locale: SupportedLocale
 ): ToolTranslationContent {
-  const localeContent = translations[locale]
   const enContent = translations.en
 
-  if (!localeContent || locale === 'en') {
+  if (!translations[locale] || locale === 'en') {
     return enContent
   }
 
-  // Merge step translations: locale-specific steps override English steps
+  const localeContent = translations[locale]!
+
+  // Deep merge step translations
   const enSteps = enContent.steps
   const localeSteps = localeContent.steps
   let mergedSteps: Record<string, { name: string; description?: string }> | undefined
@@ -89,60 +124,19 @@ export function getLocalizedToolTypeContent(
   translations: TranslationsRecord<ToolTypeTranslationContent>,
   locale: SupportedLocale
 ): ToolTypeTranslationContent {
-  const localeContent = translations[locale]
-  const enContent = translations.en
-
-  if (!localeContent || locale === 'en') {
-    return enContent
-  }
-
-  return {
-    title: localeContent.title || enContent.title,
-    description: localeContent.description ?? enContent.description,
-  }
+  return getLocalizedContent(translations, locale)
 }
 
 export function getLocalizedCreditPackageContent(
   translations: TranslationsRecord<CreditPackageTranslationContent>,
   locale: SupportedLocale
 ): CreditPackageTranslationContent {
-  const localeContent = translations[locale]
-  const enContent = translations.en
-
-  if (!localeContent || locale === 'en') {
-    return enContent
-  }
-
-  return {
-    name: localeContent.name || enContent.name,
-    description: localeContent.description ?? enContent.description,
-  }
+  return getLocalizedContent(translations, locale)
 }
 
-// Banner translation content interface
-export interface BannerTranslationContent {
-  title: string
-  description?: string
-  linkText?: string
-  badge?: string
-}
-
-// Helper to get localized banner content with fallback to English
 export function getLocalizedBannerContent(
   translations: TranslationsRecord<BannerTranslationContent>,
   locale: SupportedLocale
 ): BannerTranslationContent {
-  const localeContent = translations[locale]
-  const enContent = translations.en
-
-  if (!localeContent || locale === 'en') {
-    return enContent
-  }
-
-  return {
-    title: localeContent.title || enContent.title,
-    description: localeContent.description ?? enContent.description,
-    linkText: localeContent.linkText ?? enContent.linkText,
-    badge: localeContent.badge ?? enContent.badge,
-  }
+  return getLocalizedContent(translations, locale)
 }

@@ -16,6 +16,11 @@ const router = createRouter({
       component: () => import('@/views/UnauthorizedView.vue'),
     },
     {
+      path: '/rate-limit',
+      name: 'rate-limit',
+      component: () => import('@/views/RateLimitView.vue'),
+    },
+    {
       path: '/dashboard',
       component: () => import('@/views/dashboard/DashboardLayout.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
@@ -114,16 +119,16 @@ const router = createRouter({
           name: 'tasks-detail',
           component: () => import('@/views/dashboard/tasks/TaskDetailView.vue'),
         },
-        // AI Tasks
+        // Studio Projects (overview table)
         {
-          path: 'ai-tasks',
-          name: 'ai-tasks',
-          component: () => import('@/views/dashboard/ai-tasks/AITasksListView.vue'),
+          path: 'studio/projects',
+          name: 'studio-projects',
+          component: () => import('@/views/dashboard/studio/StudioProjectsList.vue'),
         },
         {
-          path: 'ai-tasks/:id',
-          name: 'ai-tasks-detail',
-          component: () => import('@/views/dashboard/ai-tasks/AITaskDetailView.vue'),
+          path: 'studio/projects/:id',
+          name: 'studio-projects-detail',
+          component: () => import('@/views/dashboard/studio/StudioProjectDetail.vue'),
         },
         // Billing
         {
@@ -163,20 +168,26 @@ const router = createRouter({
           name: 'queue',
           component: () => import('@/views/dashboard/queue/QueueView.vue'),
         },
-        // AI Studio
+        // Settings
         {
-          path: 'ai-studio',
-          component: () => import('@/views/dashboard/ai-studio/AiStudioLayout.vue'),
+          path: 'settings/rate-limits',
+          name: 'settings-rate-limits',
+          component: () => import('@/views/dashboard/settings/RateLimitSettingsView.vue'),
+        },
+        // Creative Studio (workspace)
+        {
+          path: 'studio',
+          component: () => import('@/views/dashboard/studio/StudioLayout.vue'),
           children: [
             {
               path: '',
-              name: 'ai-studio',
-              component: () => import('@/views/dashboard/ai-studio/AiStudioEmptyState.vue'),
+              name: 'studio',
+              component: () => import('@/views/dashboard/studio/StudioEmptyState.vue'),
             },
             {
-              path: 'chat/:id',
-              name: 'ai-studio-chat',
-              component: () => import('@/views/dashboard/ai-studio/AiChatView.vue'),
+              path: ':id',
+              name: 'studio-project',
+              component: () => import('@/views/dashboard/studio/StudioWorkspace.vue'),
             },
           ],
         },

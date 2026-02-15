@@ -18,6 +18,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
+import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
@@ -25,6 +27,7 @@ const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const message = useMessage()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 
 const userId = computed(() => route.params.id as string)
@@ -38,10 +41,10 @@ const {
 } = useQuery({
   queryKey: computed(() => ['admin', 'users', userId.value]),
   queryFn: async () => {
-    const { data, error } = await api.GET('/api/admin/users/{id}', {
+    const { data, error, response } = await api.GET('/api/admin/users/{id}', {
       params: { path: { id: userId.value } },
     })
-    if (error) throw new Error(error.error ?? 'Failed to fetch user')
+    if (error) throw extractApiError(error, response)
     return data
   },
   enabled: computed(() => !!userId.value),
@@ -68,20 +71,18 @@ watch(
 
 const roleMutation = useMutation({
   mutationFn: async (role: 'user' | 'admin' | 'super_admin') => {
-    const { data, error } = await api.PATCH('/api/admin/users/{id}/role', {
+    const { data, error, response } = await api.PATCH('/api/admin/users/{id}/role', {
       params: { path: { id: userId.value } },
       body: { role },
     })
-    if (error) throw new Error(error.error ?? 'Failed to update role')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
     message.success(t('common.updateSuccess'))
     queryClient.invalidateQueries({ queryKey: ['admin', 'users', userId.value] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function handleRoleChange() {
@@ -94,14 +95,14 @@ const creditDescription = ref('')
 
 const creditMutation = useMutation({
   mutationFn: async () => {
-    const { data, error } = await api.POST('/api/admin/users/{id}/credits', {
+    const { data, error, response } = await api.POST('/api/admin/users/{id}/credits', {
       params: { path: { id: userId.value } },
       body: {
         amount: creditAmount.value,
         description: creditDescription.value,
       },
     })
-    if (error) throw new Error(error.error ?? 'Failed to adjust credits')
+    if (error) throw extractApiError(error, response)
     return data
   },
   onSuccess: () => {
@@ -110,9 +111,7 @@ const creditMutation = useMutation({
     creditDescription.value = ''
     queryClient.invalidateQueries({ queryKey: ['admin', 'users', userId.value] })
   },
-  onError: (err: Error) => {
-    message.error(err.message)
-  },
+  onError: handleError,
 })
 
 function handleCreditAdjust() {

@@ -10,12 +10,39 @@ import {
   copyObject,
   deleteObject,
 } from '@funmagic/services';
-import { ASSET_VISIBILITY, type AssetVisibility } from '@funmagic/shared';
+import { ASSET_VISIBILITY, type AssetVisibility, AppError, ERROR_CODES } from '@funmagic/shared';
+import { notFound, forbidden, badRequest } from '../lib/errors';
+import { ErrorSchema } from '../schemas';
 
 // Environment variables
 const ALLOWED_CONTENT_TYPES = process.env.ALLOWED_UPLOAD_TYPES!.split(',').map(t => t.trim());
 const MAX_IMAGE_UPLOAD_SIZE = parseInt(process.env.MAX_IMAGE_UPLOAD_SIZE!, 10);
 const MAX_FILE_UPLOAD_SIZE = parseInt(process.env.MAX_FILE_UPLOAD_SIZE!, 10);
+
+/**
+ * Validate that a claimed content type matches the file extension.
+ * This prevents uploading executable files disguised as images, etc.
+ */
+const EXTENSION_MIME_MAP: Record<string, string[]> = {
+  '.jpg': ['image/jpeg'],
+  '.jpeg': ['image/jpeg'],
+  '.png': ['image/png'],
+  '.gif': ['image/gif'],
+  '.webp': ['image/webp'],
+  '.svg': ['image/svg+xml'],
+  '.json': ['application/json'],
+  '.txt': ['text/plain'],
+};
+
+function validateFilenameMatchesMimeType(filename: string, contentType: string): boolean {
+  const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+  const allowedMimes = EXTENSION_MIME_MAP[ext];
+  if (!allowedMimes) {
+    // Unknown extension — reject unless it's in the allowed content types
+    return ALLOWED_CONTENT_TYPES.includes(contentType);
+  }
+  return allowedMimes.includes(contentType);
+}
 
 // Schemas
 const AssetSchema = z.object({
@@ -56,10 +83,6 @@ const DownloadResponseSchema = z.object({
   url: z.string(),
   expiresIn: z.number(),
 }).openapi('DownloadResponse');
-
-const ErrorSchema = z.object({
-  error: z.string(),
-}).openapi('AssetError');
 
 // Routes
 const uploadRoute = createRoute({
@@ -175,14 +198,19 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
 
     // Validate content type
     if (!ALLOWED_CONTENT_TYPES.includes(contentType)) {
-      return c.json({ error: `Content type "${contentType}" is not allowed. Allowed types: ${ALLOWED_CONTENT_TYPES.join(', ')}` } as any, 400 as any);
+      throw badRequest(ERROR_CODES.UPLOAD_INVALID_TYPE, `Content type "${contentType}" is not allowed. Allowed types: ${ALLOWED_CONTENT_TYPES.join(', ')}`);
+    }
+
+    // Validate filename extension matches claimed content type
+    if (!validateFilenameMatchesMimeType(filename, contentType)) {
+      throw badRequest(ERROR_CODES.UPLOAD_EXTENSION_MISMATCH, `File extension does not match content type "${contentType}"`);
     }
 
     // Validate file size (different limits for images vs other files)
     const isImage = contentType.startsWith('image/');
     const maxSize = isImage ? MAX_IMAGE_UPLOAD_SIZE : MAX_FILE_UPLOAD_SIZE;
     if (size > maxSize) {
-      return c.json({ error: `File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB` } as any, 400 as any);
+      throw badRequest(ERROR_CODES.UPLOAD_SIZE_EXCEEDED, `File size exceeds maximum allowed size of ${maxSize / 1024 / 1024}MB`);
     }
 
     const bucket = getBucketForVisibility(visibility);
@@ -224,14 +252,14 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
     });
 
     if (!asset) {
-      return c.json({ error: 'Asset not found' }, 404);
+      throw notFound('Asset');
     }
 
     try {
       const result = await resolveAssetUrl({ ...asset, visibility: asset.visibility as AssetVisibility }, user.id);
       return c.json(result, 200);
     } catch (e) {
-      return c.json({ error: e instanceof Error ? e.message : 'Forbidden' }, 403);
+      throw forbidden(e instanceof Error ? e.message : 'Forbidden');
     }
   })
   .openapi(listAssetsRoute, async (c) => {
@@ -286,12 +314,12 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
     });
 
     if (!asset) {
-      return c.json({ error: 'Asset not found' }, 404);
+      throw notFound('Asset');
     }
 
     // Verify ownership
     if (asset.userId !== user.id) {
-      return c.json({ error: 'Forbidden' }, 403);
+      throw forbidden();
     }
 
     // Already public
@@ -329,12 +357,12 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
     });
 
     if (!asset) {
-      return c.json({ error: 'Asset not found' }, 404);
+      throw notFound('Asset');
     }
 
     // Verify ownership
     if (asset.userId !== user.id) {
-      return c.json({ error: 'Forbidden' }, 403);
+      throw forbidden();
     }
 
     // Soft delete
