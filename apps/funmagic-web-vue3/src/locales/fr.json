@@ -50,7 +50,12 @@
     "hasAccount": "Already have an account?",
     "forgotPassword": "Forgot password?",
     "loginError": "Invalid email or password",
-    "registerError": "Registration failed"
+    "registerError": "Registration failed",
+    "orContinueWith": "ou continuer par e-mail",
+    "continueWithGoogle": "Continuer avec Google",
+    "continueWithApple": "Continuer avec Apple",
+    "continueWithFacebook": "Continuer avec Facebook",
+    "socialLoginError": "Échec de la connexion sociale. Veuillez réessayer."
   },
   "tools": {
     "allTools": "All Tools",

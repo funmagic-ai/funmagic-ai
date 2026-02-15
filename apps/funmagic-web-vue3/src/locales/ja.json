@@ -50,7 +50,12 @@
     "hasAccount": "Already have an account?",
     "forgotPassword": "Forgot password?",
     "loginError": "Invalid email or password",
-    "registerError": "Registration failed"
+    "registerError": "Registration failed",
+    "orContinueWith": "またはメールで続ける",
+    "continueWithGoogle": "Googleで続ける",
+    "continueWithApple": "Appleで続ける",
+    "continueWithFacebook": "Facebookで続ける",
+    "socialLoginError": "ソーシャルログインに失敗しました。もう一度お試しください。"
   },
   "tools": {
     "allTools": "All Tools",

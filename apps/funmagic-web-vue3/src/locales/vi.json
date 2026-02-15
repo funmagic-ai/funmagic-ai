@@ -50,7 +50,12 @@
     "hasAccount": "Already have an account?",
     "forgotPassword": "Forgot password?",
     "loginError": "Invalid email or password",
-    "registerError": "Registration failed"
+    "registerError": "Registration failed",
+    "orContinueWith": "hoặc tiếp tục bằng email",
+    "continueWithGoogle": "Tiếp tục với Google",
+    "continueWithApple": "Tiếp tục với Apple",
+    "continueWithFacebook": "Tiếp tục với Facebook",
+    "socialLoginError": "Đăng nhập mạng xã hội thất bại. Vui lòng thử lại."
   },
   "tools": {
     "allTools": "All Tools",

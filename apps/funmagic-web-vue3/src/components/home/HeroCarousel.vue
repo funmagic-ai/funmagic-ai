@@ -10,7 +10,7 @@ interface Slide {
   link?: string
 }
 
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
   slides: Slide[]
   featuredLabel?: string
 }>(), {

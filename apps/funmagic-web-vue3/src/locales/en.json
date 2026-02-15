@@ -53,6 +53,11 @@
     "registerError": "Registration failed",
     "welcomeBack": "Welcome back!",
     "accountCreated": "Account created successfully!",
+    "orContinueWith": "or continue with email",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithApple": "Continue with Apple",
+    "continueWithFacebook": "Continue with Facebook",
+    "socialLoginError": "Social login failed. Please try again.",
     "validation": {
       "emailRequired": "Email is required",
       "emailInvalid": "Please enter a valid email",

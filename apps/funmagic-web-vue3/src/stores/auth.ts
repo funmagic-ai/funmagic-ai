@@ -37,9 +37,19 @@ export const useAuthStore = defineStore('auth', () => {
     return result
   }
 
-  async function signUp(name: string, email: string, password: string) {
+  async function signUp(email: string, password: string) {
+    const name = email.split('@')[0]
     const result = await authClient.signUp.email({ name, email, password })
     await fetchSession()
+    return result
+  }
+
+  async function signInWithSocial(provider: 'google' | 'apple' | 'facebook') {
+    const locale = (router.currentRoute.value.params.locale as string) || 'en'
+    const result = await authClient.signIn.social({
+      provider,
+      callbackURL: `/${locale}/`,
+    })
     return result
   }
 
@@ -62,6 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
     isSuperAdmin,
     signIn,
     signUp,
+    signInWithSocial,
     signOut,
     fetchSession,
   }
