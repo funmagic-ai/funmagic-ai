@@ -9,7 +9,7 @@ import {
   NSpin,
 } from 'naive-ui'
 import type { FormRules, FormInst, SelectOption } from 'naive-ui'
-import { useQuery, useMutation } from '@tanstack/vue-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { api } from '@/lib/api'
@@ -29,6 +29,7 @@ const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
+const queryClient = useQueryClient()
 
 const upload = useUpload({ module: 'tools', visibility: 'public' })
 const formRef = ref<FormInst | null>(null)
@@ -230,6 +231,7 @@ const createMutation = useMutation({
     return data
   },
   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['admin', 'tools'] })
     message.success(t('common.createSuccess'))
     router.push({ name: 'tools' })
   },

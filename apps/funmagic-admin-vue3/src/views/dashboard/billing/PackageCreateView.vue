@@ -2,7 +2,7 @@
 import { NButton, NForm, NFormItem, NInput, NInputNumber, NIcon, NSwitch, NSelect } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
@@ -14,6 +14,7 @@ const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
+const queryClient = useQueryClient()
 
 const formRef = ref<FormInst | null>(null)
 const formValue = ref({
@@ -61,6 +62,7 @@ const createMutation = useMutation({
     return data
   },
   onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['packages'] })
     message.success(t('common.createSuccess'))
     router.push({ name: 'packages' })
   },
