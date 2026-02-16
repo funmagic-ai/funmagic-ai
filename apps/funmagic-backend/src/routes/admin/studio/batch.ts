@@ -127,6 +127,7 @@ export const batchRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           ? { openaiResponseId: project.openaiResponseId }
           : undefined,
         apiKey,
+        requestId: c.get('requestId' as never) as string | undefined,
       });
     }
 

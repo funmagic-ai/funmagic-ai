@@ -1,5 +1,8 @@
 import { createDecipheriv, scryptSync } from 'crypto';
+import { createLogger } from '@funmagic/services';
 import type { ProviderCredentials } from '../types';
+
+const log = createLogger('Worker');
 
 // Encryption constants (must match admin backend)
 const ALGORITHM = 'aes-256-gcm';
@@ -55,7 +58,7 @@ function decryptCredential(encrypted: string | null): string | null {
 
     return decrypted;
   } catch (error) {
-    console.error('[Worker] Failed to decrypt credential:', error);
+    log.error({ err: error }, 'Failed to decrypt credential');
     return null;
   }
 }

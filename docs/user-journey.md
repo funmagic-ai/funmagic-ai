@@ -18,16 +18,48 @@ This document describes the key user flows through the FunMagic AI platform.
 ### Flow
 
 ```
-Landing Page -> Sign Up -> Email Verification -> Dashboard -> First Tool
+Landing Page -> Sign Up (Email or Social OAuth) -> Dashboard -> First Tool
 ```
 
 ### Steps
 
 1. **Discover Platform** - User lands on homepage, views featured tools and banners
-2. **Sign Up** - Clicks "Sign Up", enters email/password/name, submits form
-3. **Email Verification** (if enabled) - Receives and clicks verification link
-4. **First Experience** - Redirected to dashboard, receives initial free credits
-5. **First Tool Usage** - Selects tool, uploads input, submits task, views progress, downloads result
+2. **Sign Up** - User chooses one of two paths:
+
+   **Path A: Email/Password**
+   - Clicks "Sign Up", enters email/password/name, submits form
+   - Email verification (if enabled) — receives and clicks verification link
+   - Account created with `role: user`
+
+   **Path B: Social OAuth (Google / Apple / Facebook)**
+   - Clicks provider button (e.g., "Continue with Google")
+   - Redirected to OAuth provider consent screen
+   - Grants permission, redirected back to platform
+   - Backend creates user + linked `accounts` record via better-auth
+   - Apple Sign In requires HTTPS (does not work on localhost)
+
+3. **First Experience** - Redirected to dashboard, receives initial free credits
+4. **First Tool Usage** - Selects tool, uploads input, submits task, views progress, downloads result
+
+### Social Login Technical Flow
+
+```
+Vue SPA                    Backend                  OAuth Provider
+  │                           │                           │
+  │ Click "Sign in with X"   │                           │
+  │──────────────────────────>│                           │
+  │                           │ Redirect to provider     │
+  │<──────────────────────────│──────────────────────────>│
+  │                           │                           │
+  │                           │      User grants consent  │
+  │                           │<──────────────────────────│
+  │                           │ Create/link account       │
+  │                           │ Create session            │
+  │  Set-Cookie + redirect   │                           │
+  │<──────────────────────────│                           │
+```
+
+Supported providers are configured in `packages/auth/src/server.ts` via better-auth's `socialProviders` option.
 
 ---
 
@@ -356,39 +388,71 @@ Install -> Seed DB -> Create Super Admin -> Configure Providers -> Add Tools
 ### Flow
 
 ```
-Admin Login -> AI Studio -> New Chat -> Select Provider -> Generate Content -> Quote Images -> Continue
+Admin Login -> AI Studio -> New Project -> Select Provider/Model -> Generate -> Quote Images -> Continue
+                                                                        |
+                                                              Batch Generation (multiple prompts)
 ```
 
 ### Steps
 
 1. **Access AI Studio** - Admin navigates to dashboard, clicks "AI Studio" in sidebar
-2. **Start New Chat** - Click "New Chat", system creates session in `admin_chats` table
-3. **Select Provider** - Choose from OpenAI, Google, or fal.ai
-4. **Generate Content** - Enter prompt, optionally attach images, submit
-5. **View Response** - AI response streams in real-time, saved to `admin_messages`
-6. **Quote Images** - Click "Quote" on generated images to reference in next message
-7. **Continue Conversation** - Multi-turn chat with full context, switch providers if needed
+2. **Start New Project** - Click "New Project", system creates session in `studio_projects` table
+3. **Select Provider & Model** - Choose provider (OpenAI, Google, fal.ai) and model, set provider-specific options:
+   - **OpenAI**: Size (1024x1024, 1536x1024, etc.), quality (low/medium/high), format, background, image model
+   - **Google**: Aspect ratio, image size (1K/2K/4K)
+   - **fal.ai**: Tool selection (background-remove, upscale)
+4. **Generate Content** - Enter prompt, optionally attach/quote images, submit
+5. **Real-time Streaming** - Response streams via SSE (Redis Streams + Pub/Sub):
+   - Text deltas arrive as `text_delta` events (typewriter effect)
+   - Partial images arrive as `partial_image` events (progress preview)
+   - Final images arrive as `image_done` events (stored in S3, referenced by `storageKey`)
+6. **View Result** - Generation saved to `studio_generations` with images, content, raw request/response
+7. **Quote Images** - Click "Quote" on generated images to reference in next message
+8. **Continue Conversation** - Multi-turn chat with full context:
+   - OpenAI: Session continuity via `openaiResponseId` stored on project
+   - Google: Context reconstructed from previous generations
+9. **Switch Providers** - Change provider/model mid-conversation if needed
+
+### Batch Generation
+
+Admins can submit multiple prompts simultaneously:
+
+1. Enter multiple prompts (one per line or via batch interface)
+2. Backend creates separate `studio_generations` records and BullMQ jobs for each
+3. All jobs process concurrently (up to studio worker concurrency of 3)
+4. Each generation streams progress independently to the client
 
 ### Technical Architecture
 
 ```
-Vue 3 Admin App --> Backend API --> Admin Queue --> AI Provider
-       |                |                |              |
-       +--- SSE <-------+----------------+--------------+
+Vue 3 Admin App --> Backend API --> studio-tasks Queue --> Studio Worker
+       |                |                  |                     |
+       +--- SSE <-------+--- Redis --------+---------------------+
+                    (Streams + Pub/Sub)
 
 Database:
-- admin_chats: Session management (id, adminId, title, model)
-- admin_messages: Messages + task tracking (chatId, role, content, images, status)
+- studio_projects: Session management (id, adminId, title, openaiResponseId)
+- studio_generations: Messages + results (projectId, role, content, images, status, rawRequest, rawResponse)
 ```
+
+### Provider Workers
+
+| Provider | Capabilities | Notes |
+|----------|-------------|-------|
+| OpenAI | `chat-image`, `image-only` | Uses Responses API for multi-turn; models: gpt-image-1, gpt-image-1.5 |
+| Google | `chat-image` | Gemini models with image generation |
+| fal.ai | `utility` | Background removal, upscaling (no conversation context) |
 
 ### Features
 
-- Multi-provider support (OpenAI, Google, fal)
+- Multi-provider support with provider-specific options
+- Real-time SSE streaming (text deltas, partial/final images)
+- Multi-turn conversations with session persistence
+- Batch generation (multiple prompts in one request)
 - Image quotation between messages
 - Model capability detection (chat-image, image-only, utility)
-- Session persistence with multi-turn conversations
-- Admin-specific task queue for async processing
-- Per-provider rate limiting (`prl:admin:*` scope) if configured on `admin_providers` — controls concurrency, RPM, and RPD independently from web user tools
+- Raw request/response storage for debugging
+- Per-provider rate limiting (`prl:admin:*` scope) — controls concurrency, RPM, RPD independently from web user tools
 
 ### Permissions
 
@@ -397,3 +461,113 @@ Database:
 | `user` | No access |
 | `admin` | Full access |
 | `super_admin` | Full access + usage analytics |
+
+---
+
+## Journey 12: Admin Rate Limit Configuration
+
+### Flow
+
+```
+Admin Login -> Settings -> Rate Limits -> View/Update Tiers -> View/Update Category Limits -> Save
+```
+
+### Steps
+
+1. **Access Settings** - Admin (super_admin role) navigates to Admin → Settings
+2. **View Current Configuration** - See current tier definitions and per-category rate limits
+3. **Edit Tiers** - Modify tier thresholds and multipliers:
+   - Each tier has a `name`, `minPurchased` threshold, and `multiplier`
+   - Users are automatically assigned tiers based on `credits.lifetimePurchased`
+   - Example: Free (1x), Basic ($100+ → 1.5x), Premium ($500+ → 2x), VIP ($2000+ → 3x)
+4. **Edit Category Limits** - Adjust base `max` for each of the 6 categories:
+   - `globalApi` — IP-based ceiling on all API routes
+   - `userApi` — Per-user authenticated API throughput
+   - `taskCreation` — Per-user task submission rate
+   - `upload` — Upload frequency
+   - `authSession` — Session check rate (generous for multi-tab)
+   - `authAction` — Login/signup rate (strict for brute-force protection)
+5. **Save** - `PUT /api/admin/settings` updates the `rate_limit_settings` table and invalidates the Redis cache
+6. **Effect** - New limits take effect within 5 minutes (Redis cache TTL) for all users
+
+### How Tiers Apply
+
+For per-user categories (`userApi`, `taskCreation`):
+```
+effective_limit = base_max * tier_multiplier
+```
+
+For IP-based categories (`globalApi`, `upload`, `authSession`, `authAction`):
+```
+effective_limit = base_max  (no tier multiplier)
+```
+
+### Permissions
+
+Only `super_admin` can modify rate limit settings.
+
+---
+
+## Journey 13: Admin Provider Management
+
+### Flow
+
+```
+Admin Login -> Providers (Web) -> Add/Edit Provider -> Set Credentials -> Configure Rate Limits
+                  — or —
+Admin Login -> Admin Providers (Studio) -> Add/Edit Provider -> Set Credentials -> Configure Rate Limits
+```
+
+### Two Provider Scopes
+
+The platform maintains separate provider configurations for web user tools and admin studio tasks:
+
+| Scope | Admin Section | Database Table | Rate Limit Redis Prefix | Used By |
+|-------|--------------|----------------|------------------------|---------|
+| Web | Providers | `providers` | `prl:web:{name}:*` | AI tasks worker |
+| Studio | Admin Providers | `admin_providers` | `prl:admin:{name}:*` | Studio worker |
+
+This separation allows:
+- Different API keys per scope (e.g., separate OpenAI accounts for users vs admin)
+- Independent rate limits (admin studio can have higher throughput)
+- Independent health monitoring
+
+### Steps
+
+1. **Navigate to Provider Section** - Choose "Providers" (web) or "Admin Providers" (studio) in sidebar
+2. **Add Provider** - Fill in:
+   - Name (identifier, e.g., `openai`)
+   - Display Name
+   - Type
+   - API Key (encrypted with AES-256-GCM before storage)
+   - Base URL (optional, for custom endpoints)
+3. **Configure Rate Limits** (optional) - Set `config.rateLimit` on the provider:
+   ```json
+   {
+     "rateLimit": {
+       "maxConcurrency": 5,
+       "maxPerMinute": 100,
+       "maxPerDay": 10000,
+       "retryOn429": true,
+       "maxRetries": 3,
+       "baseBackoffMs": 1000
+     }
+   }
+   ```
+4. **Save** - Provider record created/updated, rate limit config cached in Redis (5 min TTL)
+5. **Verify** - Worker picks up new provider on next job; rate limits enforced immediately after cache refresh
+
+### Rate Limit Behavior
+
+- **No rate limit config** — provider runs unrestricted
+- **With config** — worker calls `tryAcquire()` before each API call:
+  - Denied → job re-queued via `DelayedError` (transparent to user)
+  - Allowed → proceeds to API call → `releaseSlot()` in finally block
+- **Provider 429** — auto-retried with exponential backoff if `retryOn429: true`
+
+### Permissions
+
+| Role | Web Providers | Studio Providers |
+|------|--------------|-----------------|
+| `admin` | View/edit | View/edit |
+| `super_admin` | View/edit | View/edit |

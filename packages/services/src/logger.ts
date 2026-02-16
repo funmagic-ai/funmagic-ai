@@ -22,3 +22,27 @@ export type Logger = pino.Logger;
 export function createLogger(service: string): Logger {
   return rootLogger.child({ service });
 }
+
+/**
+ * Create a request-scoped child logger with requestId.
+ *
+ * Usage:
+ *   const log = createRequestLogger('Backend', requestId);
+ *   log.info('Handling request');
+ */
+export function createRequestLogger(service: string, requestId: string): Logger {
+  return rootLogger.child({ service, requestId });
+}
+
+/**
+ * Create a task-scoped child logger with taskId and optional requestId.
+ *
+ * Usage:
+ *   const log = createTaskLogger('Worker', taskId, requestId);
+ *   log.info('Processing task');
+ */
+export function createTaskLogger(service: string, taskId: string, requestId?: string): Logger {
+  const bindings: Record<string, string> = { service, taskId };
+  if (requestId) bindings.requestId = requestId;
+  return rootLogger.child(bindings);
+}

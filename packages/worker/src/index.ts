@@ -18,10 +18,16 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-import { Worker, Job, DelayedError } from 'bullmq';
+import { Worker, Job, Queue, DelayedError } from 'bullmq';
 import { db, tasks, taskPayloads, credits, creditTransactions, tools as toolsTable } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis, createLogger, getProviderRateLimitConfig, tryAcquire, releaseSlot } from '@funmagic/services';
+import {
+  createRedisConnection, redis, createLogger, createTaskLogger,
+  getProviderRateLimitConfig, tryAcquire, releaseSlot,
+  taskDuration, tasksTotal, taskQueueWait,
+  bullmqWaiting, bullmqActive, bullmqFailed,
+  createMetricsHandler,
+} from '@funmagic/services';
 import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
@@ -55,9 +61,17 @@ async function resolveProviderName(toolSlug: string, stepId?: string): Promise<s
 const aiTaskWorker = new Worker<AITaskJobData>(
   'ai-tasks',
   async (job: Job<AITaskJobData>) => {
-    const { taskId, toolSlug, stepId, input, userId, parentTaskId } = job.data;
+    const { taskId, toolSlug, stepId, input, userId, parentTaskId, requestId } = job.data;
+    const taskLog = createTaskLogger('Worker', taskId, requestId);
+    const jobStartTime = performance.now();
 
-    log.info({ taskId, toolSlug, stepId }, 'Processing task');
+    // Record queue wait time
+    if (job.timestamp) {
+      const waitSec = (Date.now() - job.timestamp) / 1000;
+      taskQueueWait.observe({ queue: 'ai-tasks' }, waitSec);
+    }
+
+    taskLog.info({ toolSlug, stepId }, 'Processing task');
 
     // Per-provider rate limiting
     const providerName = await resolveProviderName(toolSlug, stepId);
@@ -69,7 +83,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
     if (rlConfig && providerName) {
       const rlResult = await tryAcquire(redis, 'web', providerName, job.id!, rlConfig);
       if (!rlResult.allowed) {
-        log.info({ taskId, provider: providerName, reason: rlResult.reason }, 'Rate limited, delaying job');
+        taskLog.info({ provider: providerName, reason: rlResult.reason }, 'Rate limited, delaying job');
         await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000), job.token);
         throw new DelayedError();
       }
@@ -104,7 +118,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         const maxRetries = rlConfig?.maxRetries ?? 3;
         if (job.attemptsMade < maxRetries) {
           const backoff = calculateBackoff(job.attemptsMade, rlConfig?.baseBackoffMs ?? 1000);
-          log.info({ taskId, provider: providerName, backoff, attempt: job.attemptsMade + 1, maxRetries }, 'Provider 429, rescheduling');
+          taskLog.info({ provider: providerName, backoff, attempt: job.attemptsMade + 1, maxRetries }, 'Provider 429, rescheduling');
           if (rlAcquired) {
             await releaseSlot(redis, 'web', providerName, job.id!);
             rlAcquired = false;
@@ -123,6 +137,12 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         await releaseSlot(redis, 'web', providerName, job.id!);
       }
     }
+
+    // Record task metrics
+    const durationSec = (performance.now() - jobStartTime) / 1000;
+    const status = result.success ? 'completed' : 'failed';
+    taskDuration.observe({ tool: toolSlug, status }, durationSec);
+    tasksTotal.inc({ tool: toolSlug, status });
 
     // Provider data to persist regardless of outcome
     const providerData = {
@@ -164,12 +184,12 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       // this notification. Output is already persisted in taskPayloads above.
       await publishTaskCompleted(redis, taskId);
 
-      log.info({ taskId }, 'Task completed successfully');
+      taskLog.info('Task completed successfully');
       return result.output;
 
     } else {
       const errorMessage = result.error || 'Tool execution failed';
-      log.error({ taskId, err: errorMessage }, 'Task failed');
+      taskLog.error({ err: errorMessage }, 'Task failed');
 
       // Update task as failed
       await db.update(tasks)
@@ -224,17 +244,39 @@ aiTaskWorker.on('error', (err) => {
 
 log.info('Started and listening for jobs');
 
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  log.info('Received SIGTERM, closing worker...');
-  await aiTaskWorker.close();
-  await redis.quit();
-  process.exit(0);
-});
+// ─── Queue Depth Sampler ───
+// Poll BullMQ queue counts every 30s and update Prometheus gauges
+const aiTasksQueue = new Queue('ai-tasks', { connection: createRedisConnection() });
 
-process.on('SIGINT', async () => {
-  log.info('Received SIGINT, closing worker...');
+const queueSampler = setInterval(async () => {
+  try {
+    const counts = await aiTasksQueue.getJobCounts('waiting', 'active', 'failed');
+    bullmqWaiting.set({ queue: 'ai-tasks' }, counts.waiting ?? 0);
+    bullmqActive.set({ queue: 'ai-tasks' }, counts.active ?? 0);
+    bullmqFailed.set({ queue: 'ai-tasks' }, counts.failed ?? 0);
+  } catch {
+    // Non-critical — skip this sample
+  }
+}, 30_000);
+
+// ─── Metrics HTTP endpoint ───
+const metricsPort = Number(process.env.WORKER_METRICS_PORT) || 9090;
+const metricsServer = Bun.serve({
+  port: metricsPort,
+  fetch: createMetricsHandler(process.env.METRICS_AUTH_TOKEN),
+});
+log.info({ port: metricsPort }, 'Worker metrics server running');
+
+// Graceful shutdown
+async function shutdown(signal: string) {
+  log.info({ signal }, 'Shutting down worker...');
+  clearInterval(queueSampler);
+  metricsServer.stop();
   await aiTaskWorker.close();
+  await aiTasksQueue.close();
   await redis.quit();
   process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

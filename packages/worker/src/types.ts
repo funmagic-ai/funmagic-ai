@@ -8,6 +8,7 @@ export interface AITaskJobData {
   input: Record<string, unknown>;
   userId: string;
   parentTaskId?: string;  // For child tasks (e.g., 3D gen after image gen)
+  requestId?: string;  // Correlation ID propagated from HTTP request
 }
 
 // Context provided to tool workers

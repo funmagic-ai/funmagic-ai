@@ -50,6 +50,7 @@ export interface AITaskJobData {
   input: Record<string, unknown>;
   userId: string;
   parentTaskId?: string;  // For child tasks (e.g., 3D gen after image gen)
+  requestId?: string;  // Correlation ID propagated from HTTP request
 }
 
 // Provider types
@@ -80,6 +81,8 @@ export interface StudioGenerationJobData {
   session?: StudioSessionData;
   // Decrypted API key for the provider
   apiKey: string;
+  // Correlation ID propagated from HTTP request
+  requestId?: string;
 }
 
 

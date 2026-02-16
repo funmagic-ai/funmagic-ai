@@ -1,5 +1,6 @@
 import { GoogleGenAI, type Content, type Part } from '@google/genai';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { createLogger } from '@funmagic/services';
 import { db, studioGenerations } from '@funmagic/database';
 import type { StudioImage } from '@funmagic/database';
 import { eq, asc } from 'drizzle-orm';
@@ -16,6 +17,8 @@ import {
   uploadBase64Image,
   createProgressTracker,
 } from '../utils';
+
+const log = createLogger('GoogleWorker');
 
 /**
  * Build Google chat history from studioGenerations table.
@@ -55,7 +58,7 @@ async function buildGoogleHistory(projectId: string): Promise<Content[]> {
               },
             });
           } catch (e) {
-            console.warn(`[Google Worker] Failed to fetch image for history: ${img.storageKey}`, e);
+            log.warn({ err: e, storageKey: img.storageKey }, 'Failed to fetch image for history');
           }
         }
       }
@@ -88,8 +91,9 @@ export const googleWorker: StudioProviderWorker = {
   capabilities: ['chat-image'],
 
   async execute(context: StudioWorkerContext): Promise<StudioResult> {
-    const { projectId, model, input, apiKey } = context;
+    const { projectId, model, input, apiKey, messageId } = context;
     const progress = createProgressTracker(context);
+    const taskLog = log.child({ messageId });
 
     try {
       const ai = new GoogleGenAI({ apiKey });
@@ -99,7 +103,7 @@ export const googleWorker: StudioProviderWorker = {
         throw new Error('Model is required for Google');
       }
 
-      console.log(`[Google Worker] Executing with streaming: model=${model}, hasImages=${hasImages}`);
+      taskLog.info({ model, hasImages }, 'Executing with streaming');
 
       // Get Google-specific options
       const googleOptions = input.options?.google || {};
@@ -122,12 +126,12 @@ export const googleWorker: StudioProviderWorker = {
         }
       }
 
-      console.log(`[Google Worker] Image config:`, JSON.stringify(config));
+      taskLog.debug({ config }, 'Image config');
 
       // Reconstruct chat history from studioGenerations (avoids storing base64 in DB)
       const history = await buildGoogleHistory(projectId);
       if (history.length > 0) {
-        console.log(`[Google Worker] Reconstructed chat history with ${history.length} messages`);
+        taskLog.info({ historyLength: history.length }, 'Reconstructed chat history');
       }
 
       const chat = ai.chats.create({
@@ -180,7 +184,7 @@ export const googleWorker: StudioProviderWorker = {
       let textContent = '';
       let imageIndex = 0;
 
-      console.log(`[Google Worker] Starting stream processing...`);
+      taskLog.debug('Starting stream processing');
 
       for await (const chunk of stream) {
         const parts = chunk.candidates?.[0]?.content?.parts || [];
@@ -195,7 +199,7 @@ export const googleWorker: StudioProviderWorker = {
             const base64Data = part.inlineData.data;
             if (!base64Data) continue;
 
-            console.log(`[Google Worker] Image received, uploading...`);
+            taskLog.info({ imageIndex }, 'Image received, uploading');
             const image = await uploadBase64Image(base64Data, context, imageIndex, 'generated');
             images.push(image);
             await progress.imageDone(imageIndex, image.storageKey);
@@ -204,7 +208,7 @@ export const googleWorker: StudioProviderWorker = {
         }
       }
 
-      console.log(`[Google Worker] Stream completed. Text length: ${textContent.length}, Images: ${images.length}`);
+      taskLog.info({ textLength: textContent.length, imageCount: images.length }, 'Stream completed');
 
       // Only error if BOTH image and text are empty
       if (images.length === 0 && !textContent) {
@@ -225,7 +229,7 @@ export const googleWorker: StudioProviderWorker = {
 
       // If text only (no images), return text response
       if (images.length === 0) {
-        console.log(`[Google Worker] Text-only response: ${textContent.slice(0, 100)}...`);
+        taskLog.info({ textPreview: textContent.slice(0, 100) }, 'Text-only response');
         await progress.complete([], textContent);
         return {
           success: true,
@@ -251,7 +255,7 @@ export const googleWorker: StudioProviderWorker = {
       if (isProvider429Error(error)) throw error;
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Google Worker] Failed:`, errorMessage);
+      taskLog.error({ err: errorMessage }, 'Failed');
       await progress.error(errorMessage);
       return {
         success: false,

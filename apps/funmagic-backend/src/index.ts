@@ -9,6 +9,8 @@ import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 
 import { requireAuth, requireAdmin } from './middleware/auth';
+import { requestId } from './middleware/request-id';
+import { httpMetrics } from './middleware/metrics';
 import { securityHeaders } from './middleware/security-headers';
 import {
   globalApiRateLimit,
@@ -26,6 +28,7 @@ const log = createLogger('Backend');
 
 // Environment variables
 const CORS_ORIGINS = process.env.CORS_ORIGINS!.split(',');
+import { metricsRoutes } from './routes/metrics';
 import { healthRoutes } from './routes/health';
 import { usersRoutes } from './routes/users';
 import { toolsRoutes } from './routes/tools';
@@ -38,6 +41,8 @@ import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoute
 const app = new OpenAPIHono();
 
 // Middleware
+app.use('*', requestId);
+app.use('*', httpMetrics);
 app.use('*', logger());
 app.use('*', prettyJSON());
 app.use('*', securityHeaders);
@@ -59,6 +64,11 @@ app.use('/api/auth/sign-up/*', authActionRateLimit);
 app.on(["POST", "GET"], "/api/auth/*", (c) => {
   return auth.handler(c.req.raw);
 });
+
+// =====================================
+// Metrics endpoint (Prometheus scraping)
+// =====================================
+app.route('/metrics', metricsRoutes);
 
 // =====================================
 // Public routes (no auth required)
@@ -137,9 +147,12 @@ app.notFound((c) => {
 
 // Global error handler
 app.onError((err, c) => {
+  const reqId = c.get('requestId' as never) as string | undefined;
+  const errLog = reqId ? log.child({ requestId: reqId }) : log;
+
   // Known application errors — log at warn level
   if (err instanceof AppError) {
-    log.warn({ err, code: err.code, details: err.details }, err.message);
+    errLog.warn({ err, code: err.code, details: err.details }, err.message);
     return c.json(err.toJSON(), err.statusCode as 400);
   }
 
@@ -147,14 +160,14 @@ app.onError((err, c) => {
   if (err.name === 'ZodError' && 'issues' in err) {
     const issues = (err as unknown as { issues: { message: string }[] }).issues;
     const message = issues.map((i) => i.message).join('; ');
-    log.warn({ err }, 'Validation error');
+    errLog.warn({ err }, 'Validation error');
     return c.json({
       error: { code: ERROR_CODES.VALIDATION_ERROR, message },
     }, 400);
   }
 
   // Unknown errors — log at error level with full stack, return safe message
-  log.error({ err }, 'Unhandled error');
+  errLog.error({ err }, 'Unhandled error');
   return c.json({
     error: { code: ERROR_CODES.INTERNAL_ERROR, message: 'Internal Server Error' },
   }, 500);

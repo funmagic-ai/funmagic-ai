@@ -3,9 +3,11 @@ import { db, tasks, taskPayloads, tools, credits, creditTransactions } from '@fu
 import { eq, sql } from 'drizzle-orm';
 import { AppError, ERROR_CODES } from '@funmagic/shared';
 import { addAITaskJob } from '../lib/queue';
-import { redis, createRedisConnection } from '@funmagic/services';
+import { redis, createRedisConnection, createLogger } from '@funmagic/services';
 import { CreateTaskSchema, TaskSchema, TaskDetailSchema, ErrorSchema } from '../schemas';
 import { notFound, badRequest } from '../lib/errors';
+
+const log = createLogger('Backend');
 
 // Step config from tool.config
 interface StepConfig {
@@ -240,6 +242,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       input,
       userId,
       parentTaskId,
+      requestId: c.get('requestId' as never) as string | undefined,
     });
 
     return c.json({
@@ -286,7 +289,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
   })
   .openapi(streamTaskRoute, async (c) => {
     const { taskId } = c.req.valid('param');
-    console.log(`[SSE] Stream request for task: ${taskId}`);
+    log.debug(`[SSE] Stream request for task: ${taskId}`);
 
     // Verify task exists
     const task = await db.query.tasks.findFirst({
@@ -294,11 +297,11 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     });
 
     if (!task) {
-      console.log(`[SSE] Task not found: ${taskId}`);
+      log.debug(`[SSE] Task not found: ${taskId}`);
       throw notFound('Task');
     }
 
-    console.log(`[SSE] Starting stream for task: ${taskId}, status: ${task.status}`);
+    log.debug(`[SSE] Starting stream for task: ${taskId}, status: ${task.status}`);
     const channel = `task:${taskId}`;
     const streamKey = `stream:task:${taskId}`;
     const encoder = new TextEncoder();
@@ -323,7 +326,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
     function closeAll() {
       if (closed) return;
       closed = true;
-      console.log(`[SSE] Closing stream for task: ${taskId}`);
+      log.debug(`[SSE] Closing stream for task: ${taskId}`);
       if (heartbeatTimer) { clearInterval(heartbeatTimer); heartbeatTimer = null; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
@@ -363,7 +366,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
       },
       cancel() {
         // Client disconnected (reader.cancel() / fetch abort)
-        console.log(`[SSE] Client disconnected: ${taskId}`);
+        log.debug(`[SSE] Client disconnected: ${taskId}`);
         closeAll();
       },
     });
@@ -423,17 +426,17 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           // ioredis auto-reconnects on transient disconnects.
           // Don't close the SSE stream — poll fallback continues working.
           subscriber.on('close', () => {
-            console.warn(`[SSE] Redis subscriber disconnected (task ${taskId})`);
+            log.warn(`[SSE] Redis subscriber disconnected (task ${taskId})`);
           });
 
           // 'end' fires when ioredis gives up reconnecting or after quit().
           subscriber.on('end', () => {
-            console.log(`[SSE] Redis subscriber ended (task ${taskId})`);
+            log.debug(`[SSE] Redis subscriber ended (task ${taskId})`);
             subscriber = null;
           });
 
           subscriber.on('reconnecting', () => {
-            console.log(`[SSE] Redis subscriber reconnecting (task ${taskId})`);
+            log.debug(`[SSE] Redis subscriber reconnecting (task ${taskId})`);
           });
 
           // Wait for initial connection
@@ -454,7 +457,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           if (closed) return;
 
           await subscriber.subscribe(channel);
-          console.log(`[SSE] Subscribed to ${channel}`);
+          log.debug(`[SSE] Subscribed to ${channel}`);
 
           subscriber.on('message', (ch, message) => {
             if (ch !== channel || closed) return;
@@ -466,11 +469,11 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
                 writeEvent(JSON.stringify(event));
               }
             } catch (e) {
-              console.error('[SSE] Message parse error:', e);
+              log.error({ err: e }, '[SSE] Message parse error');
             }
           });
         } catch (err) {
-          console.error('[SSE] Redis subscriber setup failed:', err);
+          log.error({ err }, '[SSE] Redis subscriber setup failed');
         }
 
         if (closed) return;
@@ -481,7 +484,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         try {
           const existingEvents = await redis.xrange(streamKey, '-', '+');
           if (existingEvents.length > 0) {
-            console.log(`[SSE] Replaying ${existingEvents.length} events from stream`);
+            log.debug(`[SSE] Replaying ${existingEvents.length} events from stream`);
           }
 
           for (const [, fields] of existingEvents) {
@@ -499,7 +502,7 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
             } catch { /* skip unparseable */ }
           }
         } catch (e) {
-          console.error('[SSE] Failed to read Redis Stream:', e);
+          log.error({ err: e }, '[SSE] Failed to read Redis Stream');
         }
 
         if (closed) return;
@@ -533,11 +536,11 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
           } catch { /* retry next cycle */ }
         }, 3000);
       } catch (err) {
-        console.error('[SSE] Fatal setup error:', err);
+        log.error({ err }, '[SSE] Fatal setup error');
         closeAll();
       }
     })().catch((err) => {
-      console.error('[SSE] Unhandled error in stream pipeline:', err);
+      log.error({ err }, '[SSE] Unhandled error in stream pipeline');
       closeAll();
     });
 

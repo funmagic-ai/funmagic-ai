@@ -48,8 +48,7 @@ export async function publishStudioProgress(
   await redis.expire(streamKey, 300);
 
   // 3. Publish to Pub/Sub for real-time delivery
-  const subscribers = await redis.publish(channel, eventJson);
-  console.log(`[Progress] Published ${event.type} to ${channel}, subscribers: ${subscribers}`);
+  await redis.publish(channel, eventJson);
 }
 
 /**

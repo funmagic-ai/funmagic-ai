@@ -8,10 +8,17 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-import { Worker, Job, DelayedError } from 'bullmq';
+import { Worker, Job, Queue, DelayedError } from 'bullmq';
 import { db, studioGenerations, studioProjects } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis, getProviderRateLimitConfig, tryAcquire, releaseSlot } from '@funmagic/services';
+import {
+  createRedisConnection, redis, createLogger, createTaskLogger,
+  getProviderRateLimitConfig, tryAcquire, releaseSlot,
+  taskDuration, tasksTotal, taskQueueWait,
+  providerApiDuration, providerRateLimitHits, providerErrors,
+  bullmqWaiting, bullmqActive, bullmqFailed,
+  createMetricsHandler,
+} from '@funmagic/services';
 import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
 import {
   getStudioProviderWorker,
@@ -21,8 +28,10 @@ import {
 } from './studio-tools';
 import type { StudioGenerationJobData, StudioProvider, ModelCapability } from './studio-tools/types';
 
-console.log('[Studio Worker] Starting...');
-console.log(`[Studio Worker] Registered providers: ${getRegisteredProviders().join(', ')}`);
+const log = createLogger('StudioWorker');
+
+log.info('Starting...');
+log.info({ providers: getRegisteredProviders() }, 'Registered providers');
 
 // Studio Generation Worker
 const studioWorker = new Worker<StudioGenerationJobData>(
@@ -38,12 +47,22 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       projectId,
       session,
       apiKey,
+      requestId,
     } = job.data;
+
+    const taskLog = createTaskLogger('StudioWorker', messageId, requestId);
+    const jobStartTime = performance.now();
+
+    // Record queue wait time
+    if (job.timestamp) {
+      const waitSec = (Date.now() - job.timestamp) / 1000;
+      taskQueueWait.observe({ queue: 'studio-tasks' }, waitSec);
+    }
 
     // Determine model capability from job data or infer from provider/model
     const modelCapability: ModelCapability = jobModelCapability || determineModelCapability(provider as StudioProvider, model);
 
-    console.log(`\n[Studio Worker] Processing generation ${messageId} for provider "${provider}" (model: ${model}, capability: ${modelCapability})`);
+    taskLog.info({ provider, model, capability: modelCapability }, 'Processing generation');
 
     // Update generation status to processing
     await db.update(studioGenerations)
@@ -58,7 +77,8 @@ const studioWorker = new Worker<StudioGenerationJobData>(
     if (rlConfig) {
       const rlResult = await tryAcquire(redis, 'admin', providerName, job.id!, rlConfig);
       if (!rlResult.allowed) {
-        console.log(`[Studio Worker] Rate limited (${rlResult.reason}) for provider "${providerName}", delaying job ${job.id}`);
+        providerRateLimitHits.inc({ provider: providerName });
+        taskLog.info({ provider: providerName, reason: rlResult.reason }, 'Rate limited, delaying job');
         await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000), job.token);
         throw new DelayedError();
       }
@@ -73,7 +93,8 @@ const studioWorker = new Worker<StudioGenerationJobData>(
         throw new Error(`No worker found for provider: ${provider}. Available: ${getRegisteredProviders().join(', ')}`);
       }
 
-      // Execute the provider worker
+      // Execute the provider worker and measure provider API duration
+      const apiStart = performance.now();
       const result = await providerWorker.execute({
         messageId,
         projectId,
@@ -86,10 +107,18 @@ const studioWorker = new Worker<StudioGenerationJobData>(
         session,
         apiKey,
       });
+      const apiDurationSec = (performance.now() - apiStart) / 1000;
+      providerApiDuration.observe({ provider: providerName, operation: 'generate' }, apiDurationSec);
 
       if (!result.success) {
+        providerErrors.inc({ provider: providerName, error_type: 'execution_failed' });
         throw new Error(result.error || 'Provider execution failed');
       }
+
+      // Record task metrics
+      const durationSec = (performance.now() - jobStartTime) / 1000;
+      taskDuration.observe({ tool: `studio-${providerName}`, status: 'completed' }, durationSec);
+      tasksTotal.inc({ tool: `studio-${providerName}`, status: 'completed' });
 
       // Update generation with results - store only storageKey for images
       await db.update(studioGenerations)
@@ -111,26 +140,33 @@ const studioWorker = new Worker<StudioGenerationJobData>(
         await db.update(studioProjects)
           .set({ openaiResponseId: result.session.openaiResponseId })
           .where(eq(studioProjects.id, projectId));
-        console.log(`[Studio Worker] Stored OpenAI response ID for project ${projectId}`);
+        taskLog.info({ projectId }, 'Stored OpenAI response ID');
       }
 
-      console.log(`[Studio Worker] Generation ${messageId} completed successfully`);
+      taskLog.info('Generation completed successfully');
       return result;
 
     } catch (error) {
       // Handle provider 429 errors: reschedule instead of failing
       if (rlConfig?.retryOn429 !== false && isProvider429Error(error)) {
+        providerRateLimitHits.inc({ provider: providerName });
         const maxRetries = rlConfig?.maxRetries ?? 3;
         if (job.attemptsMade < maxRetries) {
           const backoff = calculateBackoff(job.attemptsMade, rlConfig?.baseBackoffMs ?? 1000);
-          console.log(`[Studio Worker] Provider 429 for "${providerName}", rescheduling in ${backoff}ms (attempt ${job.attemptsMade + 1}/${maxRetries})`);
+          taskLog.info({ provider: providerName, backoff, attempt: job.attemptsMade + 1, maxRetries }, 'Provider 429, rescheduling');
           await job.moveToDelayed(Date.now() + backoff, job.token);
           throw new DelayedError();
         }
       }
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Studio Worker] Generation ${messageId} failed:`, errorMessage);
+      taskLog.error({ err: errorMessage }, 'Generation failed');
+
+      // Record failure metrics
+      const durationSec = (performance.now() - jobStartTime) / 1000;
+      taskDuration.observe({ tool: `studio-${providerName}`, status: 'failed' }, durationSec);
+      tasksTotal.inc({ tool: `studio-${providerName}`, status: 'failed' });
+      providerErrors.inc({ provider: providerName, error_type: 'unknown' });
 
       // Update generation as failed
       await db.update(studioGenerations)
@@ -161,30 +197,51 @@ const studioWorker = new Worker<StudioGenerationJobData>(
 );
 
 studioWorker.on('completed', (job) => {
-  console.log(`[Studio Worker] Job ${job.id} completed`);
+  log.info({ jobId: job.id }, 'Job completed');
 });
 
 studioWorker.on('failed', (job, err) => {
-  console.error(`[Studio Worker] Job ${job?.id} failed:`, err.message);
+  log.error({ jobId: job?.id, err: err.message }, 'Job failed');
 });
 
 studioWorker.on('error', (err) => {
-  console.error('[Studio Worker] Error:', err);
+  log.error({ err }, 'Worker error');
 });
 
-console.log('[Studio Worker] Started and listening for jobs on "studio-tasks" queue');
+log.info('Started and listening for jobs on "studio-tasks" queue');
+
+// ─── Queue Depth Sampler ───
+const studioTasksQueue = new Queue('studio-tasks', { connection: createRedisConnection() });
+
+const queueSampler = setInterval(async () => {
+  try {
+    const counts = await studioTasksQueue.getJobCounts('waiting', 'active', 'failed');
+    bullmqWaiting.set({ queue: 'studio-tasks' }, counts.waiting ?? 0);
+    bullmqActive.set({ queue: 'studio-tasks' }, counts.active ?? 0);
+    bullmqFailed.set({ queue: 'studio-tasks' }, counts.failed ?? 0);
+  } catch {
+    // Non-critical — skip this sample
+  }
+}, 30_000);
+
+// ─── Metrics HTTP endpoint ───
+const metricsPort = Number(process.env.STUDIO_WORKER_METRICS_PORT) || 9091;
+const metricsServer = Bun.serve({
+  port: metricsPort,
+  fetch: createMetricsHandler(process.env.METRICS_AUTH_TOKEN),
+});
+log.info({ port: metricsPort }, 'Studio worker metrics server running');
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, closing studio worker...');
+async function shutdown(signal: string) {
+  log.info({ signal }, 'Shutting down studio worker...');
+  clearInterval(queueSampler);
+  metricsServer.stop();
   await studioWorker.close();
+  await studioTasksQueue.close();
   await redis.quit();
   process.exit(0);
-});
+}
 
-process.on('SIGINT', async () => {
-  console.log('Received SIGINT, closing studio worker...');
-  await studioWorker.close();
-  await redis.quit();
-  process.exit(0);
-});
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

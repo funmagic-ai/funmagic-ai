@@ -20,6 +20,8 @@ export interface StudioGenerationJobData {
   session?: StudioSessionData;
   // Decrypted API key for the provider
   apiKey: string;
+  // Correlation ID propagated from HTTP request
+  requestId?: string;
 }
 
 // Session data for multi-turn conversations

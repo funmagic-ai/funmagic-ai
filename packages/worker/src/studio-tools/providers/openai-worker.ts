@@ -1,5 +1,6 @@
 import OpenAI from 'openai';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { createLogger } from '@funmagic/services';
 import type {
   StudioProviderWorker,
   StudioWorkerContext,
@@ -14,6 +15,8 @@ import {
   createProgressTracker,
 } from '../utils';
 
+const log = createLogger('OpenAIWorker');
+
 /**
  * OpenAI Provider Worker
  * Supports text-to-image and image-to-image with multi-turn conversations
@@ -24,14 +27,15 @@ export const openaiWorker: StudioProviderWorker = {
   capabilities: ['chat-image'],
 
   async execute(context: StudioWorkerContext): Promise<StudioResult> {
-    const { model, input, session, apiKey } = context;
+    const { model, input, session, apiKey, messageId } = context;
     const progress = createProgressTracker(context);
+    const taskLog = log.child({ messageId });
 
     try {
       const openai = new OpenAI({ apiKey });
       const hasImages = input.quotedImages && input.quotedImages.length > 0;
 
-      console.log(`[OpenAI Worker] Executing with streaming: model=${model}, hasImages=${hasImages}`);
+      taskLog.info({ model, hasImages }, 'Executing with streaming');
 
       // Build input content
       const content: Array<{ type: string; text?: string; image_url?: string }> = [];
@@ -74,7 +78,7 @@ export const openaiWorker: StudioProviderWorker = {
         imageGenConfig.background = openaiOptions.background;
       }
 
-      console.log(`[OpenAI Worker] Image options:`, JSON.stringify(imageGenConfig));
+      taskLog.debug({ imageGenConfig }, 'Image options');
 
       const orchestratorModel = model || 'gpt-5-mini';
 
@@ -90,7 +94,7 @@ export const openaiWorker: StudioProviderWorker = {
       // Multi-turn: continue from previous response
       if (session?.openaiResponseId) {
         requestParams.previous_response_id = session.openaiResponseId;
-        console.log(`[OpenAI Worker] Continuing conversation from response: ${session.openaiResponseId}`);
+        taskLog.info({ previousResponseId: session.openaiResponseId }, 'Continuing conversation');
       }
 
       // Capture raw request for debugging
@@ -111,7 +115,7 @@ export const openaiWorker: StudioProviderWorker = {
       const images: GeneratedImage[] = [];
       let imageIndex = 0;
 
-      console.log(`[OpenAI Worker] Starting stream processing...`);
+      taskLog.debug('Starting stream processing');
 
       // Process streaming events
       for await (const event of stream as AsyncIterable<any>) {
@@ -120,7 +124,7 @@ export const openaiWorker: StudioProviderWorker = {
         // Track response ID for multi-turn conversations
         if (eventType === 'response.created') {
           responseId = event.response?.id || '';
-          console.log(`[OpenAI Worker] Stream started, response ID: ${responseId}`);
+          taskLog.info({ responseId }, 'Stream started');
         }
 
         // Text token streaming - emit per-token for typewriter effect
@@ -136,7 +140,7 @@ export const openaiWorker: StudioProviderWorker = {
         if (eventType === 'response.output_item.done') {
           const item = event.item;
           if (item?.type === 'image_generation_call' && item.result) {
-            console.log(`[OpenAI Worker] Image generation complete, uploading...`);
+            taskLog.info({ imageIndex }, 'Image generation complete, uploading');
             const image = await uploadBase64Image(item.result, context, imageIndex, 'generated');
             images.push(image);
             await progress.imageDone(imageIndex, image.storageKey);
@@ -147,19 +151,19 @@ export const openaiWorker: StudioProviderWorker = {
         // Handle stream errors
         if (eventType === 'error') {
           const errorMsg = event.error?.message || 'Stream error';
-          console.error(`[OpenAI Worker] Stream error:`, errorMsg);
+          taskLog.error({ err: errorMsg }, 'Stream error');
           throw new Error(errorMsg);
         }
 
         // Response completed - log final state
         if (eventType === 'response.completed') {
-          console.log(`[OpenAI Worker] Stream completed. Text length: ${fullText.length}, Images: ${images.length}`);
+          taskLog.info({ textLength: fullText.length, imageCount: images.length }, 'Stream completed');
         }
       }
 
       // Only error if BOTH image and text are empty
       if (images.length === 0 && !fullText) {
-        console.error(`[OpenAI Worker] No content received from stream`);
+        taskLog.error('No content received from stream');
         throw new Error('No response from OpenAI (no image or text)');
       }
 
@@ -194,7 +198,7 @@ export const openaiWorker: StudioProviderWorker = {
       if (isProvider429Error(error)) throw error;
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[OpenAI Worker] Failed:`, errorMessage);
+      taskLog.error({ err: errorMessage }, 'Failed');
       await progress.error(errorMessage);
       return {
         success: false,

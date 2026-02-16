@@ -5,10 +5,13 @@ import { eq, and } from 'drizzle-orm';
 import { streamSSE } from 'hono/streaming';
 import { redis, createRedisConnection } from '@funmagic/services';
 import { AppError, ERROR_CODES } from '@funmagic/shared';
+import { createLogger } from '@funmagic/services';
 import { addStudioGenerationJob } from '../../../lib/queue';
 import { notFound, badRequest } from '../../../lib/errors';
 import { ErrorSchema } from '../../../schemas';
 import { decryptCredential } from '../admin-providers';
+
+const log = createLogger('Backend');
 import {
   CreateGenerationSchema,
   CreateGenerationResponseSchema,
@@ -246,6 +249,7 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
       },
       session,
       apiKey,
+      requestId: c.get('requestId' as never) as string | undefined,
     });
 
     // Update generation with bullmq job id
@@ -316,7 +320,7 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
           try {
             await subscriber.quit();
           } catch (e) {
-            console.error('[SSE] Error during quit:', e);
+            log.error({ err: e }, '[SSE] Error during quit');
           }
         }
       };
@@ -331,13 +335,13 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
 
       // Handle subscriber connection errors
       subscriber.on('error', (err) => {
-        console.error('[SSE] Redis subscriber error:', err.message);
+        log.error({ err: err.message }, '[SSE] Redis subscriber error');
         closeStream();
       });
 
       subscriber.on('close', () => {
         if (!isCompleted) {
-          console.log('[SSE] Redis subscriber connection closed unexpectedly');
+          log.debug('[SSE] Redis subscriber connection closed unexpectedly');
         }
         closeStream();
       });
@@ -375,7 +379,7 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
       // 1. Read existing events from Redis Stream (catch up on missed events)
       try {
         const existingEvents = await redis.xrange(streamKey, '-', '+');
-        console.log(`[SSE] Found ${existingEvents.length} events in stream ${streamKey}`);
+        log.debug(`[SSE] Found ${existingEvents.length} events in stream ${streamKey}`);
 
         for (const [_id, fields] of existingEvents) {
           try {
@@ -387,24 +391,24 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
               data: eventJson,
             });
 
-            console.log(`[SSE] Replayed event from stream: ${event.type}`);
+            log.debug(`[SSE] Replayed event from stream: ${event.type}`);
 
             if (event.type === 'complete' || event.type === 'error') {
-              console.log(`[SSE] Stream replay found terminal event, closing`);
+              log.debug(`[SSE] Stream replay found terminal event, closing`);
               closeStream();
               await streamEndPromise;
               return;
             }
           } catch (e) {
-            console.error('[SSE] Failed to parse stream event:', e);
+            log.error({ err: e }, '[SSE] Failed to parse stream event');
           }
         }
 
         if (existingEvents.length > 0) {
-          console.log(`[SSE] Replayed ${existingEvents.length} events from stream`);
+          log.debug(`[SSE] Replayed ${existingEvents.length} events from stream`);
         }
       } catch (e) {
-        console.error('[SSE] Failed to read from stream:', e);
+        log.error({ err: e }, '[SSE] Failed to read from stream');
       }
 
       // 2. Wait for subscriber connection to be ready
@@ -440,7 +444,7 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
           });
         });
       } catch (err) {
-        console.error('[SSE] Failed to connect Redis subscriber:', err);
+        log.error({ err }, '[SSE] Failed to connect Redis subscriber');
         closeStream();
         await streamEndPromise;
         return;
@@ -448,14 +452,14 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
 
       // 3. Register message handler for real-time Pub/Sub events
       subscriber.on('message', async (ch, data) => {
-        console.log(`[SSE] Received Redis message on channel: ${ch}, data length: ${data.length}`);
+        log.debug(`[SSE] Received Redis message on channel: ${ch}, data length: ${data.length}`);
         if (ch !== channel || isCompleted) {
           return;
         }
 
         try {
           const event = JSON.parse(data) as StudioProgressEvent;
-          console.log(`[SSE] Forwarding event to client: ${event.type}`);
+          log.debug(`[SSE] Forwarding event to client: ${event.type}`);
 
           await stream.writeSSE({
             event: event.type,
@@ -466,13 +470,13 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
             closeStream();
           }
         } catch (e) {
-          console.error('[SSE] Failed to parse progress event:', e);
+          log.error({ err: e }, '[SSE] Failed to parse progress event');
         }
       });
 
       // 4. Subscribe to Pub/Sub for real-time events
       await subscriber.subscribe(channel);
-      console.log(`[SSE] Subscribed to channel: ${channel}`);
+      log.debug(`[SSE] Subscribed to channel: ${channel}`);
 
       // Helper to check generation status and send completion from database
       const checkAndSendCompletion = async () => {
@@ -539,10 +543,10 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
           return;
         }
 
-        console.log(`[SSE] Poll check for generation ${generationId}`);
+        log.debug(`[SSE] Poll check for generation ${generationId}`);
         const found = await checkAndSendCompletion();
         if (found) {
-          console.log(`[SSE] Poll found completion for generation ${generationId}`);
+          log.debug(`[SSE] Poll found completion for generation ${generationId}`);
         }
       }, 2000);
 

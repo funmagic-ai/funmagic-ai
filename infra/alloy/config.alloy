@@ -1,0 +1,109 @@
+// ============================================================
+// Grafana Alloy Configuration
+// Collects logs (from process stdout) and metrics (Prometheus scrape)
+// and ships them to Grafana Cloud.
+// ============================================================
+
+// ─── Loki: Log Collection ───
+
+// Match log files (adjust paths for your deployment: systemd, Docker, PM2, etc.)
+local.file_match "app_logs" {
+  path_targets = [
+    // PM2 log files
+    { __path__ = "/root/.pm2/logs/funmagic-backend-out.log",        service = "backend" },
+    { __path__ = "/root/.pm2/logs/funmagic-backend-error.log",      service = "backend" },
+    { __path__ = "/root/.pm2/logs/funmagic-worker-out.log",         service = "worker" },
+    { __path__ = "/root/.pm2/logs/funmagic-worker-error.log",       service = "worker" },
+    { __path__ = "/root/.pm2/logs/funmagic-studio-worker-out.log",  service = "studio-worker" },
+    { __path__ = "/root/.pm2/logs/funmagic-studio-worker-error.log",service = "studio-worker" },
+  ]
+}
+
+// Tail log files
+loki.source.file "app_logs" {
+  targets    = local.file_match.app_logs.targets
+  forward_to = [loki.process.parse_json.receiver]
+}
+
+// Parse Pino JSON logs — extract structured fields as labels
+loki.process "parse_json" {
+  // Only attempt JSON parse; lines that fail are still forwarded as-is
+  stage.json {
+    expressions = {
+      level     = "level",
+      service   = "service",
+      requestId = "requestId",
+      taskId    = "taskId",
+      msg       = "msg",
+    }
+  }
+
+  // Map Pino numeric level to human-readable label
+  stage.label_map {
+    source = "level"
+    values = {
+      "10" = "trace",
+      "20" = "debug",
+      "30" = "info",
+      "40" = "warn",
+      "50" = "error",
+      "60" = "fatal",
+    }
+  }
+
+  // Promote extracted values to Loki labels
+  stage.labels {
+    values = {
+      level     = "",
+      service   = "",
+    }
+  }
+
+  // Add static labels
+  stage.static_labels {
+    values = {
+      env = env("ALLOY_ENV") != "" ? env("ALLOY_ENV") : "production",
+    }
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+// Ship logs to Grafana Cloud Loki
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_LOKI_URL")
+
+    basic_auth {
+      username = env("GRAFANA_LOKI_USERNAME")
+      password = env("GRAFANA_LOKI_API_KEY")
+    }
+  }
+}
+
+// ─── Prometheus: Metrics Scraping ───
+
+// Scrape application metrics endpoints
+prometheus.scrape "app_metrics" {
+  targets = [
+    { __address__ = "localhost:8000", service = "backend" },        // Hono backend /metrics
+    { __address__ = "localhost:9090", service = "worker" },         // AI task worker /metrics
+    { __address__ = "localhost:9091", service = "studio-worker" },  // Studio worker /metrics
+  ]
+  metrics_path = "/metrics"
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// Push metrics to Grafana Cloud Prometheus
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GRAFANA_PROMETHEUS_URL")
+
+    basic_auth {
+      username = env("GRAFANA_PROMETHEUS_USERNAME")
+      password = env("GRAFANA_PROMETHEUS_API_KEY")
+    }
+  }
+}

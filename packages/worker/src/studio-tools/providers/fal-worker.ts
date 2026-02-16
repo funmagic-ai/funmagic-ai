@@ -1,5 +1,6 @@
 import { fal } from '@fal-ai/client';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { createLogger } from '@funmagic/services';
 import type {
   StudioProviderWorker,
   StudioWorkerContext,
@@ -14,6 +15,8 @@ import {
 } from '../utils';
 import { uploadFromUrlAdmin } from '../../lib/storage';
 import { ASSET_MODULE } from '@funmagic/shared';
+
+const log = createLogger('FalWorker');
 
 // Tool configuration: Fal model ID, required inputs, and result parsing
 interface FalToolConfig {
@@ -50,6 +53,7 @@ export const falWorker: StudioProviderWorker = {
   async execute(context: StudioWorkerContext): Promise<StudioResult> {
     const { input, adminId, messageId, apiKey } = context;
     const progress = createProgressTracker(context);
+    const taskLog = log.child({ messageId });
 
     try {
       const falOptions = input.options?.fal || {};
@@ -66,7 +70,7 @@ export const falWorker: StudioProviderWorker = {
         throw new Error(`At least one image is required for ${toolName}`);
       }
 
-      console.log(`[Fal Worker] Executing ${toolName}: images=${quotedImages?.length ?? 0}`);
+      taskLog.info({ tool: toolName, imageCount: quotedImages?.length ?? 0 }, 'Executing');
 
       // Configure Fal.ai client with API key from database
       fal.config({ credentials: apiKey });
@@ -82,7 +86,7 @@ export const falWorker: StudioProviderWorker = {
         const img = quotedImages![i];
         const dataUri = await fetchImageAsDataUri(img);
 
-        console.log(`[Fal Worker] Processing image ${i + 1}/${quotedImages!.length} with ${toolName}`);
+        taskLog.info({ imageIndex: i, total: quotedImages!.length, tool: toolName }, 'Processing image');
         rawRequestInputs.push({ imageIndex: i, tool: toolName });
 
         const result = await fal.subscribe(toolConfig.modelId, {
@@ -91,7 +95,7 @@ export const falWorker: StudioProviderWorker = {
           onQueueUpdate: (update) => {
             if (update.status === 'IN_PROGRESS') {
               const logsCount = update.logs?.length ?? 0;
-              console.log(`[Fal Worker] ${toolName} progress: ${logsCount} logs`);
+              taskLog.debug({ tool: toolName, logsCount }, 'Progress update');
             }
           },
         }) as { data: any };
@@ -148,7 +152,7 @@ export const falWorker: StudioProviderWorker = {
       if (isProvider429Error(error)) throw error;
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`[Fal Worker] Failed:`, errorMessage);
+      taskLog.error({ err: errorMessage }, 'Failed');
       await progress.error(errorMessage);
       return {
         success: false,

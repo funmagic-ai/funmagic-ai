@@ -77,4 +77,24 @@ export {
 export {
   type Logger,
   createLogger,
+  createRequestLogger,
+  createTaskLogger,
 } from './logger';
+
+// Metrics
+export {
+  metricsRegistry,
+  httpRequestsTotal,
+  httpRequestDuration,
+  taskDuration,
+  tasksTotal,
+  taskQueueWait,
+  providerApiDuration,
+  providerRateLimitHits,
+  providerErrors,
+  bullmqWaiting,
+  bullmqActive,
+  bullmqFailed,
+  getMetricsText,
+  createMetricsHandler,
+} from './metrics';
