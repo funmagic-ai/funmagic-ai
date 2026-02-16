@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { NButton, NForm, NFormItem, NInput, NIcon, NSwitch, NSpin, NTag } from 'naive-ui'
+import { NButton, NForm, NFormItem, NInput, NIcon, NSwitch, NSpin, NTag, NInputNumber, NDivider } from 'naive-ui'
 import type { FormInst, FormRules } from 'naive-ui'
 import { ArrowBackOutline } from '@vicons/ionicons5'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -30,7 +30,33 @@ const formValue = ref({
   webhookSecret: '',
   healthCheckUrl: '',
   isActive: true,
+  maxConcurrency: null as number | null,
+  maxPerMinute: null as number | null,
+  maxPerDay: null as number | null,
+  retryOn429: true,
+  maxRetries: 3,
+  baseBackoffMs: 1000,
 })
+
+const originalConfig = ref<Record<string, unknown> | null>(null)
+
+function buildRateLimitConfig() {
+  const rl: Record<string, unknown> = {}
+  if (formValue.value.maxConcurrency != null) rl.maxConcurrency = formValue.value.maxConcurrency
+  if (formValue.value.maxPerMinute != null) rl.maxPerMinute = formValue.value.maxPerMinute
+  if (formValue.value.maxPerDay != null) rl.maxPerDay = formValue.value.maxPerDay
+  if (!formValue.value.retryOn429) rl.retryOn429 = false
+  if (formValue.value.maxRetries !== 3) rl.maxRetries = formValue.value.maxRetries
+  if (formValue.value.baseBackoffMs !== 1000) rl.baseBackoffMs = formValue.value.baseBackoffMs
+  return Object.keys(rl).length > 0 ? rl : undefined
+}
+
+function buildConfigBody() {
+  const existing = originalConfig.value ?? {}
+  const { rateLimit: _, ...otherConfig } = existing
+  const rateLimit = buildRateLimitConfig()
+  return rateLimit ? { ...otherConfig, rateLimit } : { ...otherConfig }
+}
 
 const rules: FormRules = {
   name: [{ required: true, message: t('validation.nameRequired'), trigger: 'blur' }],
@@ -48,6 +74,9 @@ const { data, isLoading, isError, error } = useQuery({
   },
   select: (data) => {
     const p = data.provider
+    const cfg = (p.config as Record<string, unknown>) ?? {}
+    const rl = (cfg.rateLimit as Record<string, unknown>) ?? {}
+    originalConfig.value = cfg
     formValue.value = {
       name: p.name,
       displayName: p.displayName,
@@ -58,6 +87,12 @@ const { data, isLoading, isError, error } = useQuery({
       webhookSecret: '',
       healthCheckUrl: p.healthCheckUrl ?? '',
       isActive: p.isActive,
+      maxConcurrency: (rl.maxConcurrency as number) ?? null,
+      maxPerMinute: (rl.maxPerMinute as number) ?? null,
+      maxPerDay: (rl.maxPerDay as number) ?? null,
+      retryOn429: (rl.retryOn429 as boolean) ?? true,
+      maxRetries: (rl.maxRetries as number) ?? 3,
+      baseBackoffMs: (rl.baseBackoffMs as number) ?? 1000,
     }
     return p
   },
@@ -77,6 +112,7 @@ const updateMutation = useMutation({
         ...(formValue.value.baseUrl ? { baseUrl: formValue.value.baseUrl } : {}),
         ...(formValue.value.webhookSecret ? { webhookSecret: formValue.value.webhookSecret } : {}),
         ...(formValue.value.healthCheckUrl ? { healthCheckUrl: formValue.value.healthCheckUrl } : {}),
+        config: buildConfigBody(),
       },
     })
     if (error) throw extractApiError(error, response)
@@ -135,19 +171,6 @@ async function handleSubmit() {
       </div>
 
       <template v-else>
-        <div v-if="data" class="mb-4 flex items-center gap-2">
-          <NTag v-if="data.hasApiKey" type="success" size="small">{{ t('common.apiKeySet') }}</NTag>
-          <NTag v-else type="warning" size="small">{{ t('common.noApiKey') }}</NTag>
-          <NTag v-if="data.hasApiSecret" type="success" size="small">{{ t('common.apiSecretSet') }}</NTag>
-          <NButton
-            size="small"
-            :loading="healthCheckMutation.isPending.value"
-            @click="healthCheckMutation.mutate()"
-          >
-            {{ t('common.runHealthCheck') }}
-          </NButton>
-        </div>
-
         <NForm
           ref="formRef"
           :model="formValue"
@@ -155,6 +178,22 @@ async function handleSubmit() {
           label-placement="left"
           label-width="160"
         >
+          <NFormItem v-if="data" :label="t('common.status')">
+            <div class="flex items-center gap-2">
+              <NTag v-if="data.hasApiKey" type="success" size="small">{{ t('common.apiKeySet') }}</NTag>
+              <NTag v-else type="warning" size="small">{{ t('common.noApiKey') }}</NTag>
+              <NTag v-if="data.hasApiSecret" type="success" size="small">{{ t('common.apiSecretSet') }}</NTag>
+              <NTag
+                size="small"
+                :type="data.healthCheckUrl ? 'info' : 'default'"
+                :style="{ cursor: data.healthCheckUrl ? 'pointer' : 'not-allowed', opacity: data.healthCheckUrl ? 1 : 0.5 }"
+                @click="data.healthCheckUrl && healthCheckMutation.mutate()"
+              >
+                {{ healthCheckMutation.isPending.value ? t('common.checking') : t('common.runHealthCheck') }}
+              </NTag>
+            </div>
+          </NFormItem>
+
           <NFormItem :label="t('common.active')">
             <NSwitch v-model:value="formValue.isActive" />
           </NFormItem>
@@ -209,6 +248,33 @@ async function handleSubmit() {
 
           <NFormItem :label="t('providers.healthCheckUrl')">
             <NInput v-model:value="formValue.healthCheckUrl" :placeholder="t('placeholder.exampleHealthCheckUrl')" />
+          </NFormItem>
+
+          <NDivider>{{ t('providers.providerRateLimit.title') }}</NDivider>
+          <p class="mb-4 text-sm text-muted-foreground">{{ t('providers.providerRateLimit.description') }}</p>
+
+          <NFormItem :label="t('providers.providerRateLimit.maxConcurrency')">
+            <NInputNumber v-model:value="formValue.maxConcurrency" :min="1" clearable :placeholder="t('providers.providerRateLimit.unlimited')" style="width: 100%" />
+          </NFormItem>
+
+          <NFormItem :label="t('providers.providerRateLimit.maxPerMinute')">
+            <NInputNumber v-model:value="formValue.maxPerMinute" :min="1" clearable :placeholder="t('providers.providerRateLimit.unlimited')" style="width: 100%" />
+          </NFormItem>
+
+          <NFormItem :label="t('providers.providerRateLimit.maxPerDay')">
+            <NInputNumber v-model:value="formValue.maxPerDay" :min="1" clearable :placeholder="t('providers.providerRateLimit.unlimited')" style="width: 100%" />
+          </NFormItem>
+
+          <NFormItem :label="t('providers.providerRateLimit.retryOn429')">
+            <NSwitch v-model:value="formValue.retryOn429" />
+          </NFormItem>
+
+          <NFormItem :label="t('providers.providerRateLimit.maxRetries')">
+            <NInputNumber v-model:value="formValue.maxRetries" :min="1" :max="10" style="width: 100%" />
+          </NFormItem>
+
+          <NFormItem :label="t('providers.providerRateLimit.baseBackoffMs')">
+            <NInputNumber v-model:value="formValue.baseBackoffMs" :min="100" :step="100" style="width: 100%" />
           </NFormItem>
 
           <div class="flex justify-end gap-2 pt-4">

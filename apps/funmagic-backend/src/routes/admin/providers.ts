@@ -3,6 +3,7 @@ import { db, providers } from '@funmagic/database';
 import { ERROR_CODES } from '@funmagic/shared';
 import { eq, isNull, and } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { redis } from '@funmagic/services';
 import { notFound, conflict } from '../../lib/errors';
 import { ErrorSchema } from '../../schemas';
 
@@ -377,6 +378,14 @@ export const providersRoutes = new OpenAPIHono()
       .set(updateData)
       .where(eq(providers.id, id))
       .returning();
+
+    // Invalidate provider rate limit config cache so workers pick up changes immediately
+    if (data.config !== undefined) {
+      await redis.del(`prl:web:${existing.name}:config`);
+      if (data.name !== undefined && data.name !== existing.name) {
+        await redis.del(`prl:web:${data.name}:config`);
+      }
+    }
 
     return c.json({
       provider: formatProvider(provider),

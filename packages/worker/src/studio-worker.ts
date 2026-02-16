@@ -8,10 +8,11 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-import { Worker, Job } from 'bullmq';
+import { Worker, Job, DelayedError } from 'bullmq';
 import { db, studioGenerations, studioProjects } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis } from '@funmagic/services';
+import { createRedisConnection, redis, getProviderRateLimitConfig, tryAcquire, releaseSlot } from '@funmagic/services';
+import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
 import {
   getStudioProviderWorker,
   getRegisteredProviders,
@@ -48,6 +49,21 @@ const studioWorker = new Worker<StudioGenerationJobData>(
     await db.update(studioGenerations)
       .set({ status: 'processing' })
       .where(eq(studioGenerations.id, messageId));
+
+    // Per-provider rate limiting
+    const providerName = provider as string;
+    const rlConfig = await getProviderRateLimitConfig(db, redis, 'admin', providerName);
+    let rlAcquired = false;
+
+    if (rlConfig) {
+      const rlResult = await tryAcquire(redis, 'admin', providerName, job.id!, rlConfig);
+      if (!rlResult.allowed) {
+        console.log(`[Studio Worker] Rate limited (${rlResult.reason}) for provider "${providerName}", delaying job ${job.id}`);
+        await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000), job.token);
+        throw new DelayedError();
+      }
+      rlAcquired = true;
+    }
 
     try {
       // Get the provider-specific worker
@@ -102,6 +118,17 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       return result;
 
     } catch (error) {
+      // Handle provider 429 errors: reschedule instead of failing
+      if (rlConfig?.retryOn429 !== false && isProvider429Error(error)) {
+        const maxRetries = rlConfig?.maxRetries ?? 3;
+        if (job.attemptsMade < maxRetries) {
+          const backoff = calculateBackoff(job.attemptsMade, rlConfig?.baseBackoffMs ?? 1000);
+          console.log(`[Studio Worker] Provider 429 for "${providerName}", rescheduling in ${backoff}ms (attempt ${job.attemptsMade + 1}/${maxRetries})`);
+          await job.moveToDelayed(Date.now() + backoff, job.token);
+          throw new DelayedError();
+        }
+      }
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[Studio Worker] Generation ${messageId} failed:`, errorMessage);
 
@@ -121,6 +148,10 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       });
 
       throw error;
+    } finally {
+      if (rlAcquired) {
+        await releaseSlot(redis, 'admin', providerName, job.id!);
+      }
     }
   },
   {

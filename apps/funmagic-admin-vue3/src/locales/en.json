@@ -65,6 +65,7 @@
     "badgeColor": "Badge Color",
     "bannerImage": "Banner Image",
     "runHealthCheck": "Run Health Check",
+    "checking": "Checking...",
     "apiKeySet": "API Key Set",
     "noApiKey": "No API Key",
     "apiSecretSet": "API Secret Set",
@@ -81,8 +82,9 @@
     "dashboard": "Dashboard",
     "tools": "Tools",
     "toolTypes": "Tool Types",
-    "providers": "Providers",
-    "systemProviders": "System Providers",
+    "providers": "AI Providers",
+    "systemProviders": "System AI Providers",
+    "adminProviders": "System AI Providers",
     "users": "Users",
     "taskHistory": "Task History",
     "studio": "Studio",
@@ -98,7 +100,7 @@
     "groups": {
       "overview": "Overview",
       "catalog": "Catalog",
-      "providers": "Providers",
+      "providers": "AI Providers",
       "operations": "Operations",
       "business": "Business",
       "creativeStudio": "Creative Studio",
@@ -211,7 +213,18 @@
     "webhookSecret": "Webhook Secret",
     "healthCheckUrl": "Health Check URL",
     "notSet": "Not set",
-    "current": "Current"
+    "current": "Current",
+    "providerRateLimit": {
+      "title": "Rate Limiting",
+      "description": "Control provider API throughput. Leave fields empty for no limit.",
+      "maxConcurrency": "Max Concurrency",
+      "maxPerMinute": "RPM Limit",
+      "maxPerDay": "RPD Limit",
+      "retryOn429": "Auto-Retry on 429",
+      "maxRetries": "Max Retries",
+      "baseBackoffMs": "Base Backoff (ms)",
+      "unlimited": "No limit"
+    }
   },
   "billing": {
     "title": "Billing Management",

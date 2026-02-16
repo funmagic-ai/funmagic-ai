@@ -1,4 +1,5 @@
 import { GoogleGenAI, type Content, type Part } from '@google/genai';
+import { isProvider429Error } from '../../lib/provider-errors';
 import { db, studioGenerations } from '@funmagic/database';
 import type { StudioImage } from '@funmagic/database';
 import { eq, asc } from 'drizzle-orm';
@@ -246,6 +247,9 @@ export const googleWorker: StudioProviderWorker = {
       };
 
     } catch (error) {
+      // Rethrow 429 errors so the parent worker can reschedule via DelayedError
+      if (isProvider429Error(error)) throw error;
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`[Google Worker] Failed:`, errorMessage);
       await progress.error(errorMessage);

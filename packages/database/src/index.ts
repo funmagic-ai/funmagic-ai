@@ -39,3 +39,4 @@ if (process.env.NODE_ENV !== 'production') {
 // Export schema and types
 export * from './schema';
 export type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
+export type { ProviderRateLimitConfig, ProviderConfig } from './types/provider-rate-limit';

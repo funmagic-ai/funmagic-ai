@@ -18,10 +18,11 @@ if (missingEnv.length > 0) {
   process.exit(1);
 }
 
-import { Worker, Job } from 'bullmq';
-import { db, tasks, taskPayloads, credits, creditTransactions } from '@funmagic/database';
+import { Worker, Job, DelayedError } from 'bullmq';
+import { db, tasks, taskPayloads, credits, creditTransactions, tools as toolsTable } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
-import { createRedisConnection, redis, createLogger } from '@funmagic/services';
+import { createRedisConnection, redis, createLogger, getProviderRateLimitConfig, tryAcquire, releaseSlot } from '@funmagic/services';
+import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
 import { confirmCharge, releaseCredits } from '@funmagic/services/credit';
@@ -32,6 +33,24 @@ const log = createLogger('Worker');
 log.info('Starting...');
 log.info({ tools: getRegisteredTools() }, 'Registered tools');
 
+/**
+ * Resolve provider name from tool slug + stepId.
+ * The provider name is embedded in the tool's config.steps[].provider.name.
+ */
+async function resolveProviderName(toolSlug: string, stepId?: string): Promise<string | null> {
+  const tool = await db.query.tools.findFirst({
+    where: eq(toolsTable.slug, toolSlug),
+    columns: { config: true },
+  });
+  if (!tool) return null;
+  const config = tool.config as { steps?: Array<{ id: string; provider?: { name: string } }> };
+  if (!config.steps || config.steps.length === 0) return null;
+  const step = stepId
+    ? config.steps.find(s => s.id === stepId)
+    : config.steps[0];
+  return step?.provider?.name ?? null;
+}
+
 // AI Task Worker
 const aiTaskWorker = new Worker<AITaskJobData>(
   'ai-tasks',
@@ -39,6 +58,23 @@ const aiTaskWorker = new Worker<AITaskJobData>(
     const { taskId, toolSlug, stepId, input, userId, parentTaskId } = job.data;
 
     log.info({ taskId, toolSlug, stepId }, 'Processing task');
+
+    // Per-provider rate limiting
+    const providerName = await resolveProviderName(toolSlug, stepId);
+    const rlConfig = providerName
+      ? await getProviderRateLimitConfig(db, redis, 'web', providerName)
+      : null;
+    let rlAcquired = false;
+
+    if (rlConfig && providerName) {
+      const rlResult = await tryAcquire(redis, 'web', providerName, job.id!, rlConfig);
+      if (!rlResult.allowed) {
+        log.info({ taskId, provider: providerName, reason: rlResult.reason }, 'Rate limited, delaying job');
+        await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000), job.token);
+        throw new DelayedError();
+      }
+      rlAcquired = true;
+    }
 
     // Update task status to processing
     await db.update(tasks)
@@ -63,10 +99,29 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         redis,
       });
     } catch (error) {
+      // Handle provider 429 errors: reschedule instead of failing
+      if (providerName && rlConfig?.retryOn429 !== false && isProvider429Error(error)) {
+        const maxRetries = rlConfig?.maxRetries ?? 3;
+        if (job.attemptsMade < maxRetries) {
+          const backoff = calculateBackoff(job.attemptsMade, rlConfig?.baseBackoffMs ?? 1000);
+          log.info({ taskId, provider: providerName, backoff, attempt: job.attemptsMade + 1, maxRetries }, 'Provider 429, rescheduling');
+          if (rlAcquired) {
+            await releaseSlot(redis, 'web', providerName, job.id!);
+            rlAcquired = false;
+          }
+          await job.moveToDelayed(Date.now() + backoff, job.token);
+          throw new DelayedError();
+        }
+      }
+
       result = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    } finally {
+      if (rlAcquired && providerName) {
+        await releaseSlot(redis, 'web', providerName, job.id!);
+      }
     }
 
     // Provider data to persist regardless of outcome

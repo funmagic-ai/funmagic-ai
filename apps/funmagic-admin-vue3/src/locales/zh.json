@@ -65,6 +65,7 @@
     "badgeColor": "徽章颜色",
     "bannerImage": "横幅图片",
     "runHealthCheck": "运行健康检查",
+    "checking": "检查中...",
     "apiKeySet": "API 密钥已设置",
     "noApiKey": "无 API 密钥",
     "apiSecretSet": "API 密钥已设置",
@@ -81,8 +82,9 @@
     "dashboard": "仪表盘",
     "tools": "工具",
     "toolTypes": "工具类型",
-    "providers": "供应商",
-    "systemProviders": "系统供应商",
+    "providers": "AI模型供应商",
+    "systemProviders": "系统AI模型供应商",
+    "adminProviders": "系统AI模型供应商",
     "users": "用户",
     "taskHistory": "任务历史",
     "studio": "工作室",
@@ -98,7 +100,7 @@
     "groups": {
       "overview": "概览",
       "catalog": "产品目录",
-      "providers": "供应商",
+      "providers": "AI模型供应商",
       "operations": "运营管理",
       "business": "业务",
       "creativeStudio": "创作工作室",
@@ -211,7 +213,18 @@
     "webhookSecret": "Webhook 密钥",
     "healthCheckUrl": "健康检查 URL",
     "notSet": "未设置",
-    "current": "当前"
+    "current": "当前",
+    "providerRateLimit": {
+      "title": "速率限制",
+      "description": "控制供应商 API 吞吐量。留空表示不限制。",
+      "maxConcurrency": "最大并发数",
+      "maxPerMinute": "每分钟限制 (RPM)",
+      "maxPerDay": "每天限制 (RPD)",
+      "retryOn429": "429 自动重试",
+      "maxRetries": "最大重试次数",
+      "baseBackoffMs": "基础退避时间 (ms)",
+      "unlimited": "不限制"
+    }
   },
   "billing": {
     "title": "计费管理",

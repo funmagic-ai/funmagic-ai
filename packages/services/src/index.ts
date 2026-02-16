@@ -64,6 +64,15 @@ export {
   invalidateUserTierCache,
 } from './rate-limit-config';
 
+// Provider rate limiter
+export {
+  type ProviderScope,
+  type AcquireResult,
+  getProviderRateLimitConfig,
+  tryAcquire,
+  releaseSlot,
+} from './provider-rate-limiter';
+
 // Logger
 export {
   type Logger,

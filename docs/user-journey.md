@@ -232,7 +232,8 @@ Admin Login -> Dashboard -> Tools -> Create/Edit Tool -> Configure -> Activate
 2. **View Tools** - See all tools, usage statistics, toggle active/featured
 3. **Create New Tool** - Fill in slug, title, description, config JSON
 4. **Test Tool** - Keep inactive, test via internal URL
-5. **Activate Tool** - Toggle "Active", tool appears in public listing
+5. **Configure Provider Rate Limits** (optional) - Update the provider's `config.rateLimit` via the provider update API to control throughput (`maxConcurrency`, `maxPerMinute`, `maxPerDay`)
+6. **Activate Tool** - Toggle "Active", tool appears in public listing
 
 ### Admin Permissions
 
@@ -260,6 +261,23 @@ Submit Task -> Processing -> Error -> Credits Refunded -> Retry Option
 3b. Failure -> Credits RELEASED (not spent)
 
 User never loses credits on failed tasks
+```
+
+### Provider Rate Limit (429) Recovery
+
+When a provider returns a 429 (rate limit exceeded) response, the system handles it transparently:
+
+1. **Detection** - Worker catches the provider SDK error and identifies it as a 429 via `isProvider429Error()`
+2. **Reschedule** - Job is rescheduled via `DelayedError` (BullMQ) — **not** counted as a task failure
+3. **Exponential backoff** - Retry delays: 1s, 2s, 4s... capped at 60s
+4. **Max retries** - 3 by default (configurable via `config.rateLimit.maxRetries`)
+5. **Credit safety** - Credits remain reserved during retries, only released on final failure
+6. **User experience** - User sees no difference — the task stays in "processing" state until it completes or exhausts retries
+
+```
+Worker → Provider API → 429 → DelayedError → re-queued → retry after backoff → Provider API → success
+                                                  ↑                                     |
+                                                  +--------- (if 429 again) ←-----------+
 ```
 
 ---
@@ -370,6 +388,7 @@ Database:
 - Model capability detection (chat-image, image-only, utility)
 - Session persistence with multi-turn conversations
 - Admin-specific task queue for async processing
+- Per-provider rate limiting (`prl:admin:*` scope) if configured on `admin_providers` — controls concurrency, RPM, and RPD independently from web user tools
 
 ### Permissions
 

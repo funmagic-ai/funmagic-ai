@@ -3,6 +3,7 @@ import { db, adminProviders } from '@funmagic/database';
 import { ERROR_CODES } from '@funmagic/shared';
 import { eq } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { redis } from '@funmagic/services';
 import { notFound, conflict } from '../../lib/errors';
 import { ErrorSchema } from '../../schemas';
 
@@ -340,6 +341,15 @@ export const adminProvidersRoutes = new OpenAPIHono()
       .set(updateData)
       .where(eq(adminProviders.id, id))
       .returning();
+
+    // Invalidate provider rate limit config cache so workers pick up changes immediately
+    if (data.config !== undefined) {
+      await redis.del(`prl:admin:${existing.name}:config`);
+      // If name was also changed, invalidate the new name too
+      if (data.name !== undefined && data.name !== existing.name) {
+        await redis.del(`prl:admin:${data.name}:config`);
+      }
+    }
 
     return c.json({
       provider: formatAdminProvider(provider),

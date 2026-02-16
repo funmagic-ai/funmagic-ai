@@ -149,7 +149,7 @@ The database contains tables organized into five domains: Auth, Tools, Tasks, Co
 |-------|-------------|-------------|
 | `tool_types` | Tool categories | `id`, `name` (unique slug), `displayName`, `icon`, `color`, `description` |
 | `tools` | AI tools configuration | `id`, `slug` (unique), `title`, `toolTypeId` (FK->tool_types), `config` (JSONB steps), `creditsCost`, `isActive` |
-| `providers` | AI provider credentials | `id`, `name`, `type` (enum), `apiKey` (encrypted), `baseUrl`, `isHealthy`, `healthCheckedAt` |
+| `providers` | AI provider credentials | `id`, `name`, `type` (enum), `apiKey` (encrypted), `baseUrl`, `isHealthy`, `healthCheckedAt`, `config` (JSONB, supports `rateLimit` settings) |
 
 #### Tasks Domain
 
@@ -228,34 +228,43 @@ Session stored in:
 ### 4. Task Processing Flow
 
 ```
-+----------+     +----------+     +----------+     +----------+     +----------+
-|  Client  |     | Backend  |     |  Redis   |     |  Worker  |     | Provider |
-+----+-----+     +----+-----+     +----+-----+     +----+-----+     +----+-----+
-     |                |                |                |                |
-     | POST /tasks    |                |                |                |
-     |--------------->|                |                |                |
-     |                | Reserve credits|                |                |
-     |                |----------------|                |                |
-     |                | Add job        |                |                |
-     |                |--------------->|                |                |
-     | { taskId }     |                |                |                |
-     |<---------------|                |                |                |
-     |                |                |                |                |
-     | SSE /stream    |                |                |                |
-     |--------------->|                |                |                |
-     |                | Subscribe      |                |                |
-     |                |--------------->|  Pick job      |                |
-     |                |                |<---------------|                |
-     |                |                |                | API call       |
-     |                |                |                |--------------->|
-     |                |                |  Progress      |                |
-     |                |<---------------|<---------------|                |
-     | SSE: progress  |                |                |<---------------|
-     |<---------------|                |                |                |
-     |                |                |  Complete      |                |
-     |                |<---------------|<---------------|                |
-     | SSE: complete  |                |                |                |
-     |<---------------|                |                |                |
++----------+     +----------+     +----------+     +----------+     +------------+     +----------+
+|  Client  |     | Backend  |     |  Redis   |     |  Worker  |     | Rate Limit |     | Provider |
++----+-----+     +----+-----+     +----+-----+     +----+-----+     +-----+------+     +----+-----+
+     |                |                |                |                   |                |
+     | POST /tasks    |                |                |                   |                |
+     |--------------->|                |                |                   |                |
+     |                | Reserve credits|                |                   |                |
+     |                |----------------|                |                   |                |
+     |                | Add job        |                |                   |                |
+     |                |--------------->|                |                   |                |
+     | { taskId }     |                |                |                   |                |
+     |<---------------|                |                |                   |                |
+     |                |                |                |                   |                |
+     | SSE /stream    |                |                |                   |                |
+     |--------------->|                |                |                   |                |
+     |                | Subscribe      |                |                   |                |
+     |                |--------------->|  Pick job      |                   |                |
+     |                |                |<---------------|                   |                |
+     |                |                |                | tryAcquire()      |                |
+     |                |                |                |------------------>|                |
+     |                |                |                |                   |                |
+     |                |                |                |   (if denied)     |                |
+     |                |                |                |  moveToDelayed    |                |
+     |                |                |                |  + DelayedError   |                |
+     |                |                |                |                   |                |
+     |                |                |                |   (if allowed)    |                |
+     |                |                |                |------------------------------------->
+     |                |                |  Progress      |                   |                |
+     |                |<---------------|<---------------|                   |                |
+     | SSE: progress  |                |                |<-------------------------------------|
+     |<---------------|                |                |                   |                |
+     |                |                |                | releaseSlot()     |                |
+     |                |                |                |------------------>|                |
+     |                |                |  Complete      |                   |                |
+     |                |<---------------|<---------------|                   |                |
+     | SSE: complete  |                |                |                   |                |
+     |<---------------|                |                |                   |                |
 ```
 
 ## Storage Architecture
@@ -361,6 +370,71 @@ task:{taskId}:events    # Progress updates for specific task
 task:{taskId}:output    # Final output storage
 ```
 
+## Per-Provider Rate Limiting
+
+The platform implements per-provider rate limiting at the worker level, controlling concurrency, requests-per-minute (RPM), and requests-per-day (RPD) for each AI provider independently.
+
+### Architecture
+
+Two separate scopes ensure web user tools and admin studio tasks are rate-limited independently:
+
+| Scope | Redis Prefix | Config Source | Used By |
+|-------|-------------|---------------|---------|
+| `web` | `prl:web:{providerName}:*` | `providers.config` | AI tasks worker |
+| `admin` | `prl:admin:{providerName}:*` | `admin_providers.config` | Studio worker |
+
+### Redis Key Layout
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `prl:{scope}:{provider}:config` | String (JSON) | Cached config (5 min TTL) |
+| `prl:{scope}:{provider}:sem` | Sorted Set | Concurrency semaphore |
+| `prl:{scope}:{provider}:rpm` | Counter | RPM counter (60s TTL) |
+| `prl:{scope}:{provider}:rpd:{YYYY-MM-DD}` | Counter | RPD counter (86400s TTL) |
+
+### Config Shape
+
+Rate limit settings live inside the existing `config` jsonb field on both `providers` and `admin_providers` tables:
+
+```json
+{
+  "config": {
+    "rateLimit": {
+      "maxConcurrency": 5,
+      "maxPerMinute": 100,
+      "maxPerDay": 10000,
+      "retryOn429": true,
+      "maxRetries": 3,
+      "baseBackoffMs": 1000
+    }
+  }
+}
+```
+
+All fields are optional. No database migration is needed — the `config` jsonb column already exists.
+
+### Processing Flow
+
+```
+Worker picks job → [Provider Rate Limiter] → allowed → Provider API → releaseSlot()
+                                           → denied  → moveToDelayed (re-queued via DelayedError)
+```
+
+### Graceful Degradation
+
+- **No config** = no rate limiting (provider runs without restrictions)
+- **429 auto-retry** is always active when `retryOn429` is enabled (default: `true`)
+- Jobs denied by the rate limiter are re-queued via `DelayedError`, not counted as failures
+- Exponential backoff on 429: 1s, 2s, 4s... capped at 60s
+
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `packages/database/src/types/provider-rate-limit.ts` | TypeScript interfaces for `config.rateLimit` |
+| `packages/services/src/provider-rate-limiter.ts` | Redis-based rate limiter service (acquire/release/config loading) |
+| `packages/worker/src/lib/provider-errors.ts` | Provider 429 detection and exponential backoff calculation |
+
 ## Multi-Step Tool Architecture
 
 ### Tool Configuration Schema
@@ -454,7 +528,7 @@ const { data: tool, isLoading } = useQuery({
 - All `/api/*` routes require authentication (except public endpoints)
 - Admin routes check `role === 'admin' || role === 'super_admin'`
 - CORS configured for frontend origins
-- Rate limiting via Redis (planned)
+- Per-provider rate limiting via Redis (concurrency, RPM, RPD) — see [Per-Provider Rate Limiting](#per-provider-rate-limiting)
 
 ### Secrets Management
 

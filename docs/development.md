@@ -85,6 +85,7 @@ Each tool has a `config` JSON stored in the database. Design your config first:
 
 1. Go to Admin -> Providers -> Add Provider
 2. Fill in: Name, Display Name, Type, API Key, Base URL
+3. (Optional) Set `config.rateLimit` to control per-provider throughput — `maxConcurrency`, `maxPerMinute`, `maxPerDay`. If not set, the provider runs without rate limiting.
 
 ### Step 3: Create Tool Type (Admin UI)
 
@@ -273,6 +274,8 @@ src/
 ```
 src/
 ├── index.ts                  # DB client + exports
+├── types/
+│   └── provider-rate-limit.ts # Rate limit config types (ProviderRateLimitConfig, ProviderConfig)
 └── schema/
     ├── index.ts              # Schema exports
     ├── users.ts              # users, sessions, accounts, verifications
@@ -302,6 +305,7 @@ src/
 └── lib/
     ├── credentials.ts        # Provider credential decryption
     ├── progress.ts           # Redis progress publishing
+    ├── provider-errors.ts    # Provider 429 detection + exponential backoff
     └── storage.ts            # S3 upload utilities
 ```
 
@@ -313,6 +317,7 @@ src/
 ├── credit.ts                 # Credit operations
 ├── storage.ts                # S3 operations
 ├── progress.ts               # Progress tracking
+├── provider-rate-limiter.ts  # Per-provider rate limiting (concurrency, RPM, RPD)
 └── redis.ts                  # Redis connection singleton
 ```
 
@@ -435,6 +440,13 @@ curl http://localhost:8000/openapi.json
 
 **CORS issues in development**
 - Ensure backend CORS config allows frontend origins (localhost:3002, localhost:3003)
+
+**Provider 429 errors**
+- Provider 429 (rate limit) errors are auto-retried via `DelayedError` — they are **not** counted as task failures
+- The job is rescheduled with exponential backoff (1s, 2s, 4s... up to 60s), up to 3 retries by default
+- To tune: set `config.rateLimit` on the provider record (via Admin UI or API) with `maxConcurrency`, `maxPerMinute`, `maxPerDay`
+- To disable auto-retry: set `config.rateLimit.retryOn429: false`
+- See `packages/worker/src/lib/provider-errors.ts` for 429 detection logic
 
 ### Logs
 

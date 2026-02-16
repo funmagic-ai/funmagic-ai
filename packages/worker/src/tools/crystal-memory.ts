@@ -1,5 +1,6 @@
 import { fal } from '@fal-ai/client';
 import Replicate from 'replicate';
+import { isProvider429Error } from '../lib/provider-errors';
 import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
@@ -180,6 +181,9 @@ export const crystalMemoryWorker: ToolWorker = {
       throw new Error(`Unsupported provider "${providerName}" for step "${currentStepId}"`);
 
     } catch (error) {
+      // Rethrow 429 errors so the parent worker can reschedule via DelayedError
+      if (isProvider429Error(error)) throw error;
+
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       await progress.fail(errorMessage);
       return {
