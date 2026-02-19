@@ -149,7 +149,29 @@
     "providerOptions": "Provider Options",
     "customOptions": "Custom Options",
     "customOptionsHint": "Add custom key-value options to pass to the provider API",
-    "step": "Step"
+    "step": "Step",
+    "styleSettings": "Style Settings",
+    "fields": {
+      "prompt": "Prompt",
+      "useStyleImage": "Use Style Image",
+      "imageUrl": "Image",
+      "styleReferences": "Style References",
+      "cost": "Credit Cost",
+      "size": "Size",
+      "quality": "Quality",
+      "background": "Background",
+      "moderation": "Moderation",
+      "format": "Format"
+    },
+    "placeholders": {
+      "prompt": "Transform this image into the given style..."
+    },
+    "descriptions": {
+      "prompt": "Base prompt template for style transformation",
+      "styleReferences": "Style reference images (at least one required)",
+      "useStyleImage": "Whether to send this style image to the AI along with the user image",
+      "cost": "Credit cost for this step"
+    }
   },
   "users": {
     "title": "User Management",
@@ -334,7 +356,9 @@
     "toolTypeRequired": "Tool type is required",
     "emailFormat": "Please enter a valid email",
     "passwordMinLength": "Password must be at least 6 characters",
-    "passwordRequired": "Password is required"
+    "passwordRequired": "Password is required",
+    "arrayMinItems": "{step}: {field} requires at least {min} item(s), currently has {count}",
+    "arrayMinItemsHint": "At least {min} item(s) required"
   },
   "placeholder": {
     "optionalDescription": "Optional description",
@@ -427,6 +451,10 @@
     "TOOL_TYPE_HAS_TOOLS": "Cannot delete this tool type because it has associated tools.",
     "TASK_NOT_FOUND": "Task not found.",
     "TASK_CREATION_FAILED": "Failed to create the task. Please try again.",
+    "TASK_SERVICE_UNAVAILABLE": "Service temporarily unavailable (provider not found or inactive).",
+    "TASK_CONFIG_ERROR": "Tool configuration error. Check admin config for this tool.",
+    "TASK_PROCESSING_FAILED": "Processing failed. Check logs for details.",
+    "TASK_INPUT_INVALID": "Invalid task input.",
     "UPLOAD_INVALID_TYPE": "This file type is not supported.",
     "UPLOAD_SIZE_EXCEEDED": "File size exceeds the maximum allowed limit.",
     "UPLOAD_EXTENSION_MISMATCH": "File extension does not match the content type.",

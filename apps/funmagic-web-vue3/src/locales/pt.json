@@ -85,7 +85,23 @@
     "backToImage": "Voltar à imagem",
     "clickToUpload": "Clique para enviar ou arraste e solte",
     "preview": "Pré-visualização",
-    "workspacePlaceholder": "Este é um espaço de trabalho de demonstração. Cada ferramenta possui sua própria interface especializada."
+    "workspacePlaceholder": "Este é um espaço de trabalho de demonstração. Cada ferramenta possui sua própria interface especializada.",
+    "progress": {
+      "connecting": "Conectando...",
+      "connected": "Conectado",
+      "pending": "Pendente",
+      "queued": "Na fila",
+      "processing": "Processando",
+      "completed": "Concluído",
+      "failed": "Falhou"
+    },
+    "upload": {
+      "dropHint": "Solte sua imagem aqui ou",
+      "browse": "procurar",
+      "formats": "PNG, JPG, WebP até {size}MB",
+      "invalidType": "Por favor selecione um arquivo de imagem",
+      "sizeExceeded": "O tamanho do arquivo excede o limite de {size}MB"
+    }
   },
   "pricing": {
     "title": "Pricing",

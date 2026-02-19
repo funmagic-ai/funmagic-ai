@@ -517,8 +517,19 @@ export const tasksRoutes = new OpenAPIHono<{ Variables: { user: { id: string } }
         }, 6000);
 
         // 6. Poll DB as safety net (catches completion if pub/sub missed it)
+        //    Max duration prevents indefinite polling when worker stalls.
+        const SSE_MAX_DURATION_MS = parseInt(process.env.SSE_MAX_DURATION_MS!, 10);
+        const sseStartTime = Date.now();
         pollTimer = setInterval(async () => {
           if (closed || terminalSent) return;
+
+          // Safety net: close stream after max duration to prevent indefinite polling
+          if (Date.now() - sseStartTime > SSE_MAX_DURATION_MS) {
+            log.warn(`[SSE] Max duration reached for task ${taskId}, closing stream`);
+            closeAll();
+            return;
+          }
+
           try {
             const current = await db.query.tasks.findFirst({
               where: eq(tasks.id, taskId),

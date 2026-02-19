@@ -149,7 +149,29 @@
     "providerOptions": "供应商选项",
     "customOptions": "自定义选项",
     "customOptionsHint": "添加自定义键值对传递给供应商 API",
-    "step": "步骤"
+    "step": "步骤",
+    "styleSettings": "风格设置",
+    "fields": {
+      "prompt": "提示词",
+      "useStyleImage": "使用风格图片",
+      "imageUrl": "图片",
+      "styleReferences": "风格参考",
+      "cost": "积分消耗",
+      "size": "尺寸",
+      "quality": "质量",
+      "background": "背景",
+      "moderation": "审核",
+      "format": "格式"
+    },
+    "placeholders": {
+      "prompt": "将此图片转换为指定风格..."
+    },
+    "descriptions": {
+      "prompt": "风格转换的基础提示词模板",
+      "styleReferences": "风格参考图片（至少需要一张）",
+      "useStyleImage": "是否将此风格图片与用户图片一起发送给 AI",
+      "cost": "此步骤的积分消耗"
+    }
   },
   "users": {
     "title": "用户管理",
@@ -334,7 +356,9 @@
     "toolTypeRequired": "工具类型不能为空",
     "emailFormat": "请输入有效的邮箱地址",
     "passwordMinLength": "密码至少需要6个字符",
-    "passwordRequired": "密码不能为空"
+    "passwordRequired": "密码不能为空",
+    "arrayMinItems": "{step}：{field} 至少需要 {min} 项，当前有 {count} 项",
+    "arrayMinItemsHint": "至少需要 {min} 项"
   },
   "placeholder": {
     "optionalDescription": "可选描述",
@@ -427,6 +451,10 @@
     "TOOL_TYPE_HAS_TOOLS": "无法删除此工具类型，仍有关联工具。",
     "TASK_NOT_FOUND": "未找到任务。",
     "TASK_CREATION_FAILED": "创建任务失败，请重试。",
+    "TASK_SERVICE_UNAVAILABLE": "服务暂不可用（供应商未找到或未激活）。",
+    "TASK_CONFIG_ERROR": "工具配置错误，请检查该工具的管理配置。",
+    "TASK_PROCESSING_FAILED": "处理失败，请查看日志了解详情。",
+    "TASK_INPUT_INVALID": "任务输入无效。",
     "UPLOAD_INVALID_TYPE": "不支持的文件类型。",
     "UPLOAD_SIZE_EXCEEDED": "文件大小超过允许的上限。",
     "UPLOAD_EXTENSION_MISMATCH": "文件扩展名与内容类型不匹配。",

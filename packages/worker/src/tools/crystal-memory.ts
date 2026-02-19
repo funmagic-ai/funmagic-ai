@@ -1,11 +1,13 @@
 import { fal } from '@fal-ai/client';
 import Replicate from 'replicate';
+import { ERROR_CODES } from '@funmagic/shared';
 import { isProvider429Error } from '../lib/provider-errors';
+import { TaskError } from '../lib/task-error';
 import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
 import { decryptCredentials } from '../lib/credentials';
-import { uploadFromUrl, uploadBuffer, getDownloadUrl } from '../lib/storage';
+import { uploadFromUrl, uploadBuffer, getDownloadUrl, getAssetDownloadUrl } from '../lib/storage';
 import { createProgressTracker } from '../lib/progress';
 import sharp from 'sharp';
 
@@ -47,7 +49,6 @@ interface CrystalMemoryInput {
   imageUrl?: string;
   imageStorageKey?: string;
   parentTaskId?: string;
-  bgRemovedImageUrl?: string;
   sourceAssetId?: string;
 }
 
@@ -70,7 +71,7 @@ interface StepConfigWithProvider extends StepConfig {
 function getProviderModel(step: StepConfigWithProvider): string {
   const model = step.provider?.model;
   if (!model) {
-    throw new Error(`No model configured for step "${step.id}"`);
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `No model configured for step "${step.id}"`);
   }
   return model;
 }
@@ -112,7 +113,7 @@ export const crystalMemoryWorker: ToolWorker = {
       });
 
       if (!task || !task.tool) {
-        throw new Error('Task or tool not found');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'Task or tool not found');
       }
 
       const config = task.tool.config as CrystalMemoryConfig;
@@ -121,19 +122,19 @@ export const crystalMemoryWorker: ToolWorker = {
       // Determine which step to execute
       const currentStepId = stepId || config.steps[0]?.id;
       if (!currentStepId) {
-        throw new Error('No steps configured for this tool');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'No steps configured for this tool');
       }
 
       // Find step config
       const stepConfig = config.steps.find(s => s.id === currentStepId);
       if (!stepConfig) {
-        throw new Error(`Step "${currentStepId}" not configured`);
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `Step "${currentStepId}" not configured`);
       }
 
       // Get provider by name from step config
       const providerName = stepConfig.provider?.name;
       if (!providerName) {
-        throw new Error(`No provider configured for step "${currentStepId}"`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No provider configured for step "${currentStepId}"`);
       }
 
       const allProviders = await db.query.providers.findMany();
@@ -142,13 +143,13 @@ export const crystalMemoryWorker: ToolWorker = {
       );
 
       if (!provider) {
-        throw new Error(`Provider "${providerName}" not found or inactive`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
 
       if (!credentials.apiKey) {
-        throw new Error(`No API key configured for provider "${provider.displayName}"`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No API key configured for provider "${provider.displayName}"`);
       }
 
       const toolSlug = task.tool.slug;
@@ -178,17 +179,23 @@ export const crystalMemoryWorker: ToolWorker = {
         });
       }
 
-      throw new Error(`Unsupported provider "${providerName}" for step "${currentStepId}"`);
+      throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `Unsupported provider "${providerName}" for step "${currentStepId}"`);
 
     } catch (error) {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await progress.fail(errorMessage);
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      console.error(`[crystal-memory] Task ${taskId} failed: ${technicalMessage}`);
+
+      await progress.fail(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },
@@ -218,7 +225,7 @@ async function executeBackgroundRemoveStep(params: {
   }
 
   if (!imageUrl) {
-    throw new Error('Image URL or storage key is required');
+    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'Image URL or storage key is required');
   }
 
   await progress.updateProgress(5, 'Preparing image');
@@ -230,7 +237,7 @@ async function executeBackgroundRemoveStep(params: {
   await progress.updateProgress(10, 'Uploading to processing server');
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) {
-    throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
   }
   const imageBlob = await imageResponse.blob();
   const falImageUrl = await fal.storage.upload(imageBlob);
@@ -257,7 +264,7 @@ async function executeBackgroundRemoveStep(params: {
   }) as { data: FalResult; requestId?: string };
 
   if (!result.data?.image?.url) {
-    throw new Error('No image URL in fal.ai response');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image URL in fal.ai response');
   }
 
   await progress.updateProgress(90, 'Saving result');
@@ -272,10 +279,7 @@ async function executeBackgroundRemoveStep(params: {
   });
 
   await progress.updateProgress(100, 'Complete');
-  await progress.completeStep({
-    assetId: asset.id,
-    bgRemovedImageUrl: result.data.image.url,
-  });
+  await progress.completeStep({ assetId: asset.id });
 
   return {
     success: true,
@@ -283,8 +287,6 @@ async function executeBackgroundRemoveStep(params: {
     output: {
       assetId: asset.id,
       storageKey: asset.storageKey,
-      bgRemovedImageUrl: result.data.image.url,
-      originalUrl: imageUrl,
     },
     providerRequest: { model: modelId, input: providerInput },
     providerResponse: { data: result.data },
@@ -308,12 +310,11 @@ async function executeVGGTStep(params: {
 
   await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
 
-  // Get the bg-removed image URL
-  const imageUrl = input.bgRemovedImageUrl;
-
-  if (!imageUrl) {
-    throw new Error('Background-removed image URL is required for VGGT step');
+  // Resolve the bg-removed image URL from the asset saved in step 1
+  if (!input.sourceAssetId) {
+    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'sourceAssetId is required for VGGT step');
   }
+  const imageUrl = await getAssetDownloadUrl(input.sourceAssetId);
 
   // Get VGGT options from step provider options
   const providerOptions = getMergedProviderOptions(stepConfig);
@@ -329,7 +330,7 @@ async function executeVGGTStep(params: {
   // Fetch image and convert to base64 data URI (like Python reference)
   const imageResponse = await fetch(imageUrl);
   if (!imageResponse.ok) {
-    throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
   }
   const imageBuffer = await imageResponse.arrayBuffer();
   const contentType = imageResponse.headers.get('content-type') || 'image/png';
@@ -363,13 +364,13 @@ async function executeVGGTStep(params: {
   await progress.updateProgress(70, 'Processing VGGT output');
 
   if (!output.data || output.data.length === 0) {
-    throw new Error('No data in VGGT output');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No data in VGGT output');
   }
 
   // Fetch the data JSON file (contains world_points and world_points_conf)
   const dataResponse = await fetch(output.data[0]);
   if (!dataResponse.ok) {
-    throw new Error('Failed to fetch VGGT data file');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Failed to fetch VGGT data file');
   }
   const vggtData = await dataResponse.json() as {
     world_points?: number[][][];
@@ -377,7 +378,7 @@ async function executeVGGTStep(params: {
   };
 
   if (!vggtData.world_points) {
-    throw new Error('No world_points in VGGT data');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No world_points in VGGT data');
   }
 
   const worldPoints = vggtData.world_points;
@@ -451,14 +452,14 @@ async function executeVGGTStep(params: {
 function reshapePoints(worldPoints: number[][][]): { points: number[][]; height: number; width: number } {
   // Validate input array
   if (!Array.isArray(worldPoints) || worldPoints.length === 0) {
-    throw new Error('Invalid world_points: array is empty or not an array');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: array is empty or not an array');
   }
 
   const height = worldPoints.length;
   const width = worldPoints[0]?.length;
 
   if (!width || width === 0) {
-    throw new Error('Invalid world_points: first row is empty');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: first row is empty');
   }
 
   const points: number[][] = [];
@@ -476,7 +477,7 @@ function reshapePoints(worldPoints: number[][][]): { points: number[][]; height:
   }
 
   if (points.length === 0) {
-    throw new Error('Invalid world_points: no valid 3D points found');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: no valid 3D points found');
   }
 
   return { points, height, width };
@@ -543,7 +544,7 @@ async function extractColorsWithSharp(params: {
   // Fetch and resize image
   const response = await fetch(imageUrl);
   if (!response.ok) {
-    throw new Error('Failed to fetch image for color extraction');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Failed to fetch image for color extraction');
   }
 
   const imageBuffer = await response.arrayBuffer();

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 // Validate required env vars before importing anything else
-const WORKER_REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'SECRET_KEY'];
+const WORKER_REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'SECRET_KEY', 'PROVIDER_TIMEOUT_MS'];
 const missingEnv = WORKER_REQUIRED_ENV.filter((v) => !process.env[v]);
 if (missingEnv.length > 0) {
   console.error(`[Studio Worker] Missing required environment variables:\n${missingEnv.map((v) => `  - ${v}`).join('\n')}`);
@@ -19,7 +19,12 @@ import {
   bullmqWaiting, bullmqActive, bullmqFailed,
   createMetricsHandler,
 } from '@funmagic/services';
+import { ERROR_CODES } from '@funmagic/shared';
 import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
+import { TaskError } from './lib/task-error';
+
+// Maximum time a provider API call can take before being considered stalled.
+const PROVIDER_TIMEOUT_MS = parseInt(process.env.PROVIDER_TIMEOUT_MS!, 10);
 import {
   getStudioProviderWorker,
   getRegisteredProviders,
@@ -90,29 +95,43 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       const providerWorker = getStudioProviderWorker(provider as StudioProvider);
 
       if (!providerWorker) {
-        throw new Error(`No worker found for provider: ${provider}. Available: ${getRegisteredProviders().join(', ')}`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No worker found for provider: ${provider}. Available: ${getRegisteredProviders().join(', ')}`);
       }
 
-      // Execute the provider worker and measure provider API duration
+      // Execute the provider worker with timeout guard.
+      // If the provider API hangs (network down, etc.), this prevents the job
+      // from running indefinitely (we've seen 580+ minute stalls).
       const apiStart = performance.now();
-      const result = await providerWorker.execute({
-        messageId,
-        projectId,
-        adminId,
-        provider: provider as StudioProvider,
-        model,
-        modelCapability,
-        input,
-        redis,
-        session,
-        apiKey,
-      });
+      const result = await Promise.race([
+        providerWorker.execute({
+          messageId,
+          projectId,
+          adminId,
+          provider: provider as StudioProvider,
+          model,
+          modelCapability,
+          input,
+          redis,
+          session,
+          apiKey,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Provider ${providerName} timed out after ${PROVIDER_TIMEOUT_MS / 1000}s`)),
+            PROVIDER_TIMEOUT_MS,
+          ),
+        ),
+      ]);
       const apiDurationSec = (performance.now() - apiStart) / 1000;
       providerApiDuration.observe({ provider: providerName, operation: 'generate' }, apiDurationSec);
 
       if (!result.success) {
         providerErrors.inc({ provider: providerName, error_type: 'execution_failed' });
-        throw new Error(result.error || 'Provider execution failed');
+        // result.error is now an error code from the provider worker
+        throw new TaskError(
+          (result.error as keyof typeof ERROR_CODES) || ERROR_CODES.TASK_PROCESSING_FAILED,
+          `Provider ${providerName} execution failed`,
+        );
       }
 
       // Record task metrics
@@ -159,8 +178,11 @@ const studioWorker = new Worker<StudioGenerationJobData>(
         }
       }
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      taskLog.error({ err: errorMessage }, 'Generation failed');
+      const errorCode = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+      taskLog.error({ err: technicalMessage, errorCode }, 'Generation failed');
 
       // Record failure metrics
       const durationSec = (performance.now() - jobStartTime) / 1000;
@@ -168,22 +190,24 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       tasksTotal.inc({ tool: `studio-${providerName}`, status: 'failed' });
       providerErrors.inc({ provider: providerName, error_type: 'unknown' });
 
-      // Update generation as failed
+      // Update generation as failed (store error code, not raw message)
       await db.update(studioGenerations)
         .set({
           status: 'failed',
-          error: errorMessage,
+          error: errorCode,
           completedAt: new Date(),
         })
         .where(eq(studioGenerations.id, messageId));
 
-      // Publish failure event
+      // Publish failure event with error code
       await publishStudioProgress(redis, messageId, {
         type: 'error',
-        error: errorMessage,
+        error: errorCode,
       });
 
-      throw error;
+      // Do NOT throw here — the failure is fully handled (DB updated, event
+      // published). Throwing would cause BullMQ to retry the job, leading to
+      // duplicate processing and potential DB constraint violations.
     } finally {
       if (rlAcquired) {
         await releaseSlot(redis, 'admin', providerName, job.id!);

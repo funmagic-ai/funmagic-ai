@@ -18,9 +18,10 @@
 14. [Real-time Progress (SSE)](#real-time-progress-sse)
 15. [Security](#security)
 16. [Multi-Step Tool Architecture](#multi-step-tool-architecture)
-17. [Production Deployment](#production-deployment)
-18. [Scalability](#scalability)
-19. [Design Decisions](#design-decisions)
+17. [Localization](#localization)
+18. [Production Deployment](#production-deployment)
+19. [Scalability](#scalability)
+20. [Design Decisions](#design-decisions)
 
 ---
 
@@ -70,22 +71,24 @@ FunMagic AI is a multi-tenant AI tools platform that enables users to process im
                                           │  metrics :9090      │              │  metrics :9091       │
                                           └─────────┬───────────┘              └─────────┬───────────┘
                                                     │                                    │
-                          ┌─────────────┬───────────┤                    ┌───────────────┼───────────┐
-                          ▼             ▼           ▼                    ▼               ▼           ▼
-                     ┌─────────┐  ┌──────────┐ ┌─────────┐       ┌──────────┐   ┌──────────┐ ┌──────────┐
-                     │ OpenAI  │  │  fal.ai  │ │  Tripo  │       │  OpenAI  │   │  Google  │ │  fal.ai  │
-                     │(images) │  │(bg-rm/up)│ │  (3D)   │       │(Resp.API)│   │ (Gemini) │ │(utility) │
-                     └─────────┘  └──────────┘ └─────────┘       └──────────┘   └──────────┘ └──────────┘
-                          │             │           │                  │               │           │
-                          └─────────────┴───────────┘                 └───────────────┴───────────┘
-                                        │                                             │
-                                        ▼                                             ▼
-                              ┌──────────────────┐                          ┌──────────────────┐
-                              │   Replicate      │                          │  Grafana Alloy   │
-                              │ (VGGT/3D vision) │                          │   (sidecar)      │
-                              └──────────────────┘                          │  logs → Loki     │
-                                                                            │  metrics → Prom  │
-                                                                            └──────────────────┘
+                       ┌────────────┬───────────┬───┴───────────┐        ┌───────────────┼───────────┐
+                       ▼            ▼           ▼               ▼        ▼               ▼           ▼
+                  ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+                  │ OpenAI  │ │  fal.ai  │ │  Tripo   │ │Replicate │ │  OpenAI  │ │  Google  │ │  fal.ai  │
+                  │(images) │ │(bg-rm/up)│ │  (3D)    │ │ (VGGT)   │ │(Resp.API)│ │ (Gemini) │ │(utility) │
+                  └─────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+
+                   ┌──────────────────────────────────────────────────────────────────────────┐
+                   │                        Grafana Alloy (sidecar)                           │
+                   │                                                                          │
+                   │  Scrapes HTTP /metrics from:                                             │
+                   │    • Backend :8000/metrics                                               │
+                   │    • AI Tasks Worker :9090/metrics                                       │
+                   │    • Studio Worker :9091/metrics                                         │
+                   │                                                                          │
+                   │  Collects logs from all services → Loki                                  │
+                   │  Forwards metrics → Grafana Cloud Prometheus                             │
+                   └──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -166,52 +169,59 @@ The database uses PostgreSQL 17 with Drizzle ORM. Tables are organized into seve
 |-------|-------------|-------------|
 | `users` | User accounts | `id`, `email`, `name`, `role` (user/admin/super_admin), `emailVerified`, `image` |
 | `sessions` | Active sessions | `id`, `userId`, `token`, `expiresAt`, `ipAddress`, `userAgent` |
-| `accounts` | OAuth/social accounts | `id`, `userId`, `providerId` (google/apple/facebook), `accountId`, `accessToken`, `refreshToken` |
+| `accounts` | OAuth/social accounts | `id`, `userId`, `providerId` (google/apple/facebook), `accountId`, `accessToken`, `refreshToken`, `scope`, `idToken`, `password` |
 | `verifications` | Email verification tokens | `id`, `identifier`, `value`, `expiresAt` |
 
 ### Tools Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `tool_types` | Tool categories | `id`, `name` (unique slug), `displayName`, `icon`, `color`, `description` |
-| `tools` | AI tool configurations | `id`, `slug` (unique), `title`, `toolTypeId`, `config` (JSONB: steps, style refs), `creditsCost`, `isActive` |
-| `providers` | Web AI provider credentials | `id`, `name`, `type`, `apiKey` (encrypted), `baseUrl`, `isHealthy`, `config` (JSONB, supports `rateLimit`) |
-| `admin_providers` | Studio AI provider credentials | `id`, `name`, `type`, `apiKey` (encrypted), `baseUrl`, `config` (JSONB, supports `rateLimit`) |
+| `tool_types` | Tool categories | `id`, `name` (unique when not soft-deleted), `title`, `description`, `translations` (JSONB), `isActive`, `deletedAt` |
+| `tools` | AI tool configurations | `id`, `slug` (unique when not soft-deleted), `title`, `description`, `thumbnail`, `toolTypeId`, `config` (JSONB: steps with per-step `cost`, style refs), `translations` (JSONB), `isActive`, `isFeatured`, `usageCount`, `deletedAt` |
+| `providers` | Web AI provider credentials | `id`, `name` (unique), `displayName`, `appId`, `apiKey` (encrypted), `apiSecret` (encrypted), `baseUrl`, `webhookSecret`, `config` (JSONB, supports `rateLimit`), `isActive`, `healthCheckUrl`, `lastHealthCheckAt`, `isHealthy`, `deletedAt` |
+| `admin_providers` | Studio AI provider credentials | `id`, `name` (unique), `displayName`, `apiKey` (encrypted), `apiSecret` (encrypted), `baseUrl`, `config` (JSONB, supports `rateLimit`), `isActive` |
 
 ### Tasks Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `tasks` | User task records | `id`, `userId`, `toolId`, `status` (pending/processing/completed/failed), `creditsCost`, `parentTaskId`, `currentStepId` |
-| `task_payloads` | Task input/output data | `id`, `taskId`, `input` (JSONB), `output` (JSONB), `error`, `providerRequest`, `providerResponse`, `providerMeta` |
-| `assets` | Stored files/outputs | `id`, `userId`, `bucket`, `storageKey`, `visibility` (public/private/admin-private), `module`, `mimeType`, `size` |
+| `tasks` | User task records | `id`, `userId`, `toolId`, `parentTaskId`, `currentStepId`, `status` (pending/queued/processing/completed/failed), `creditsCost`, `bullmqJobId`, `queuedAt`, `startedAt`, `completedAt`, `deletedAt` |
+| `task_payloads` | Task input/output data (1:1 with tasks) | `id`, `taskId` (unique), `input` (JSONB), `output` (JSONB), `providerRequest` (JSONB), `providerResponse` (JSONB), `providerMeta` (JSONB), `error` |
+| `assets` | Stored files/outputs | `id`, `userId`, `storageKey`, `bucket`, `filename`, `mimeType`, `size`, `visibility` (private/public/admin-private), `module`, `taskId`, `postId`, `publishedAt`, `deletedAt` |
 
 ### Commerce Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `credits` | User credit balance | `id`, `userId` (unique), `balance`, `reservedBalance`, `lifetimeEarned`, `lifetimeSpent`, `lifetimePurchased` |
-| `credit_transactions` | Credit history | `id`, `userId`, `type` (purchase/spend/refund/bonus/admin_adjust/reservation), `amount`, `balanceAfter`, `referenceId`, `description` |
-| `credit_packages` | Purchasable packages | `id`, `name`, `credits`, `price`, `currency`, `stripePriceId`, `isActive`, `sortOrder` |
+| `credits` | User credit balance | `id`, `userId` (unique), `balance`, `reservedBalance`, `lifetimePurchased`, `lifetimeUsed`, `lifetimeRefunded` |
+| `credit_transactions` | Credit history | `id`, `userId`, `type` (purchase/bonus/usage/refund/reservation/etc.), `amount`, `balanceAfter`, `description`, `referenceType` (task/payment/admin), `referenceId`, `metadata` (JSONB), `idempotencyKey` (unique) |
+| `credit_packages` | Purchasable packages | `id`, `name`, `description`, `credits`, `bonusCredits`, `price` (numeric), `currency`, `stripePriceId`, `stripeProductId`, `translations` (JSONB), `isPopular`, `isActive`, `sortOrder`, `deletedAt` |
 
 ### Studio Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `studio_projects` | Studio chat sessions | `id`, `adminId`, `title`, `openaiResponseId`, `model`, `systemPrompt` |
-| `studio_generations` | Generation messages + results | `id`, `projectId`, `role`, `content`, `images` (JSONB), `input` (JSONB), `status`, `provider`, `model`, `rawRequest`, `rawResponse`, `error` |
+| `studio_projects` | Studio chat sessions | `id`, `adminId`, `title`, `openaiResponseId` |
+| `studio_generations` | Generation messages + results | `id`, `projectId`, `role` (user/assistant), `content`, `quotedImageIds` (JSONB: string[]), `provider`, `model`, `providerOptions` (JSONB), `images` (JSONB: StudioImage[]), `input` (JSONB), `status`, `progress`, `error`, `bullmqJobId`, `completedAt`, `rawRequest` (JSONB), `rawResponse` (JSONB) |
 
 ### Settings Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `rate_limit_settings` | Platform rate limit configuration | `id`, `tiers` (JSONB), `limits` (JSONB), `updatedAt` |
+| `rate_limit_settings` | Platform rate limit config (single-row) | `id`, `tiers` (JSONB: RateLimitTier[]), `limits` (JSONB: RateLimitLimits with `max` + `windowSeconds` per category), `updatedAt` |
 
 ### Content Domain
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `banners` | Promotional content | `id`, `title`, `description`, `thumbnail`, `link`, `type` (main/side), `position`, `isActive`, `startsAt`, `endsAt` |
+| `banners` | Promotional content | `id`, `title`, `description`, `thumbnail`, `link`, `linkText`, `linkTarget` (_self/_blank), `type` (main/side), `position`, `badge`, `badgeColor`, `translations` (JSONB), `isActive`, `startsAt`, `endsAt`, `deletedAt` |
+
+### Notes on Schema Conventions
+
+- **Soft deletes**: `tool_types`, `tools`, `providers`, `tasks`, `assets`, `credit_packages`, `banners` use `deletedAt` for soft delete
+- **Unique constraints**: `tool_types.name` and `tools.slug` are unique only among non-deleted rows (conditional unique index on `deletedAt IS NULL`)
+- **Credit cost**: There is no `creditsCost` column on the `tools` table. Per-step costs are stored inside `tools.config` JSONB as `steps[].cost`; the `tasks.creditsCost` records the resolved cost at task creation time
+- **Translations**: `tool_types`, `tools`, `credit_packages`, `banners` store i18n translations in a `translations` JSONB column (see [Localization](#localization) for structure and fallback logic)
 
 ### Relationships
 
@@ -228,7 +238,10 @@ studio_projects ─── studio_generations (1:N)
 
 tool_types ─── tools (1:N)
 
+tools ─── tasks (1:N)
+
 tasks ─────────┬─── task_payloads (1:1)
+               ├─── assets (1:N via taskId)
                └─── tasks (self-ref: parentTaskId)
 ```
 
@@ -429,18 +442,17 @@ Rate limits scale based on lifetime credit purchases. Tiers are configured via t
 ```json
 {
   "tiers": [
-    { "name": "free",    "minPurchased": 0,    "multiplier": 1.0 },
-    { "name": "basic",   "minPurchased": 100,  "multiplier": 1.5 },
-    { "name": "premium", "minPurchased": 500,  "multiplier": 2.0 },
-    { "name": "vip",     "minPurchased": 2000, "multiplier": 3.0 }
+    { "name": "free",    "minPurchased": 0,    "multiplier": 1 },
+    { "name": "basic",   "minPurchased": 1,    "multiplier": 2 },
+    { "name": "premium", "minPurchased": 1000, "multiplier": 3 }
   ],
   "limits": {
-    "globalApi":    { "max": 200 },
-    "userApi":      { "max": 60  },
-    "taskCreation": { "max": 10  },
-    "upload":       { "max": 30  },
-    "authSession":  { "max": 120 },
-    "authAction":   { "max": 10  }
+    "globalApi":    { "max": 500, "windowSeconds": 60 },
+    "userApi":      { "max": 200, "windowSeconds": 60 },
+    "taskCreation": { "max": 10,  "windowSeconds": 60 },
+    "upload":       { "max": 20,  "windowSeconds": 60 },
+    "authSession":  { "max": 60,  "windowSeconds": 60 },
+    "authAction":   { "max": 10,  "windowSeconds": 60 }
   }
 }
 ```
@@ -671,10 +683,9 @@ Purchase ──► Balance ──► Reserved ──► Spent (confirmed)
 | Type | Description |
 |------|-------------|
 | `purchase` | Credits bought by user |
-| `spend` | Credits consumed by completed task |
+| `usage` | Credits consumed by completed task |
 | `refund` | Credits returned (refund or adjustment) |
 | `bonus` | Promotional credits |
-| `admin_adjust` | Manual adjustment by admin |
 | `reservation` | Credits reserved when task is submitted |
 
 ### Safety Guarantees
@@ -749,23 +760,28 @@ Studio-specific event types support streaming content: `text_delta`, `text_done`
 
 ### Tool Configuration Schema
 
+The `tools.config` JSONB column stores the step pipeline and optional tool-specific data. Each step references a provider **by name** (not UUID) and embeds the model and provider-specific options.
+
+Steps have **no `name` field** in config — step display names are stored in the `tools.translations` JSONB column, keyed by step `id` (see [Localization](#localization)).
+
 ```json
 {
   "steps": [
     {
       "id": "image-gen",
-      "name": "Image Generation",
-      "type": "image-gen",
-      "providerId": "<uuid>",
-      "providerModel": "gpt-image-1.5",
+      "provider": {
+        "name": "openai",
+        "model": "gpt-image-1.5",
+        "providerOptions": { "size": "1024x1024", "quality": "medium" }
+      },
       "cost": 20
     },
     {
       "id": "3d-gen",
-      "name": "3D Generation",
-      "type": "3d-gen",
-      "providerId": "<uuid>",
-      "providerModel": "tripo-v2",
+      "provider": {
+        "name": "tripo",
+        "model": "v3.0-20250812"
+      },
       "cost": 30
     }
   ],
@@ -780,15 +796,208 @@ Studio-specific event types support streaming content: `text_delta`, `text_done`
 }
 ```
 
-### Step Execution
+`styleReferences` is an optional root-level config field (same level as `steps`). It defines admin-configurable style presets with thumbnail images and AI prompts. Used by tools like FigMe where users pick a style before generation.
 
-1. Task created with `stepId` (optional) and `parentTaskId` (for chained steps)
-2. Worker looks up step configuration from `tool.config`
-3. Worker resolves and decrypts provider credentials
-4. Per-provider rate limiting applied (tryAcquire/releaseSlot)
-5. Worker executes step, publishes progress via Redis
-6. Output stored in `task_payloads.output` with `providerRequest`/`providerResponse`/`providerMeta`
-7. Credits confirmed on success, released on failure
+### Step Config Interface
+
+Defined in `packages/worker/src/types.ts`:
+
+```typescript
+interface StepConfig {
+  id: string;
+  name: string;            // Injected at API response time from translations, not stored in config
+  inputSchema?: Record<string, unknown>;
+  cost?: number;
+}
+```
+
+Each tool worker extends this with a `provider` object:
+
+```typescript
+interface StepConfigWithProvider extends StepConfig {
+  provider?: {
+    name: string;                        // Matches providers.name in DB
+    model: string;                       // Provider-specific model identifier
+    providerOptions?: Record<string, unknown>;       // Default options
+    customProviderOptions?: Record<string, unknown>; // Overrides (merged at runtime)
+  };
+}
+```
+
+### Dispatch Flow
+
+Tools are dispatched by **tool slug**, not by step type or provider:
+
+1. Backend creates a `tasks` record with `toolSlug`, optional `stepId`, optional `parentTaskId`
+2. Backend enqueues a BullMQ job on `ai-tasks` with `AITaskJobData`
+3. Main worker (`packages/worker/src/index.ts`) picks up the job:
+   - Resolves provider name from `tool.config.steps[stepId].provider.name`
+   - Applies per-provider rate limiting (`tryAcquire`/`releaseSlot`)
+   - Looks up the tool-specific worker via `getToolWorker(toolSlug)`
+   - Calls `toolWorker.execute(context)` with `WorkerContext`
+4. Tool worker handles the step logic internally:
+   - Reads `tool.config` from DB to get step configs
+   - Resolves the current step (by `stepId` or defaults to first step)
+   - Looks up provider credentials from `providers` table by `step.provider.name`
+   - Decrypts API key via `decryptCredentials()`
+   - Routes to provider-specific execution based on `provider.name`
+   - Publishes progress via Redis, uploads results to S3
+   - Returns `StepResult` with `output`, `providerRequest`, `providerResponse`, `providerMeta`
+5. Main worker handles post-execution:
+   - Updates `tasks.status` to `completed` or `failed`
+   - Stores `StepResult` data in `task_payloads`
+   - Confirms credits on success, releases on failure
+   - Publishes completion/failure events via Redis
+
+### Multi-Step User Flow (FigMe Example)
+
+FigMe is a two-step tool where the user controls each step:
+
+```
+Step 1: User submits photo + style → worker runs image-gen (OpenAI) → returns styled image
+Step 2: User reviews image, clicks "Generate 3D" → new task with parentTaskId → worker runs 3d-gen (Tripo) → returns GLB
+```
+
+Each step is a **separate task** in the database, linked via `parentTaskId`. Credits are reserved and resolved independently per task.
+
+### Automatic Pipeline (Crystal Memory Example)
+
+Crystal Memory is a two-step tool where both steps run automatically within a single task:
+
+```
+User submits photo → worker runs background-remove (fal.ai) → uses output as input → runs VGGT (Replicate) → returns point cloud
+```
+
+Both steps execute within one `toolWorker.execute()` call. The tool worker chains the steps internally, using the first step's output as the second step's input.
+
+### Tool Worker Registry
+
+Tool workers are registered by slug in `packages/worker/src/tools/index.ts`:
+
+```typescript
+const toolWorkers: Record<string, ToolWorker> = {
+  'figme': figmeWorker,
+  'background-remove': backgroundRemoveWorker,
+  'crystal-memory': crystalMemoryWorker,
+};
+```
+
+---
+
+## Localization
+
+### Overview
+
+The platform supports 9 locales with a two-layer i18n system:
+
+1. **Frontend UI strings** — vue-i18n with JSON locale files (buttons, labels, messages)
+2. **Backend content** — `translations` JSONB column on DB tables (tools, tool types, banners, credit packages)
+
+### Supported Locales
+
+Defined in `packages/shared/src/config/locales.ts`:
+
+| Code | Language | Notes |
+|------|----------|-------|
+| `en` | English | Default, required — always fully populated |
+| `zh` | Chinese | |
+| `ja` | Japanese | |
+| `fr` | French | |
+| `es` | Spanish | |
+| `pt` | Portuguese | |
+| `de` | German | |
+| `vi` | Vietnamese | |
+| `ko` | Korean | |
+
+The admin app supports only `en` and `zh`.
+
+### Frontend: vue-i18n
+
+Each Vue app has its own locale files at `src/locales/{locale}.json`:
+
+- **Web app**: 9 locales, lazy-loaded on demand
+- **Admin app**: 2 locales (`en`, `zh`)
+
+Locale is stored in the **URL path** as an optional route parameter (`/:locale?/tools`, etc.):
+
+```
+https://funmagic.ai/zh/tools       → Chinese
+https://funmagic.ai/en/tools       → English
+https://funmagic.ai/tools           → Default (English)
+```
+
+Router guards validate the locale, load the locale messages, and set `document.documentElement.lang`.
+
+### Backend: Translations Column
+
+Tables with translatable content (`tools`, `tool_types`, `banners`, `credit_packages`) store a `translations` JSONB column with this structure:
+
+```typescript
+type TranslationsRecord<T> = {
+  en: T                                           // Required, always present
+} & {
+  [K in Exclude<SupportedLocale, 'en'>]?: Partial<T>  // Optional, partial overrides
+}
+```
+
+#### Tool Translation Content
+
+```json
+{
+  "en": {
+    "title": "FigMe",
+    "description": "Turn photos into figurines and 3D models",
+    "steps": {
+      "image-gen": { "name": "Figurine Style", "description": "Transform your photo..." },
+      "3d-gen": { "name": "3D Model Creation", "description": "Generate a 3D model..." }
+    }
+  },
+  "zh": {
+    "title": "像我",
+    "description": "将照片转化为手办公仔风格图片和3D模型",
+    "steps": {
+      "image-gen": { "name": "手办风格转换", "description": "将照片转换为可爱的手办公仔风格图片" },
+      "3d-gen": { "name": "3D模型生成", "description": "从手办风格图片生成3D模型" }
+    }
+  }
+}
+```
+
+Step names are keyed by step `id` inside `translations.{locale}.steps`, **not** stored in the `config.steps` array. The backend injects localized step names into the config at API response time.
+
+#### Other Content Types
+
+| Table | Translation Shape | Fields |
+|-------|------------------|--------|
+| `tool_types` | `ToolTypeTranslationContent` | `title`, `description` |
+| `banners` | `BannerTranslationContent` | `title`, `description`, `linkText`, `badge` |
+| `credit_packages` | `CreditPackageTranslationContent` | `name`, `description` |
+
+### How Locale Flows End-to-End
+
+```
+1. User visits /:locale/tools
+2. Router guard validates locale → loads vue-i18n messages
+3. Component reads locale from route.params.locale
+4. API call: GET /api/tools?locale=zh
+5. Backend validates locale query param
+6. Backend fetches tool rows with translations JSONB
+7. getLocalizedToolContent(translations, locale) applies per-field fallback to English
+8. Backend injects localized step names into config.steps[].name
+9. Returns fully localized response
+10. Frontend renders with vue-i18n messages (UI) + backend content (dynamic data)
+```
+
+### Fallback Logic
+
+`getLocalizedContent()` applies **per-field fallback**:
+- For each field in the translation object, use the locale value if present
+- If a field is missing, `undefined`, `null`, or empty string, fall back to the English value
+- English (`en`) is always the source of truth
+
+For tools, `getLocalizedToolContent()` adds deep merge for the `steps` map, applying the same per-field fallback at the step level.
+
+**Source**: `packages/shared/src/config/locales.ts`
 
 ---
 

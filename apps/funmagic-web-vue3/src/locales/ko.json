@@ -85,7 +85,23 @@
     "backToImage": "이미지로 돌아가기",
     "clickToUpload": "클릭하여 업로드하거나 드래그 앤 드롭",
     "preview": "미리보기",
-    "workspacePlaceholder": "이것은 플레이스홀더 작업 공간입니다. 각 도구에는 전용 인터페이스가 있습니다."
+    "workspacePlaceholder": "이것은 플레이스홀더 작업 공간입니다. 각 도구에는 전용 인터페이스가 있습니다.",
+    "progress": {
+      "connecting": "연결 중...",
+      "connected": "연결됨",
+      "pending": "대기 중",
+      "queued": "대기열",
+      "processing": "처리 중",
+      "completed": "완료",
+      "failed": "실패"
+    },
+    "upload": {
+      "dropHint": "이미지를 여기에 놓거나",
+      "browse": "찾아보기",
+      "formats": "PNG, JPG, WebP 최대 {size}MB",
+      "invalidType": "이미지 파일을 선택해주세요",
+      "sizeExceeded": "파일 크기가 {size}MB 제한을 초과합니다"
+    }
   },
   "pricing": {
     "title": "Pricing",

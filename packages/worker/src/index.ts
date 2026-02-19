@@ -11,6 +11,7 @@ const WORKER_REQUIRED_ENV = [
   'S3_BUCKET_PUBLIC',
   'S3_BUCKET_PRIVATE',
   'S3_BUCKET_ADMIN',
+  'TOOL_TIMEOUT_MS',
 ];
 const missingEnv = WORKER_REQUIRED_ENV.filter((v) => !process.env[v]);
 if (missingEnv.length > 0) {
@@ -28,11 +29,16 @@ import {
   bullmqWaiting, bullmqActive, bullmqFailed,
   createMetricsHandler,
 } from '@funmagic/services';
+import { ERROR_CODES } from '@funmagic/shared';
 import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
+import { TaskError } from './lib/task-error';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
 import { confirmCharge, releaseCredits } from '@funmagic/services/credit';
 import type { AITaskJobData } from './types';
+
+// Maximum time a tool worker can take before being considered stalled.
+const TOOL_TIMEOUT_MS = parseInt(process.env.TOOL_TIMEOUT_MS!, 10);
 
 const log = createLogger('Worker');
 
@@ -102,16 +108,25 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       throw new Error(`No worker found for tool: ${toolSlug}. Available: ${getRegisteredTools().join(', ')}`);
     }
 
-    // Execute the tool worker with step context
+    // Execute the tool worker with timeout guard.
+    // Prevents indefinite hangs when provider APIs are unreachable.
     let result: import('./types').StepResult;
     try {
-      result = await toolWorker.execute({
-        taskId,
-        stepId,
-        userId,
-        input: { ...input, parentTaskId },
-        redis,
-      });
+      result = await Promise.race([
+        toolWorker.execute({
+          taskId,
+          stepId,
+          userId,
+          input: { ...input, parentTaskId },
+          redis,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Tool ${toolSlug} timed out after ${TOOL_TIMEOUT_MS / 1000}s`)),
+            TOOL_TIMEOUT_MS,
+          ),
+        ),
+      ]);
     } catch (error) {
       // Handle provider 429 errors: reschedule instead of failing
       if (providerName && rlConfig?.retryOn429 !== false && isProvider429Error(error)) {
@@ -130,7 +145,9 @@ const aiTaskWorker = new Worker<AITaskJobData>(
 
       result = {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof TaskError
+          ? error.code
+          : ERROR_CODES.TASK_PROCESSING_FAILED,
       };
     } finally {
       if (rlAcquired && providerName) {
@@ -188,8 +205,8 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       return result.output;
 
     } else {
-      const errorMessage = result.error || 'Tool execution failed';
-      taskLog.error({ err: errorMessage }, 'Task failed');
+      const errorCode = result.error || ERROR_CODES.TASK_PROCESSING_FAILED;
+      taskLog.error({ err: errorCode }, 'Task failed');
 
       // Update task as failed
       await db.update(tasks)
@@ -201,7 +218,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
 
       // Update payload with error and any provider data captured before failure
       await db.update(taskPayloads)
-        .set({ error: errorMessage, ...providerData })
+        .set({ error: errorCode, ...providerData })
         .where(eq(taskPayloads.taskId, taskId));
 
       // Release reserved credits if task failed
@@ -214,14 +231,16 @@ const aiTaskWorker = new Worker<AITaskJobData>(
           userId,
           amount: task.creditsCost,
           taskId,
-          reason: `Task failed: ${errorMessage}`,
+          reason: `Task failed for ${toolSlug}`,
         });
       }
 
       // Publish failure event
-      await publishTaskFailed(redis, taskId, errorMessage);
+      await publishTaskFailed(redis, taskId, errorCode);
 
-      throw new Error(errorMessage);
+      // Do NOT throw here — the failure is fully handled (DB updated, credits
+      // released, event published). Throwing would cause BullMQ to retry the
+      // job, leading to duplicate credit release attempts.
     }
   },
   {

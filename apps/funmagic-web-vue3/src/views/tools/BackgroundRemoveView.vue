@@ -51,13 +51,17 @@ const steps = computed(() => [
 const { progress, isFailed } = useTaskProgress(
   taskId,
   {
-    onComplete: (output: unknown) => {
+    onComplete: async (output: unknown) => {
       // Null out task ID to prevent reconnect from firing onComplete again
       taskId.value = null
       currentStep.value = 2
-      const out = output as Record<string, any>
-      if (out?.url) resultUrl.value = out.url
-      else if (out?.storageKey) resultUrl.value = out.storageKey
+      const out = output as Record<string, string>
+      if (out?.assetId) {
+        const { data } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: out.assetId } },
+        })
+        resultUrl.value = data?.url ?? null
+      }
     },
     onFailed: () => {
       // Stay on processing step but show error
@@ -182,7 +186,7 @@ function handleReset() {
 
           <!-- Step 2: Result -->
           <div v-if="currentStep === 2" class="space-y-6">
-            <div class="rounded-xl border bg-card p-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <!-- Original -->
                 <div class="space-y-2">
@@ -192,7 +196,7 @@ function handleReset() {
                       v-if="upload.preview.value"
                       :src="upload.preview.value"
                       :alt="t('tools.original')"
-                      class="w-full object-contain max-h-64"
+                      class="w-full object-contain"
                     />
                   </div>
                 </div>
@@ -204,7 +208,7 @@ function handleReset() {
                       v-if="resultUrl"
                       :src="resultUrl"
                       :alt="t('tools.result')"
-                      class="w-full object-contain max-h-64"
+                      class="w-full object-contain"
                     />
                   </div>
                 </div>

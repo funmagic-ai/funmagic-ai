@@ -1,5 +1,7 @@
 import { fal } from '@fal-ai/client';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { TaskError } from '../../lib/task-error';
+import { ERROR_CODES } from '@funmagic/shared';
 import { createLogger } from '@funmagic/services';
 import type {
   StudioProviderWorker,
@@ -61,13 +63,13 @@ export const falWorker: StudioProviderWorker = {
       const toolConfig = FAL_TOOLS[toolName];
 
       if (!toolConfig) {
-        throw new Error(`Unknown Fal tool: ${toolName}. Available: ${Object.keys(FAL_TOOLS).join(', ')}`);
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `Unknown Fal tool: ${toolName}. Available: ${Object.keys(FAL_TOOLS).join(', ')}`);
       }
 
       const quotedImages = input.quotedImages;
 
       if (toolConfig.requiresImage && (!quotedImages || quotedImages.length === 0)) {
-        throw new Error(`At least one image is required for ${toolName}`);
+        throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, `At least one image is required for ${toolName}`);
       }
 
       taskLog.info({ tool: toolName, imageCount: quotedImages?.length ?? 0 }, 'Executing');
@@ -102,7 +104,7 @@ export const falWorker: StudioProviderWorker = {
 
         const resultUrl = toolConfig.parseResult(result.data);
         if (!resultUrl) {
-          throw new Error(`No image URL in fal.ai ${toolName} response`);
+          throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `No image URL in fal.ai ${toolName} response`);
         }
 
         rawResponseOutputs.push({ imageIndex: i, resultUrl });
@@ -151,12 +153,16 @@ export const falWorker: StudioProviderWorker = {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      taskLog.error({ err: errorMessage }, 'Failed');
-      await progress.error(errorMessage);
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      taskLog.error({ err: technicalMessage }, 'Failed');
+      await progress.error(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },

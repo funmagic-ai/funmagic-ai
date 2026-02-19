@@ -6,7 +6,7 @@ import {
   type ToolTranslations,
   ERROR_CODES,
 } from '@funmagic/shared';
-import { getPublicCdnUrl } from '@funmagic/services/storage';
+import { getPublicCdnUrl, stripCdnPrefix } from '@funmagic/services/storage';
 import { notFound, conflict } from '../../lib/errors';
 import { ErrorSchema } from '../../schemas';
 
@@ -199,6 +199,72 @@ const toggleFeaturedRoute = createRoute({
   },
 });
 
+/** Style reference stored in tool config */
+interface ConfigStyleReference {
+  imageUrl?: string;
+  [key: string]: unknown;
+}
+
+/** Step stored in tool config */
+interface ConfigStep {
+  id: string;
+  styleReferences?: ConfigStyleReference[];
+  [key: string]: unknown;
+}
+
+/** Tool config structure */
+interface ConfigData {
+  steps?: ConfigStep[];
+  [key: string]: unknown;
+}
+
+/**
+ * Resolve imageUrl storage keys to CDN URLs within tool config.
+ * Walks through config.steps[].styleReferences[].imageUrl and resolves them.
+ */
+function resolveConfigImageUrls(config: unknown): unknown {
+  if (!config || typeof config !== 'object') return config;
+  const cfg = config as ConfigData;
+  if (!Array.isArray(cfg.steps)) return config;
+
+  return {
+    ...cfg,
+    steps: cfg.steps.map(step => {
+      if (!Array.isArray(step.styleReferences)) return step;
+      return {
+        ...step,
+        styleReferences: step.styleReferences.map(ref => ({
+          ...ref,
+          imageUrl: ref.imageUrl ? getPublicCdnUrl(ref.imageUrl) : ref.imageUrl,
+        })),
+      };
+    }),
+  };
+}
+
+/**
+ * Normalize config imageUrl CDN URLs back to storage keys for saving.
+ */
+function normalizeConfigImageUrls(config: unknown): unknown {
+  if (!config || typeof config !== 'object') return config;
+  const cfg = config as ConfigData;
+  if (!Array.isArray(cfg.steps)) return config;
+
+  return {
+    ...cfg,
+    steps: cfg.steps.map(step => {
+      if (!Array.isArray(step.styleReferences)) return step;
+      return {
+        ...step,
+        styleReferences: step.styleReferences.map(ref => ({
+          ...ref,
+          imageUrl: ref.imageUrl ? stripCdnPrefix(ref.imageUrl) : ref.imageUrl,
+        })),
+      };
+    }),
+  };
+}
+
 // Helper function
 function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes.$inferSelect | null }) {
   return {
@@ -208,7 +274,7 @@ function formatTool(t: typeof tools.$inferSelect & { toolType?: typeof toolTypes
     description: t.description,
     thumbnail: t.thumbnail ? getPublicCdnUrl(t.thumbnail) : null,
     toolTypeId: t.toolTypeId,
-    config: t.config,
+    config: resolveConfigImageUrls(t.config),
     translations: t.translations as ToolTranslations,
     isActive: t.isActive,
     isFeatured: t.isFeatured,
@@ -304,9 +370,9 @@ export const toolsAdminRoutes = new OpenAPIHono()
       slug: data.slug,
       title: data.title,
       description: data.description,
-      thumbnail: data.thumbnail,
+      thumbnail: data.thumbnail ? stripCdnPrefix(data.thumbnail) : data.thumbnail,
       toolTypeId: data.toolTypeId,
-      config: data.config,
+      config: normalizeConfigImageUrls(data.config),
       translations,
       isActive: data.isActive ?? true,
       isFeatured: data.isFeatured ?? false,
@@ -337,9 +403,9 @@ export const toolsAdminRoutes = new OpenAPIHono()
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.title !== undefined) updateData.title = data.title;
     if (data.description !== undefined) updateData.description = data.description;
-    if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail;
+    if (data.thumbnail !== undefined) updateData.thumbnail = data.thumbnail ? stripCdnPrefix(data.thumbnail) : data.thumbnail;
     if (data.toolTypeId !== undefined) updateData.toolTypeId = data.toolTypeId;
-    if (data.config !== undefined) updateData.config = data.config;
+    if (data.config !== undefined) updateData.config = normalizeConfigImageUrls(data.config);
     if (data.translations !== undefined) updateData.translations = data.translations;
     if (data.isActive !== undefined) updateData.isActive = data.isActive;
     if (data.isFeatured !== undefined) updateData.isFeatured = data.isFeatured;

@@ -326,29 +326,28 @@ src/
 
 ### Step 1: Design Tool Configuration
 
-Define the tool's step pipeline. Each step specifies a provider and cost:
+Define the tool's step pipeline. Each step references a provider **by name** (matching `providers.name` in the DB) and specifies a model and cost. Steps have **no `name` field** in config — step display names are stored in the `translations` column (see architecture.md § Localization):
 
 ```json
 {
   "steps": [
     {
       "id": "step-id",
-      "name": "Step Display Name",
-      "type": "step-type",
-      "providerId": "<uuid>",
-      "providerModel": "model-name",
+      "provider": {
+        "name": "openai",
+        "model": "gpt-image-1",
+        "providerOptions": { "size": "1024x1024" }
+      },
       "cost": 10
     }
-  ],
-  "maxFileSize": 10485760,
-  "supportedFormats": ["jpg", "png", "webp"]
+  ]
 }
 ```
 
 ### Step 2: Create Provider (Admin UI)
 
 1. Go to Admin → Providers → Add Provider
-2. Fill in: Name, Display Name, Type, API Key, Base URL
+2. Fill in: Name, Display Name, Description, API Key, Base URL
 3. (Optional) Set `config.rateLimit` to control throughput:
    ```json
    { "rateLimit": { "maxConcurrency": 5, "maxPerMinute": 100, "maxPerDay": 10000 } }
@@ -356,11 +355,11 @@ Define the tool's step pipeline. Each step specifies a provider and cost:
 
 ### Step 3: Create Tool Type (Admin UI)
 
-Go to Admin → Tool Types → Add Type. Fill in: Name (slug), Display Name, Icon, Color.
+Go to Admin → Tool Types → Add Type. Fill in: Name (slug), Title, Description.
 
 ### Step 4: Create Tool Record (Admin UI)
 
-Go to Admin → Tools → Add Tool. Fill in: Slug, Title, Description, Tool Type, Config JSON, Credits Cost.
+Go to Admin → Tools → Add Tool. Fill in: Slug, Title, Description, Tool Type, Config JSON (including per-step `cost` values).
 
 ### Step 5: Implement ToolWorker
 

@@ -536,10 +536,20 @@ export const generationsRoutes = new OpenAPIHono<{ Variables: { user: { id: stri
         closeStream();
       });
 
-      // Poll for completion as fallback (every 2s)
+      // Poll for completion as fallback (every 2s, max duration from env)
+      const SSE_MAX_DURATION_MS = parseInt(process.env.SSE_MAX_DURATION_MS!, 10);
+      const sseStartTime = Date.now();
       const pollInterval = setInterval(async () => {
         if (isCompleted) {
           clearInterval(pollInterval);
+          return;
+        }
+
+        // Safety net: close stream after max duration to prevent indefinite polling
+        if (Date.now() - sseStartTime > SSE_MAX_DURATION_MS) {
+          log.warn(`[SSE] Max duration reached for generation ${generationId}, closing stream`);
+          clearInterval(pollInterval);
+          closeStream();
           return;
         }
 

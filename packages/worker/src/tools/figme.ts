@@ -1,49 +1,38 @@
 import OpenAI from 'openai';
 import { Magi3DClient, TripoProvider, TaskType, type TripoOptions } from 'magi-3d/server';
+import { ERROR_CODES } from '@funmagic/shared';
 import { isProvider429Error } from '../lib/provider-errors';
+import { TaskError } from '../lib/task-error';
 import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
 import { decryptCredentials } from '../lib/credentials';
-import { uploadFromUrl, getDownloadUrl } from '../lib/storage';
+import { uploadFromUrl, getDownloadUrl, getAssetDownloadUrl } from '../lib/storage';
+import { getPublicCdnUrl } from '@funmagic/services/storage';
 import { createProgressTracker } from '../lib/progress';
 
 /**
  * FigMe Tool Config Structure (stored in tool.config)
  *
  * Admin defines:
- * - Steps with provider links and costs
- * - Style references with prompts (up to 8 images)
- * - Each style has a name, thumbnail, and AI prompt
+ * - Steps with provider links, costs, and a base prompt
+ * - Style references (up to 8 images) on the image-gen step
  *
  * {
  *   "steps": [
  *     {
  *       "id": "image-gen",
- *       "name": "Image Generation",
- *       "provider": {
- *         "name": "openai",
- *         "model": "gpt-image-1",
- *         "providerOptions": { "size": "1024x1024" }
- *       },
+ *       "prompt": "Transform this image into the given style...",
+ *       "styleReferences": [
+ *         { "imageUrl": "storage-key-or-url" }
+ *       ],
+ *       "provider": { "name": "openai", "model": "gpt-image-1", ... },
  *       "cost": 20
  *     },
  *     {
  *       "id": "3d-gen",
- *       "name": "3D Generation",
- *       "provider": {
- *         "name": "tripo",
- *         "model": "v2.0-20240919"
- *       },
+ *       "provider": { "name": "tripo", "model": "v3.0-20250812" },
  *       "cost": 30
- *     }
- *   ],
- *   "styleReferences": [
- *     {
- *       "id": "style-1",
- *       "name": "Anime",
- *       "imageUrl": "https://...",
- *       "prompt": "Transform this image into anime style..."
  *     }
  *   ]
  * }
@@ -51,21 +40,20 @@ import { createProgressTracker } from '../lib/progress';
 
 interface FigmeInput {
   // Step 1 (Image Generation)
-  styleReferenceId?: string;  // Required for step 1 - user must select a style
+  styleReferenceId?: string;  // Required for step 1 - index into styleReferences array
   imageUrl?: string;  // User uploaded image URL (direct URL)
   imageStorageKey?: string;  // User uploaded image storage key (S3 key)
   assetId?: string;   // User uploaded asset ID
 
   // Step 2 (3D Generation) - only when stepId is '3d-gen'
   parentTaskId?: string;  // Reference to step 1 task
-  sourceImageUrl?: string;  // Image from step 1
+  sourceAssetId?: string;  // Asset ID from step 1
 }
 
 interface StyleReference {
-  id: string;
-  name: string;
-  imageUrl: string;  // Thumbnail shown to user
-  prompt: string;    // AI prompt defined by admin
+  imageUrl: string;  // Reference image for this style
+  prompt?: string;   // Custom prompt for this style (overrides step-level prompt)
+  useStyleImage?: boolean;  // Whether to send style image to AI (default: true)
 }
 
 interface StepConfigWithOptions extends StepConfig {
@@ -75,6 +63,12 @@ interface StepConfigWithOptions extends StepConfig {
     providerOptions?: Record<string, unknown>;
     customProviderOptions?: Record<string, unknown>;
   };
+}
+
+/** Image-gen step config with figme-specific fields */
+interface FigmeImageGenStep extends StepConfigWithOptions {
+  prompt?: string;
+  styleReferences?: StyleReference[];
 }
 
 function getMergedProviderOptions(step: StepConfigWithOptions): Record<string, unknown> {
@@ -87,16 +81,13 @@ function getMergedProviderOptions(step: StepConfigWithOptions): Record<string, u
 function getProviderModel(step: StepConfigWithOptions): string {
   const model = step.provider?.model;
   if (!model) {
-    throw new Error(`No model configured for step "${step.id}"`);
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `No model configured for step "${step.id}"`);
   }
   return model;
 }
 
 interface FigmeConfig extends ToolConfig {
   steps: StepConfigWithOptions[];
-  styleReferences?: StyleReference[];
-  maxStyleReferences?: number;
-  defaultPrompt?: string;  // Fallback prompt if style doesn't have one
 }
 
 // OpenAI image generation supports these sizes
@@ -121,7 +112,7 @@ export const figmeWorker: ToolWorker = {
       });
 
       if (!task || !task.tool) {
-        throw new Error('Task or tool not found');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'Task or tool not found');
       }
 
       const config = task.tool.config as FigmeConfig;
@@ -130,19 +121,19 @@ export const figmeWorker: ToolWorker = {
       // Determine which step to execute
       const currentStepId = stepId || config.steps[0]?.id;
       if (!currentStepId) {
-        throw new Error('No steps configured for this tool');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'No steps configured for this tool');
       }
 
       const step = config.steps.find(s => s.id === currentStepId);
 
       if (!step) {
-        throw new Error(`Step "${currentStepId}" not found in tool config`);
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `Step "${currentStepId}" not found in tool config`);
       }
 
       // Get provider by name from step config
       const providerName = step.provider?.name;
       if (!providerName) {
-        throw new Error(`No provider configured for step "${step.name}"`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No provider configured for step "${step.name}"`);
       }
 
       const allProviders = await db.query.providers.findMany();
@@ -151,13 +142,13 @@ export const figmeWorker: ToolWorker = {
       );
 
       if (!provider) {
-        throw new Error(`Provider "${providerName}" not found or inactive`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
 
       if (!credentials.apiKey) {
-        throw new Error(`No API key configured for provider "${provider.displayName}"`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No API key configured for provider "${provider.displayName}"`);
       }
 
       await progress.startStep(currentStepId, step.name || currentStepId);
@@ -188,17 +179,25 @@ export const figmeWorker: ToolWorker = {
         });
       }
 
-      throw new Error(`Unsupported provider "${providerName}" for step "${currentStepId}"`);
+      throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `Unsupported provider "${providerName}" for step "${currentStepId}"`);
 
     } catch (error) {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await progress.fail(errorMessage);
+      // TaskError carries a user-facing code; plain errors are unexpected
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      // Log the technical detail for admin debugging
+      console.error(`[figme] Task ${taskId} failed: ${technicalMessage}`);
+
+      await progress.fail(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },
@@ -225,25 +224,32 @@ async function executeImageGenStep(params: {
     sourceImageUrl = await getDownloadUrl(input.imageStorageKey);
   }
 
-  // Get prompt from style reference (admin-defined)
-  if (!input.styleReferenceId) {
-    throw new Error('Style selection is required');
+  // Get style reference by index
+  if (input.styleReferenceId == null || input.styleReferenceId === '') {
+    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'Style selection is required');
   }
 
-  const style = config.styleReferences?.find(s => s.id === input.styleReferenceId);
+  // styleReferences and prompt are stored on the step config
+  const imageGenStep = step as FigmeImageGenStep;
+  const styleReferences = imageGenStep.styleReferences ?? [];
+  const styleIndex = parseInt(input.styleReferenceId, 10);
+  const style = styleReferences[styleIndex];
   if (!style) {
-    throw new Error(`Style "${input.styleReferenceId}" not found in tool config`);
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `Style index ${styleIndex} not found in tool config (${styleReferences.length} styles available)`);
   }
 
-  // Validate style has an image URL for image edit mode
-  if (sourceImageUrl && !style.imageUrl) {
-    throw new Error(`Style "${style.name}" is missing a reference image (imageUrl)`);
-  }
-
-  // Use prompt from style, fallback to config default prompt
-  const prompt = style.prompt || config.defaultPrompt;
+  // Resolve prompt: style-level overrides step-level
+  const prompt = style.prompt || imageGenStep.prompt;
   if (!prompt) {
-    throw new Error(`No prompt configured for style "${style.name}" and no default prompt set`);
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'No prompt configured (neither style-level nor step-level)');
+  }
+
+  // Determine whether to include the style image in the API call
+  const shouldUseStyleImage = style.useStyleImage !== false;
+
+  // Validate style has an image URL when we need to send it
+  if (sourceImageUrl && shouldUseStyleImage && !style.imageUrl) {
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `Style ${styleIndex} is missing a reference image (imageUrl)`);
   }
 
   await progress.updateProgress(20, 'Initializing OpenAI client');
@@ -262,26 +268,36 @@ async function executeImageGenStep(params: {
   let providerResponse: Record<string, unknown>;
 
   if (sourceImageUrl) {
-    // Image edit mode - transform existing image with style reference
-    await progress.updateProgress(25, 'Fetching style reference image');
+    // Image edit mode - transform existing image, optionally with style reference
+    const imageFiles: File[] = [];
 
-    // Fetch style reference image FIRST (for higher fidelity preservation)
-    const styleImageResponse = await fetch(style.imageUrl);
-    if (!styleImageResponse.ok) {
-      throw new Error(`Failed to fetch style reference image: ${styleImageResponse.status}`);
+    if (shouldUseStyleImage) {
+      await progress.updateProgress(25, 'Fetching style reference image');
+
+      // Style images are in the public bucket (uploaded by admin with visibility: 'public')
+      const styleImageUrl = getPublicCdnUrl(style.imageUrl);
+      const styleImageResponse = await fetch(styleImageUrl);
+      if (!styleImageResponse.ok) {
+        throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch style reference image: ${styleImageResponse.status}`);
+      }
+      const styleImageBlob = await styleImageResponse.blob();
+      imageFiles.push(new File([styleImageBlob], 'style.png', { type: 'image/png' }));
     }
-    const styleImageBlob = await styleImageResponse.blob();
-    const styleImageFile = new File([styleImageBlob], 'style.png', { type: 'image/png' });
 
     await progress.updateProgress(35, 'Fetching source image');
 
-    // Fetch user uploaded image SECOND
+    // Fetch user uploaded image
     const userImageResponse = await fetch(sourceImageUrl);
     if (!userImageResponse.ok) {
-      throw new Error(`Failed to fetch source image: ${userImageResponse.status}`);
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch source image: ${userImageResponse.status}`);
     }
     const userImageBlob = await userImageResponse.blob();
     const userImageFile = new File([userImageBlob], 'source.png', { type: 'image/png' });
+
+    if (shouldUseStyleImage) {
+      // Style image first (higher fidelity), user image second
+      imageFiles.push(userImageFile);
+    }
 
     await progress.updateProgress(50, 'Sending to OpenAI for style transfer');
 
@@ -290,12 +306,12 @@ async function executeImageGenStep(params: {
       ? configuredSize
       : '1024x1024') as OpenAIEditSize;
 
-    providerRequest = { method: 'images.edit', model, prompt, n: 1, size: editSize, imageCount: 2 };
+    providerRequest = { method: 'images.edit', model, prompt, n: 1, size: editSize, imageCount: imageFiles.length || 1, useStyleImage: shouldUseStyleImage };
 
-    // Pass as array: style reference FIRST (higher fidelity), user image SECOND
+    // Pass image(s): array when using style image, single file when prompt-only
     const response = await openai.images.edit({
       model,
-      image: [styleImageFile, userImageFile],
+      image: shouldUseStyleImage ? imageFiles : userImageFile,
       prompt,
       n: 1,
       size: editSize,
@@ -305,7 +321,7 @@ async function executeImageGenStep(params: {
 
     const imageData = response.data?.[0];
     if (!imageData?.url && !imageData?.b64_json) {
-      throw new Error('No image returned from OpenAI');
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image returned from OpenAI');
     }
 
     // Handle both URL and base64 responses
@@ -315,7 +331,7 @@ async function executeImageGenStep(params: {
       // If base64, we'll need to convert it to a data URL for upload
       resultImageUrl = `data:image/png;base64,${imageData.b64_json}`;
     } else {
-      throw new Error('No image data in OpenAI response');
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image data in OpenAI response');
     }
   } else {
     // Text-to-image generation mode (no source image)
@@ -336,7 +352,7 @@ async function executeImageGenStep(params: {
 
     const imageData = response.data?.[0];
     if (!imageData?.url && !imageData?.b64_json) {
-      throw new Error('No image returned from OpenAI');
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image returned from OpenAI');
     }
 
     if (imageData.url) {
@@ -344,7 +360,7 @@ async function executeImageGenStep(params: {
     } else if (imageData.b64_json) {
       resultImageUrl = `data:image/png;base64,${imageData.b64_json}`;
     } else {
-      throw new Error('No image data in OpenAI response');
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image data in OpenAI response');
     }
   }
 
@@ -361,7 +377,7 @@ async function executeImageGenStep(params: {
   });
 
   await progress.updateProgress(100, 'Image generation complete');
-  await progress.completeStep({ assetId: asset.id, imageUrl: resultImageUrl });
+  await progress.completeStep({ assetId: asset.id });
 
   return {
     success: true,
@@ -370,10 +386,7 @@ async function executeImageGenStep(params: {
       stepId: step.id,
       assetId: asset.id,
       storageKey: asset.storageKey,
-      imageUrl: resultImageUrl,
-      styleId: style.id,
-      styleName: style.name,
-      // Flag indicating 3D generation is available as next step
+      styleIndex,
       canGenerate3D: config.steps.length > 1,
     },
     providerRequest,
@@ -396,11 +409,10 @@ async function execute3DGenStep(params: {
 }): Promise<StepResult> {
   const { taskId, userId, step, input, apiKey, progress, toolSlug } = params;
 
-  const sourceImageUrl = input.sourceImageUrl;
-
-  if (!sourceImageUrl) {
-    throw new Error('Source image URL is required for 3D generation');
+  if (!input.sourceAssetId) {
+    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'sourceAssetId is required for 3D generation');
   }
+  const sourceImageUrl = await getAssetDownloadUrl(input.sourceAssetId);
 
   await progress.updateProgress(10, 'Initializing 3D generation');
 
@@ -440,7 +452,7 @@ async function execute3DGenStep(params: {
   });
 
   if (!result.result?.modelGlb) {
-    throw new Error('No 3D model in Tripo response');
+    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No 3D model in Tripo response');
   }
 
   await progress.updateProgress(95, 'Saving 3D model');
@@ -479,7 +491,6 @@ async function execute3DGenStep(params: {
       stepId: step.id,
       modelAssetId: modelAsset.id,
       modelStorageKey: modelAsset.storageKey,
-      modelUrl: result.result.modelGlb,
       previewAssetId: previewAsset?.id,
       previewStorageKey: previewAsset?.storageKey,
       parentTaskId: input.parentTaskId,

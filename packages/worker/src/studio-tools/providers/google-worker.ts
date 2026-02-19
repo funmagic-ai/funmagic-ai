@@ -1,5 +1,7 @@
 import { GoogleGenAI, type Content, type Part } from '@google/genai';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { TaskError } from '../../lib/task-error';
+import { ERROR_CODES } from '@funmagic/shared';
 import { createLogger } from '@funmagic/services';
 import { db, studioGenerations } from '@funmagic/database';
 import type { StudioImage } from '@funmagic/database';
@@ -100,7 +102,7 @@ export const googleWorker: StudioProviderWorker = {
       const hasImages = input.quotedImages && input.quotedImages.length > 0;
 
       if (!model) {
-        throw new Error('Model is required for Google');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'Model is required for Google');
       }
 
       taskLog.info({ model, hasImages }, 'Executing with streaming');
@@ -212,7 +214,7 @@ export const googleWorker: StudioProviderWorker = {
 
       // Only error if BOTH image and text are empty
       if (images.length === 0 && !textContent) {
-        throw new Error('No response from Google (no image or text)');
+        throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No response from Google (no image or text)');
       }
 
       // Capture raw response for debugging
@@ -254,12 +256,16 @@ export const googleWorker: StudioProviderWorker = {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      taskLog.error({ err: errorMessage }, 'Failed');
-      await progress.error(errorMessage);
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      taskLog.error({ err: technicalMessage }, 'Failed');
+      await progress.error(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },

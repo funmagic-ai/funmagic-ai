@@ -175,15 +175,26 @@ export const toolsRoutes = new OpenAPIHono()
       locale as SupportedLocale
     );
 
-    // Inject localized step names into config
+    // Inject localized step names into config and resolve image URLs
     const savedConfig = tool.config as SavedToolConfig | undefined;
     const localizedConfig = savedConfig ? {
       ...savedConfig,
-      steps: (savedConfig.steps ?? []).map(s => ({
-        ...s,
-        name: localizedContent.steps?.[s.id]?.name ?? s.id,
-        description: localizedContent.steps?.[s.id]?.description,
-      })),
+      steps: (savedConfig.steps ?? []).map(s => {
+        // Resolve styleReferences imageUrls to CDN URLs
+        const rawRefs = (s as { styleReferences?: Array<{ imageUrl?: string }> }).styleReferences;
+        const resolved = rawRefs
+          ? rawRefs.map(ref => ({
+              imageUrl: ref.imageUrl ? getPublicCdnUrl(ref.imageUrl) : ref.imageUrl,
+            }))
+          : undefined;
+
+        return {
+          ...s,
+          name: localizedContent.steps?.[s.id]?.name ?? s.id,
+          description: localizedContent.steps?.[s.id]?.description,
+          ...(resolved ? { styleReferences: resolved } : {}),
+        };
+      }),
     } : tool.config;
 
     return c.json({

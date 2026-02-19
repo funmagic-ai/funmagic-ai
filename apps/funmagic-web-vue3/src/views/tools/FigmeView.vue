@@ -23,7 +23,6 @@ const currentStep = ref(0)
 const taskId = ref<string | null>(null)
 const imageResult = ref<string | null>(null)
 const imageAssetId = ref<string | null>(null)
-const imageResultUrl = ref<string | null>(null)
 const threeDTaskId = ref<string | null>(null)
 const threeDResult = ref<string | null>(null)
 const selectedStyle = ref<string | null>(null)
@@ -43,7 +42,7 @@ const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
 const toolInfo = computed(() => toolData.value?.tool)
 const toolTitle = computed(() => toolInfo.value?.title ?? 'FigMe')
 const toolDescription = computed(() => toolInfo.value?.description ?? '')
-const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; styleReferences?: Array<{ id?: string; name?: string; imageUrl?: string; prompt?: string }>; [key: string]: unknown }> })
+const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; styleReferences?: Array<{ imageUrl?: string }>; [key: string]: unknown }> })
 const step0 = computed(() => toolConfig.value.steps[0])
 const step1 = computed(() => toolConfig.value.steps[1])
 const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum + (s.cost ?? 0), 0))
@@ -62,12 +61,10 @@ const steps = computed(() => [
 
 const availableStyles = computed(() => {
   const s0 = toolConfig.value.steps[0]
-  const rawStyles = (s0?.styleReferences ?? []) as Array<{ id?: string; name?: string; imageUrl?: string; prompt?: string }>
+  const rawStyles = (s0?.styleReferences ?? []) as Array<{ imageUrl?: string }>
   return rawStyles.map((s, i) => ({
-    id: s.id || `style-${i}`,
-    name: s.name || `Style ${i + 1}`,
+    id: String(i),
     imageUrl: s.imageUrl || '',
-    prompt: s.prompt,
   }))
 })
 
@@ -75,12 +72,16 @@ const availableStyles = computed(() => {
 const { progress: imageProgress, isFailed: imageFailed } = useTaskProgress(
   taskId,
   {
-    onComplete: (output: unknown) => {
+    onComplete: async (output: unknown) => {
       currentStep.value = 2
       const out = output as Record<string, string>
       imageAssetId.value = out?.assetId ?? null
-      imageResultUrl.value = out?.imageUrl ?? out?.url ?? null
-      imageResult.value = imageResultUrl.value ?? out?.storageKey ?? null
+      if (out?.assetId) {
+        const { data } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: out.assetId } },
+        })
+        imageResult.value = data?.url ?? null
+      }
     },
   },
 )
@@ -89,11 +90,15 @@ const { progress: imageProgress, isFailed: imageFailed } = useTaskProgress(
 const { progress: threeDProgress, isFailed: threeDFailed } = useTaskProgress(
   threeDTaskId,
   {
-    onComplete: (output: unknown) => {
+    onComplete: async (output: unknown) => {
       currentStep.value = 4
       const out = output as Record<string, any>
-      if (out?.url) threeDResult.value = out.url
-      else if (out?.storageKey) threeDResult.value = out.storageKey
+      if (out?.modelAssetId) {
+        const { data } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: out.modelAssetId } },
+        })
+        threeDResult.value = data?.url ?? null
+      }
     },
   },
 )
@@ -131,7 +136,6 @@ const generate3DMutation = useMutation({
         parentTaskId: taskId.value ?? undefined,
         input: {
           sourceAssetId: imageAssetId.value,
-          sourceImageUrl: imageResultUrl.value,
         },
       },
     })
@@ -163,7 +167,6 @@ function handleReset() {
   threeDTaskId.value = null
   imageResult.value = null
   imageAssetId.value = null
-  imageResultUrl.value = null
   threeDResult.value = null
   selectedStyle.value = null
 }
@@ -204,17 +207,16 @@ function handleReset() {
             <!-- Style Selector -->
             <div v-if="availableStyles.length > 0" class="rounded-xl border bg-card p-6 space-y-4">
               <h3 class="font-medium">{{ t('tools.selectStyle') }}</h3>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div class="grid grid-cols-4 gap-2">
                 <button
                   v-for="style in availableStyles"
                   :key="style.id"
                   type="button"
-                  class="rounded-lg border p-3 text-center text-sm transition-colors"
-                  :class="selectedStyle === style.id ? 'border-primary bg-primary/10' : 'hover:border-primary/50'"
+                  class="rounded-lg border overflow-hidden transition-colors"
+                  :class="selectedStyle === style.id ? 'border-primary ring-2 ring-primary/30' : 'hover:border-primary/50'"
                   @click="selectedStyle = style.id"
                 >
-                  <img v-if="style.imageUrl" :src="style.imageUrl" :alt="style.name" class="w-full aspect-square object-cover rounded mb-2" />
-                  {{ style.name }}
+                  <img v-if="style.imageUrl" :src="style.imageUrl" alt="" class="w-full aspect-square object-cover" />
                 </button>
               </div>
             </div>
@@ -256,18 +258,18 @@ function handleReset() {
 
           <!-- Step 2: Image Result -->
           <div v-if="currentStep === 2" class="space-y-6">
-            <div class="rounded-xl border bg-card p-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div class="space-y-2">
                   <p class="text-sm font-medium text-muted-foreground">{{ t('tools.original') }}</p>
                   <div class="rounded-lg border overflow-hidden bg-muted">
-                    <img v-if="upload.preview.value" :src="upload.preview.value" :alt="t('tools.original')" class="w-full object-contain max-h-64" />
+                    <img v-if="upload.preview.value" :src="upload.preview.value" :alt="t('tools.original')" class="w-full object-contain" />
                   </div>
                 </div>
                 <div class="space-y-2">
                   <p class="text-sm font-medium text-muted-foreground">{{ t('tools.generated') }}</p>
                   <div class="rounded-lg border overflow-hidden bg-muted">
-                    <img v-if="imageResult" :src="imageResult" :alt="t('tools.generated')" class="w-full object-contain max-h-64" />
+                    <img v-if="imageResult" :src="imageResult" :alt="t('tools.generated')" class="w-full object-contain" />
                   </div>
                 </div>
               </div>

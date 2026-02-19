@@ -85,7 +85,23 @@
     "backToImage": "Zurück zum Bild",
     "clickToUpload": "Klicken Sie zum Hochladen oder ziehen Sie Dateien hierher",
     "preview": "Vorschau",
-    "workspacePlaceholder": "Dies ist ein Platzhalter-Arbeitsbereich. Jedes Tool hat seine eigene spezialisierte Oberfläche."
+    "workspacePlaceholder": "Dies ist ein Platzhalter-Arbeitsbereich. Jedes Tool hat seine eigene spezialisierte Oberfläche.",
+    "progress": {
+      "connecting": "Verbinden...",
+      "connected": "Verbunden",
+      "pending": "Ausstehend",
+      "queued": "In Warteschlange",
+      "processing": "Verarbeitung",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen"
+    },
+    "upload": {
+      "dropHint": "Bild hierher ziehen oder",
+      "browse": "durchsuchen",
+      "formats": "PNG, JPG, WebP bis zu {size}MB",
+      "invalidType": "Bitte wählen Sie eine Bilddatei",
+      "sizeExceeded": "Dateigröße überschreitet {size}MB Limit"
+    }
   },
   "pricing": {
     "title": "Pricing",

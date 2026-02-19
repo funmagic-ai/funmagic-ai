@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ToolDefinition, SavedToolConfig, StepConfig, StepProvider, Field, NumberField } from '@funmagic/shared/tool-registry'
+import type { ToolDefinition, SavedToolConfig, StepConfig, StepProvider, Field, NumberField, ArrayField } from '@funmagic/shared/tool-registry'
 import { useI18n } from 'vue-i18n'
 import ConfigFieldRenderer from './ConfigFieldRenderer.vue'
 
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
   modelValue: SavedToolConfig
   definition: ToolDefinition | null
   providers?: Provider[]
+  translations?: Record<string, Record<string, unknown>>
   title?: string
 }>(), {
   title: 'Tool Configuration',
@@ -23,7 +24,35 @@ const emit = defineEmits<{
   'update:modelValue': [value: SavedToolConfig]
 }>()
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
+
+/** Locale-aware field label: checks tools.fields.{name} first, falls back to camelCase splitting */
+function fieldLabel(name: string): string {
+  const key = `tools.fields.${name}`
+  if (te(key)) return t(key)
+  return name
+    .split(/(?=[A-Z])/)
+    .join(' ')
+    .replace(/^\w/, (c) => c.toUpperCase())
+}
+
+/** Get localized step name: translations JSON > definition i18n > English fallback */
+function localizedStepName(stepId: string, fallback: string): string {
+  const loc = locale.value
+  const fromTranslations = (props.translations?.[loc] as Record<string, unknown>)?.steps as Record<string, { name?: string }> | undefined
+  return fromTranslations?.[stepId]?.name
+    ?? props.definition?.i18n?.[loc]?.steps?.[stepId]?.name
+    ?? fallback
+}
+
+/** Get localized step description: translations JSON > definition i18n > English fallback */
+function localizedStepDescription(stepId: string, fallback?: string): string | undefined {
+  const loc = locale.value
+  const fromTranslations = (props.translations?.[loc] as Record<string, unknown>)?.steps as Record<string, { description?: string }> | undefined
+  return fromTranslations?.[stepId]?.description
+    ?? props.definition?.i18n?.[loc]?.steps?.[stepId]?.description
+    ?? fallback
+}
 
 const steps = computed(() => props.modelValue.steps ?? [])
 
@@ -222,6 +251,32 @@ function removeCustomOption(stepId: string, key: string) {
   delete existing[key]
   updateCustomProviderOptions(stepId, existing)
 }
+
+/**
+ * Validate config fields, returning an error message or null if valid.
+ * Checks minItems constraints on array fields.
+ */
+function validate(): string | null {
+  const def = props.definition
+  if (!def) return null
+
+  for (const stepDef of def.steps) {
+    const stepConfig = getStepConfig(stepDef.id)
+    for (const [fieldName, fieldDef] of Object.entries(stepDef.fields)) {
+      if (fieldDef.type === 'array') {
+        const arrayField = fieldDef as ArrayField
+        const value = stepConfig[fieldName] as unknown[] | undefined
+        const count = value?.length ?? 0
+        if (arrayField.minItems && count < arrayField.minItems) {
+          return t('validation.arrayMinItems', { step: stepDef.name, field: fieldLabel(fieldName), min: arrayField.minItems, count })
+        }
+      }
+    }
+  }
+  return null
+}
+
+defineExpose({ validate })
 </script>
 
 <template>
@@ -238,8 +293,8 @@ function removeCustomOption(stepId: string, key: string) {
       >
         <!-- Step Header -->
         <div>
-          <h3 class="text-base font-semibold">{{ t('tools.step') }} {{ index + 1 }}: {{ stepDef.name }}</h3>
-          <p v-if="stepDef.description" class="text-sm text-muted-foreground mt-0.5">{{ stepDef.description }}</p>
+          <h3 class="text-base font-semibold">{{ t('tools.step') }} {{ index + 1 }}: {{ localizedStepName(stepDef.id, stepDef.name) }}</h3>
+          <p v-if="localizedStepDescription(stepDef.id, stepDef.description)" class="text-sm text-muted-foreground mt-0.5">{{ localizedStepDescription(stepDef.id, stepDef.description) }}</p>
         </div>
 
         <!-- Provider + Model + Cost row -->
@@ -257,7 +312,7 @@ function removeCustomOption(stepId: string, key: string) {
               {{ t('common.inactive') }}
             </n-tag>
             <n-tag v-if="!findProvider(stepDef.provider.name)" type="error" size="small">
-              Not Configured
+              {{ t('errors.PROVIDER_NOT_CONFIGURED') }}
             </n-tag>
           </div>
 
@@ -305,7 +360,7 @@ function removeCustomOption(stepId: string, key: string) {
           <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div v-for="(optionDef, optionName) in stepDef.overridableOptions" :key="optionName" class="space-y-1">
               <div class="text-xs text-muted-foreground">
-                {{ String(optionName).split(/(?=[A-Z])/).join(' ').replace(/^\w/, (c: string) => c.toUpperCase()) }}
+                {{ fieldLabel(String(optionName)) }}
               </div>
               <!-- String with options -->
               <n-select

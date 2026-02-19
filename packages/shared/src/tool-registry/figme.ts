@@ -110,19 +110,10 @@ export const figmeDefinition: ToolDefinition = {
         },
         styleReferences: {
           type: 'array',
+          minItems: 1,
           maxItems: 8,
-          description: 'Style reference images',
+          description: 'Style reference images (at least one required)',
           itemFields: {
-            id: {
-              type: 'string',
-              required: true,
-              description: 'Unique identifier for this style',
-            },
-            name: {
-              type: 'string',
-              required: true,
-              description: 'Display name for this style',
-            },
             imageUrl: {
               type: 'string',
               required: true,
@@ -131,7 +122,15 @@ export const figmeDefinition: ToolDefinition = {
             },
             prompt: {
               type: 'string',
-              description: 'Optional style-specific prompt override',
+              required: false,
+              description: 'Custom prompt for this style (overrides step-level prompt)',
+              placeholder: 'Leave empty to use the default prompt above',
+            },
+            useStyleImage: {
+              type: 'boolean',
+              required: false,
+              default: true,
+              description: 'Whether to send this style image to the AI along with the user image',
             },
           },
         },

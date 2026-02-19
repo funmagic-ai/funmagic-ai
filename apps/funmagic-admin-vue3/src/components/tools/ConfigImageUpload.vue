@@ -30,7 +30,9 @@ async function handleFileSelect(file: File | null) {
   if (result) {
     urlValue.value = result.storageKey
     props.onChange(result.storageKey)
-    upload.reset()
+    // Keep the local blob preview alive so the image remains visible
+    // until the page reloads and gets a CDN URL from the backend.
+    // The blob URL is cleaned up on unmount or next file selection.
   }
 }
 

@@ -29,6 +29,13 @@ function formatElapsed(seconds: number): string {
   return m > 0 ? `${m}m ${s}s` : `${s}s`
 }
 
+function displayError(raw: string | null | undefined): string {
+  if (!raw) return t('errors.fallback')
+  const key = `errors.${raw}`
+  const resolved = t(key)
+  return resolved !== key ? resolved : t('errors.fallback')
+}
+
 function formatTime(dateStr: string): string {
   const d = new Date(dateStr)
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
@@ -331,7 +338,7 @@ watch(() => rounds.value.length, () => {
                 v-else-if="round.assistant.status === 'failed'"
                 class="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3"
               >
-                <p class="text-sm text-destructive">{{ round.assistant.error }}</p>
+                <p class="text-sm text-destructive">{{ displayError(round.assistant.error) }}</p>
               </div>
 
               <!-- Completed: text content -->

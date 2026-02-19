@@ -176,6 +176,27 @@ export function getPublicCdnUrl(storageKey: string, config?: StorageConfig): str
 }
 
 /**
+ * Strip CDN/S3 prefix from a URL to get back the storage key.
+ * If the value is already a storage key (no prefix), returns it unchanged.
+ */
+export function stripCdnPrefix(url: string, config?: StorageConfig): string {
+  const finalConfig = config || getDefaultConfig();
+
+  // Strip CDN base URL prefix
+  if (finalConfig.cdnBaseUrl && url.startsWith(finalConfig.cdnBaseUrl + '/')) {
+    return url.slice(finalConfig.cdnBaseUrl.length + 1);
+  }
+
+  // Strip S3 direct URL prefix
+  const s3Prefix = `${finalConfig.endpoint}/${finalConfig.buckets.public}/`;
+  if (url.startsWith(s3Prefix)) {
+    return url.slice(s3Prefix.length);
+  }
+
+  return url;
+}
+
+/**
  * Resolve the appropriate URL for an asset based on visibility
  */
 export async function resolveAssetUrl(

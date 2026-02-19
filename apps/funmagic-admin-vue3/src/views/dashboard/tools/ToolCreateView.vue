@@ -119,6 +119,7 @@ const formData = reactive({
 const translations = ref<Record<string, Record<string, string>>>({})
 const toolConfig = ref<SavedToolConfig>({ steps: [] })
 
+const toolConfigFormRef = ref<{ validate: () => string | null } | null>(null)
 const translationsRef = ref<{ validate: () => string | null } | null>(null)
 
 const translationFields = [
@@ -240,6 +241,11 @@ const createMutation = useMutation({
 
 async function handleSubmit() {
   if (!await validateForm(formRef)) return
+  const configError = toolConfigFormRef.value?.validate()
+  if (configError) {
+    message.error(configError)
+    return
+  }
   const translationError = translationsRef.value?.validate()
   if (translationError) {
     message.error(translationError)
@@ -319,9 +325,11 @@ async function handleSubmit() {
       </div>
 
       <ToolConfigForm
+        ref="toolConfigFormRef"
         v-model="toolConfig"
         :definition="currentDefinition"
         :providers="providers"
+        :translations="translations"
         :title="t('tools.configuration')"
       />
 

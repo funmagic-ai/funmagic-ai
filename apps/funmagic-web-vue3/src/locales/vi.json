@@ -85,7 +85,23 @@
     "backToImage": "Quay lại hình ảnh",
     "clickToUpload": "Nhấn để tải lên hoặc kéo thả",
     "preview": "Xem trước",
-    "workspacePlaceholder": "Đây là không gian làm việc mẫu. Mỗi công cụ có giao diện chuyên biệt riêng."
+    "workspacePlaceholder": "Đây là không gian làm việc mẫu. Mỗi công cụ có giao diện chuyên biệt riêng.",
+    "progress": {
+      "connecting": "Đang kết nối...",
+      "connected": "Đã kết nối",
+      "pending": "Đang chờ",
+      "queued": "Trong hàng đợi",
+      "processing": "Đang xử lý",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại"
+    },
+    "upload": {
+      "dropHint": "Thả hình ảnh vào đây hoặc",
+      "browse": "duyệt",
+      "formats": "PNG, JPG, WebP tối đa {size}MB",
+      "invalidType": "Vui lòng chọn tệp hình ảnh",
+      "sizeExceeded": "Kích thước tệp vượt quá giới hạn {size}MB"
+    }
   },
   "pricing": {
     "title": "Pricing",

@@ -28,7 +28,6 @@ const currentStep = ref(0)
 // Background removal task
 const bgRemoveTaskId = ref<string | null>(null)
 const bgRemovedAssetId = ref<string | null>(null)
-const bgRemovedImageUrl = ref<string | null>(null)
 
 // Point cloud generation task
 const cloudTaskId = ref<string | null>(null)
@@ -90,9 +89,8 @@ const { progress: bgProgress, isFailed: bgFailed } = useTaskProgress(
       bgRemoveTaskId.value = null
       const out = output as Record<string, string>
       bgRemovedAssetId.value = out?.assetId ?? null
-      bgRemovedImageUrl.value = out?.bgRemovedImageUrl ?? null
       // Auto-start point cloud generation
-      if (bgRemovedAssetId.value && bgRemovedImageUrl.value) {
+      if (bgRemovedAssetId.value) {
         startCloudGeneration()
       }
     },
@@ -165,7 +163,6 @@ const cloudMutation = useMutation({
         parentTaskId: bgRemoveTaskId.value ?? undefined,
         input: {
           sourceAssetId: bgRemovedAssetId.value,
-          bgRemovedImageUrl: bgRemovedImageUrl.value,
         },
       },
     })
@@ -196,7 +193,6 @@ function handleReset() {
   bgRemoveTaskId.value = null
   cloudTaskId.value = null
   bgRemovedAssetId.value = null
-  bgRemovedImageUrl.value = null
   cloudOutput.value = null
   pointCloudData.value = null
   loadingPointCloud.value = false

@@ -52,7 +52,13 @@ const { data: projectData, isLoading } = useQuery({
   },
   refetchInterval: (query) => {
     const gens = query.state.data?.generations ?? []
-    return gens.some(g => g.status === 'pending' || g.status === 'processing') ? 3000 : false
+    // Only poll if there are active generations that aren't stale (< 10 min old)
+    const STALE_THRESHOLD_MS = 10 * 60 * 1000
+    const hasActive = gens.some(g =>
+      (g.status === 'pending' || g.status === 'processing')
+      && (Date.now() - new Date(g.createdAt).getTime()) < STALE_THRESHOLD_MS,
+    )
+    return hasActive ? 3000 : false
   },
   refetchIntervalInBackground: false,
 })

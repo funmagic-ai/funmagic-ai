@@ -376,7 +376,7 @@ Install -> Seed DB -> Create Super Admin -> Configure Providers -> Add Tools
 1. **Deploy** - Deploy all services including Vue 3 admin app
 2. **Create Super Admin** - Use seed script or register + manually update role
 3. **Configure Providers** - Add AI providers with API keys
-4. **Create Tool Types** - Add categories with icons/colors
+4. **Create Tool Types** - Add categories with title and description
 5. **Create Tools** - Create tool records, link to providers
 6. **Configure Banners** - Add promotional banners
 7. **Activate & Launch** - Toggle tools to active
@@ -479,7 +479,7 @@ Admin Login -> Settings -> Rate Limits -> View/Update Tiers -> View/Update Categ
 3. **Edit Tiers** - Modify tier thresholds and multipliers:
    - Each tier has a `name`, `minPurchased` threshold, and `multiplier`
    - Users are automatically assigned tiers based on `credits.lifetimePurchased`
-   - Example: Free (1x), Basic ($100+ → 1.5x), Premium ($500+ → 2x), VIP ($2000+ → 3x)
+   - Defaults: Free (1x), Basic (minPurchased: 1 → 2x), Premium (minPurchased: 1000 → 3x)
 4. **Edit Category Limits** - Adjust base `max` for each of the 6 categories:
    - `globalApi` — IP-based ceiling on all API routes
    - `userApi` — Per-user authenticated API throughput
@@ -538,8 +538,9 @@ This separation allows:
 2. **Add Provider** - Fill in:
    - Name (identifier, e.g., `openai`)
    - Display Name
-   - Type
+   - Description (optional)
    - API Key (encrypted with AES-256-GCM before storage)
+   - API Secret (optional, encrypted, for providers that need a secondary key)
    - Base URL (optional, for custom endpoints)
 3. **Configure Rate Limits** (optional) - Set `config.rateLimit` on the provider:
    ```json

@@ -1,5 +1,7 @@
 import { fal } from '@fal-ai/client';
+import { ERROR_CODES } from '@funmagic/shared';
 import { isProvider429Error } from '../lib/provider-errors';
+import { TaskError } from '../lib/task-error';
 import { db, tasks, providers } from '@funmagic/database';
 import { eq } from 'drizzle-orm';
 import type { ToolWorker, WorkerContext, StepResult, StepConfig, ToolConfig } from '../types';
@@ -47,7 +49,7 @@ interface BackgroundRemoveConfig extends ToolConfig {
 function getProviderModel(step: StepConfigWithProvider): string {
   const model = step.provider?.model;
   if (!model) {
-    throw new Error(`No model configured for step "${step.id}"`);
+    throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, `No model configured for step "${step.id}"`);
   }
   return model;
 }
@@ -73,7 +75,7 @@ export const backgroundRemoveWorker: ToolWorker = {
       });
 
       if (!task || !task.tool) {
-        throw new Error('Task or tool not found');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'Task or tool not found');
       }
 
       const config = task.tool.config as BackgroundRemoveConfig;
@@ -83,13 +85,13 @@ export const backgroundRemoveWorker: ToolWorker = {
       const step = config.steps[0];
 
       if (!step) {
-        throw new Error('No step configured for background remove tool');
+        throw new TaskError(ERROR_CODES.TASK_CONFIG_ERROR, 'No step configured for background remove tool');
       }
 
       // Get provider by name from step config
       const providerName = step.provider?.name;
       if (!providerName) {
-        throw new Error('No provider configured for background removal');
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, 'No provider configured for background removal');
       }
 
       const allProviders = await db.query.providers.findMany();
@@ -98,13 +100,13 @@ export const backgroundRemoveWorker: ToolWorker = {
       );
 
       if (!provider) {
-        throw new Error(`Provider "${providerName}" not found or inactive`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `Provider "${providerName}" not found or inactive`);
       }
 
       const credentials = decryptCredentials(provider);
 
       if (!credentials.apiKey) {
-        throw new Error(`No API key configured for provider "${provider.displayName}"`);
+        throw new TaskError(ERROR_CODES.TASK_SERVICE_UNAVAILABLE, `No API key configured for provider "${provider.displayName}"`);
       }
 
       await progress.startStep(step.id, step.name || 'Processing');
@@ -116,7 +118,7 @@ export const backgroundRemoveWorker: ToolWorker = {
       }
 
       if (!imageUrl) {
-        throw new Error('Image URL or storage key is required');
+        throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'Image URL or storage key is required');
       }
 
       await progress.updateProgress(5, 'Preparing image');
@@ -128,7 +130,7 @@ export const backgroundRemoveWorker: ToolWorker = {
       await progress.updateProgress(10, 'Uploading to processing server');
       const imageResponse = await fetch(imageUrl);
       if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imageResponse.status}`);
+        throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
       }
       const imageBlob = await imageResponse.blob();
       const falImageUrl = await fal.storage.upload(imageBlob);
@@ -156,7 +158,7 @@ export const backgroundRemoveWorker: ToolWorker = {
       }) as { data: FalResult; requestId?: string };
 
       if (!result.data?.image?.url) {
-        throw new Error('No image URL in fal.ai response');
+        throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image URL in fal.ai response');
       }
 
       await progress.updateProgress(90, 'Saving result');
@@ -180,8 +182,6 @@ export const backgroundRemoveWorker: ToolWorker = {
         output: {
           assetId: asset.id,
           storageKey: asset.storageKey,
-          originalUrl: imageUrl,
-          processedUrl: result.data.image.url,
         },
         providerRequest: { model: modelId, input: providerInput },
         providerResponse: { data: result.data },
@@ -192,11 +192,17 @@ export const backgroundRemoveWorker: ToolWorker = {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      await progress.fail(errorMessage);
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      console.error(`[background-remove] Task ${taskId} failed: ${technicalMessage}`);
+
+      await progress.fail(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },

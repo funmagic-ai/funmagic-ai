@@ -1,4 +1,5 @@
 import { db, assets } from '@funmagic/database';
+import { eq } from 'drizzle-orm';
 import {
   getBucketForVisibility,
   getPresignedDownloadUrl,
@@ -209,6 +210,16 @@ export async function getDownloadUrl(storageKey: string, expiresIn?: number): Pr
  */
 export async function getAdminDownloadUrl(storageKey: string, expiresIn?: number): Promise<string> {
   return getPresignedDownloadUrl({ bucket: BUCKET_ADMIN, storageKey, expiresIn });
+}
+
+/**
+ * Look up an asset by ID and return a presigned download URL.
+ * Useful for multi-step workers where step 2 needs to fetch step 1's output.
+ */
+export async function getAssetDownloadUrl(assetId: string): Promise<string> {
+  const asset = await db.query.assets.findFirst({ where: eq(assets.id, assetId) });
+  if (!asset) throw new Error(`Asset ${assetId} not found`);
+  return getDownloadUrl(asset.storageKey);
 }
 
 /**

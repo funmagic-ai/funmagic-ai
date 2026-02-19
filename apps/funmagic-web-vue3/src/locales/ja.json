@@ -85,7 +85,23 @@
     "backToImage": "画像に戻る",
     "clickToUpload": "クリックしてアップロードまたはドラッグ＆ドロップ",
     "preview": "プレビュー",
-    "workspacePlaceholder": "これはプレースホルダーワークスペースです。各ツールには専用のインターフェースがあります。"
+    "workspacePlaceholder": "これはプレースホルダーワークスペースです。各ツールには専用のインターフェースがあります。",
+    "progress": {
+      "connecting": "接続中...",
+      "connected": "接続済み",
+      "pending": "待機中",
+      "queued": "キュー中",
+      "processing": "処理中",
+      "completed": "完了",
+      "failed": "失敗"
+    },
+    "upload": {
+      "dropHint": "画像をここにドロップするか",
+      "browse": "参照",
+      "formats": "PNG、JPG、WebP 最大{size}MB",
+      "invalidType": "画像ファイルを選択してください",
+      "sizeExceeded": "ファイルサイズが{size}MBの制限を超えています"
+    }
   },
   "pricing": {
     "title": "Pricing",

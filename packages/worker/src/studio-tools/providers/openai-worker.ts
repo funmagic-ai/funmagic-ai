@@ -1,5 +1,7 @@
 import OpenAI from 'openai';
 import { isProvider429Error } from '../../lib/provider-errors';
+import { TaskError } from '../../lib/task-error';
+import { ERROR_CODES } from '@funmagic/shared';
 import { createLogger } from '@funmagic/services';
 import type {
   StudioProviderWorker,
@@ -152,7 +154,7 @@ export const openaiWorker: StudioProviderWorker = {
         if (eventType === 'error') {
           const errorMsg = event.error?.message || 'Stream error';
           taskLog.error({ err: errorMsg }, 'Stream error');
-          throw new Error(errorMsg);
+          throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, errorMsg);
         }
 
         // Response completed - log final state
@@ -164,7 +166,7 @@ export const openaiWorker: StudioProviderWorker = {
       // Only error if BOTH image and text are empty
       if (images.length === 0 && !fullText) {
         taskLog.error('No content received from stream');
-        throw new Error('No response from OpenAI (no image or text)');
+        throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No response from OpenAI (no image or text)');
       }
 
       // Send completion event
@@ -197,12 +199,16 @@ export const openaiWorker: StudioProviderWorker = {
       // Rethrow 429 errors so the parent worker can reschedule via DelayedError
       if (isProvider429Error(error)) throw error;
 
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      taskLog.error({ err: errorMessage }, 'Failed');
-      await progress.error(errorMessage);
+      const userFacingError = error instanceof TaskError
+        ? error.code
+        : ERROR_CODES.TASK_PROCESSING_FAILED;
+      const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      taskLog.error({ err: technicalMessage }, 'Failed');
+      await progress.error(userFacingError);
       return {
         success: false,
-        error: errorMessage,
+        error: userFacingError,
       };
     }
   },
