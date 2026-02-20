@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { SettingsOutline, DownloadOutline, ImageOutline } from '@vicons/ionicons5'
+import { SettingsOutline, DownloadOutline, ImageOutline, AddOutline, RemoveOutline, RefreshOutline } from '@vicons/ionicons5'
 
 const { t } = useI18n()
 
@@ -36,17 +36,29 @@ let camera: THREE.PerspectiveCamera | null = null
 let controls: OrbitControls | null = null
 let model: THREE.Group | null = null
 let animationId: number | null = null
+let wireframeOverlays: THREE.LineSegments[] = []
 
 function applyWireframe(obj: THREE.Object3D, enabled: boolean) {
+  // Remove existing overlays
+  for (const overlay of wireframeOverlays) {
+    overlay.parent?.remove(overlay)
+    overlay.geometry.dispose()
+    ;(overlay.material as THREE.Material).dispose()
+  }
+  wireframeOverlays = []
+
+  if (!enabled) return
+
+  // Add wireframe overlay on each mesh
   obj.traverse((child) => {
-    if (child instanceof THREE.Mesh) {
-      const materials = Array.isArray(child.material) ? child.material : [child.material]
-      for (const mat of materials) {
-        if (mat instanceof THREE.MeshStandardMaterial || mat instanceof THREE.MeshPhysicalMaterial || mat instanceof THREE.MeshBasicMaterial || mat instanceof THREE.MeshPhongMaterial || mat instanceof THREE.MeshLambertMaterial) {
-          mat.wireframe = enabled
-        }
-      }
-    }
+    if (!(child instanceof THREE.Mesh)) return
+    const edges = new THREE.EdgesGeometry(child.geometry, 15)
+    const line = new THREE.LineSegments(
+      edges,
+      new THREE.LineBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.6 }),
+    )
+    child.add(line)
+    wireframeOverlays.push(line)
   })
 }
 
@@ -127,6 +139,10 @@ function initThree() {
       model = gltf.scene
       scene!.add(model)
 
+      // Place model bottom on the grid (y=0)
+      const box = new THREE.Box3().setFromObject(model)
+      model.position.y -= box.min.y
+
       triangleCount.value = countTriangles(model)
       fitCameraToModel(model)
       applyWireframe(model, wireframe.value)
@@ -161,6 +177,19 @@ function handleResize() {
   camera.updateProjectionMatrix()
 }
 
+function handleZoom(factor: number) {
+  if (!camera || !controls) return
+  const direction = new THREE.Vector3()
+  camera.getWorldDirection(direction)
+  camera.position.addScaledVector(direction, factor)
+  controls.update()
+}
+
+function handleResetView() {
+  if (!model) return
+  fitCameraToModel(model)
+}
+
 function handleDownload() {
   const url = props.downloadUrl ?? props.url
   const a = document.createElement('a')
@@ -174,6 +203,12 @@ function cleanupThree() {
     cancelAnimationFrame(animationId)
     animationId = null
   }
+  // Dispose wireframe overlays
+  for (const overlay of wireframeOverlays) {
+    overlay.geometry.dispose()
+    ;(overlay.material as THREE.Material).dispose()
+  }
+  wireframeOverlays = []
   if (model) {
     model.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -246,6 +281,33 @@ onUnmounted(() => {
         </div>
         <!-- Top-right icon buttons -->
         <div class="absolute top-3 right-3 flex items-center gap-2">
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-md bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
+            title="Zoom in"
+            @click="handleZoom(2)"
+          >
+            <n-icon :size="18">
+              <AddOutline />
+            </n-icon>
+          </button>
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-md bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
+            title="Zoom out"
+            @click="handleZoom(-2)"
+          >
+            <n-icon :size="18">
+              <RemoveOutline />
+            </n-icon>
+          </button>
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-md bg-zinc-800/80 text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"
+            title="Reset view"
+            @click="handleResetView"
+          >
+            <n-icon :size="18">
+              <RefreshOutline />
+            </n-icon>
+          </button>
           <button
             v-if="originalImage"
             class="flex items-center justify-center w-8 h-8 rounded-md text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors cursor-pointer border-0"

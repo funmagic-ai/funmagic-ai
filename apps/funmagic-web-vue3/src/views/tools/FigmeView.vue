@@ -237,7 +237,7 @@ function handleReset() {
               type="primary"
               size="large"
               block
-              :disabled="!upload.pendingFile.value"
+              :disabled="!upload.pendingFile.value || (availableStyles.length > 0 && !selectedStyle)"
               :loading="submitMutation.isPending.value || upload.isUploading.value"
               @click="handleSubmit"
             >
@@ -302,12 +302,9 @@ function handleReset() {
 
           <!-- Step 4: 3D Result -->
           <div v-if="currentStep === 4" class="space-y-6">
-            <div class="space-y-1">
-              <h3 class="text-lg font-semibold">{{ t('tools.resultReady') }}</h3>
-            </div>
-            <Suspense>
+            <Suspense v-if="threeDResult">
               <ModelViewer
-                :url="threeDResult!"
+                :url="threeDResult"
                 :original-image="imageResult ?? undefined"
               />
               <template #fallback>
@@ -319,7 +316,13 @@ function handleReset() {
                 </div>
               </template>
             </Suspense>
-            <n-button @click="handleReset">{{ t('tools.processAnother') }}</n-button>
+            <div v-else class="rounded-lg bg-zinc-900 h-[500px] flex items-center justify-center">
+              <div class="text-center text-muted-foreground">
+                <div class="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2" />
+                <p class="text-sm">{{ t('tools.modelViewer.loading') }}</p>
+              </div>
+            </div>
+            <n-button block @click="handleReset">{{ t('tools.processAnother') }}</n-button>
           </div>
         </template>
       </div>
