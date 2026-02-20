@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "My Creations",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -177,13 +177,43 @@
     }
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?",
-    "deleted": "Asset deleted",
-    "deleteFailed": "Failed to delete asset",
-    "downloadFailed": "Failed to download asset",
-    "downloadUrlFailed": "Failed to get download URL"
+    "title": "My Creations",
+    "noAssets": "No creations yet",
+    "deleteConfirm": "Are you sure you want to delete this creation?",
+    "deleted": "Creation deleted",
+    "deleteFailed": "Failed to delete creation",
+    "downloadFailed": "Failed to download",
+    "downloadUrlFailed": "Failed to get download URL",
+    "loadFailed": "Failed to load creation",
+    "tabs": {
+      "all": "All",
+      "images": "Images",
+      "models": "3D Models",
+      "pointClouds": "Point Clouds"
+    },
+    "types": {
+      "image": "Image",
+      "model": "3D Model",
+      "pointCloud": "Point Cloud",
+      "file": "File"
+    },
+    "status": {
+      "pending": "Pending",
+      "queued": "Queued",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "credits": "{n} credits",
+    "stillProcessing": "This task is still processing...",
+    "taskFailed": "This task failed",
+    "detail": {
+      "filename": "Filename",
+      "size": "Size",
+      "type": "Type",
+      "tool": "Tool",
+      "created": "Created"
+    }
   },
   "help": {
     "subtitle": "Find answers to common questions about using FunMagic AI tools.",

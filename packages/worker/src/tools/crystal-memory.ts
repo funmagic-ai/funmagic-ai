@@ -33,10 +33,13 @@ import sharp from 'sharp';
  *         "name": "replicate",
  *         "model": "vufinder/vggt-1b:...",
  *         "providerOptions": {
+ *           "to_base64": true,
  *           "pcd_source": "point_head",
  *           "return_pcd": true,
- *           "output_image_size": 518,
- *           "scale_extent": 10
+ *           "sampling_rate": 24,
+ *           "alpha_blend_onto": "white",
+ *           "weighted_pose_transform": false,
+ *           "enable_pose_postprocessing": false
  *         }
  *       },
  *       "cost": 15
@@ -50,13 +53,6 @@ interface CrystalMemoryInput {
   imageStorageKey?: string;
   parentTaskId?: string;
   sourceAssetId?: string;
-}
-
-interface VGGTOptions {
-  pcdSource: string;
-  returnPcd: boolean;
-  outputImageSize: number;
-  scaleExtent: number;
 }
 
 interface StepConfigWithProvider extends StepConfig {
@@ -83,6 +79,28 @@ function getMergedProviderOptions(step: StepConfigWithProvider): Record<string, 
   };
 }
 
+/**
+ * Coerce string values from DB config to their proper JS types.
+ * Handles "true"/"false" → boolean, numeric strings → number,
+ * and trims/unquotes string values.
+ */
+function coerceProviderOptions(options: Record<string, unknown>): Record<string, unknown> {
+  const coerced: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (typeof value !== 'string') {
+      coerced[key] = value;
+      continue;
+    }
+    // Trim whitespace and strip surrounding quotes from DB values
+    const trimmed = value.trim().replace(/^["'](.*)["']$/, '$1');
+    if (trimmed === 'true') coerced[key] = true;
+    else if (trimmed === 'false') coerced[key] = false;
+    else if (trimmed !== '' && !isNaN(Number(trimmed))) coerced[key] = Number(trimmed);
+    else coerced[key] = trimmed;
+  }
+  return coerced;
+}
+
 interface CrystalMemoryConfig extends ToolConfig {
   steps: StepConfigWithProvider[];
 }
@@ -90,6 +108,18 @@ interface CrystalMemoryConfig extends ToolConfig {
 interface VGGTOutput {
   txt: string;
   conf: number[];
+}
+
+/** New tensor format returned by latest VGGT versions on Replicate */
+interface TensorData {
+  shape: number[];
+  dtype: string;
+  data: string; // base64-encoded float32 buffer
+}
+
+interface VGGTDataTensor {
+  world_points: TensorData;
+  world_points_conf?: TensorData;
 }
 
 interface FalResult {
@@ -344,14 +374,12 @@ async function executeVGGTStep(params: {
     }
     const imageUrl = await getAssetDownloadUrl(input.sourceAssetId);
 
-    // Get VGGT options from step provider options
-    const providerOptions = getMergedProviderOptions(stepConfig);
-    const vggtOptions: VGGTOptions = {
-      pcdSource: (providerOptions.pcd_source as string) || (providerOptions.pcdSource as string) || 'point_head',
-      returnPcd: (providerOptions.return_pcd as boolean) ?? (providerOptions.returnPcd as boolean) ?? true,
-      outputImageSize: (providerOptions.output_image_size as number) || (providerOptions.outputImageSize as number) || 518,
-      scaleExtent: (providerOptions.scale_extent as number) || (providerOptions.scaleExtent as number) || 10,
-    };
+    // Post-processing constants
+    const OUTPUT_IMAGE_SIZE = 518;
+    const SCALE_EXTENT = 10;
+
+    // All provider options are forwarded to Replicate (coerce string types from DB)
+    const apiOptions = coerceProviderOptions(getMergedProviderOptions(stepConfig));
 
     await progress.updateProgress(5, 'Preparing image for VGGT');
 
@@ -375,13 +403,14 @@ async function executeVGGTStep(params: {
 
     await progress.updateProgress(15, 'Calling VGGT API');
 
-    // Build provider request
+    console.log(`[crystal-memory] VGGT apiOptions for task ${taskId}:`, JSON.stringify(apiOptions));
+
+    // Build provider request — forward all API options from config
     const replicateInput = {
-      images: [imageDataUri],
-      pcd_source: vggtOptions.pcdSource,
-      return_pcd: vggtOptions.returnPcd,
+      inputs: [imageDataUri],
+      ...apiOptions,
     };
-    providerRequest = { model: modelId, input: { ...replicateInput, images: ['[data_uri]'] } };
+    providerRequest = { model: modelId, input: { ...replicateInput, inputs: ['[data_uri]'] } };
     providerMeta = { provider: 'replicate', model: modelId, stepId: stepConfig.id };
 
     // Run VGGT prediction using Replicate SDK - it handles polling automatically
@@ -402,28 +431,24 @@ async function executeVGGTStep(params: {
     if (!dataResponse.ok) {
       throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Failed to fetch VGGT data file');
     }
-    const vggtData = await dataResponse.json() as {
-      world_points?: number[][][];
-      world_points_conf?: number[][];
-    };
+    const vggtData = await dataResponse.json() as VGGTDataTensor;
 
-    if (!vggtData.world_points) {
+    if (!vggtData.world_points?.data) {
       throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No world_points in VGGT data');
     }
 
-    const worldPoints = vggtData.world_points;
-    const confidence = vggtData.world_points_conf ?? [];
-
     await progress.updateProgress(85, 'Processing point cloud data');
 
-    // Reshape points from (H, W, 3) to (N, 3)
-    const { points: rawPoints, height, width } = reshapePoints(worldPoints);
+    const { points: rawPoints, height, width } = parseTensorPoints(vggtData.world_points);
+    const flatConfidence = vggtData.world_points_conf
+      ? parseTensorConfidence(vggtData.world_points_conf)
+      : [];
 
     // Rotate 180 degrees around Y axis
     const rotatedPoints = rotateAroundZ(rawPoints);
 
     // Center and scale to [-extent, extent]
-    const scaledPoints = centerAndScale(rotatedPoints, vggtOptions.scaleExtent);
+    const scaledPoints = centerAndScale(rotatedPoints, SCALE_EXTENT);
 
     await progress.updateProgress(90, 'Extracting colors');
 
@@ -432,11 +457,8 @@ async function executeVGGTStep(params: {
       imageUrl,
       height,
       width,
-      outputSize: vggtOptions.outputImageSize,
+      outputSize: OUTPUT_IMAGE_SIZE,
     });
-
-    // Flatten confidence
-    const flatConfidence = flattenConfidence(confidence);
 
     await progress.updateProgress(95, 'Generating output');
 
@@ -482,53 +504,30 @@ async function executeVGGTStep(params: {
       : ERROR_CODES.TASK_PROCESSING_FAILED;
     const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
 
-    console.error(`[crystal-memory] VGGT task ${taskId} failed: ${technicalMessage}`);
+    // Extract raw provider response from SDK errors (Replicate, etc.)
+    const providerResponse: Record<string, unknown> = {};
+    if (error instanceof Error) {
+      if ('status' in error) providerResponse.status = (error as any).status;
+      if ('response' in error) {
+        const resp = (error as any).response;
+        providerResponse.statusCode = resp?.status;
+        providerResponse.body = resp?.body ?? resp?.data ?? resp?.text;
+      }
+    }
+
+    console.error(`[crystal-memory] VGGT task ${taskId} failed: ${technicalMessage}`, {
+      providerResponse: Object.keys(providerResponse).length > 0 ? providerResponse : undefined,
+    });
 
     await progress.fail(userFacingError);
     return {
       success: false,
       error: userFacingError,
       providerRequest,
+      providerResponse: Object.keys(providerResponse).length > 0 ? providerResponse : undefined,
       providerMeta,
     };
   }
-}
-
-/**
- * Reshape world_points from (H, W, 3) to (N, 3) flat array
- */
-function reshapePoints(worldPoints: number[][][]): { points: number[][]; height: number; width: number } {
-  // Validate input array
-  if (!Array.isArray(worldPoints) || worldPoints.length === 0) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: array is empty or not an array');
-  }
-
-  const height = worldPoints.length;
-  const width = worldPoints[0]?.length;
-
-  if (!width || width === 0) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: first row is empty');
-  }
-
-  const points: number[][] = [];
-
-  for (let y = 0; y < height; y++) {
-    const row = worldPoints[y];
-    if (!row) continue;
-
-    for (let x = 0; x < width; x++) {
-      const point = row[x];
-      if (point && point.length === 3) {
-        points.push([point[0], point[1], point[2]]);
-      }
-    }
-  }
-
-  if (points.length === 0) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Invalid world_points: no valid 3D points found');
-  }
-
-  return { points, height, width };
 }
 
 /**
@@ -633,16 +632,51 @@ async function extractColorsWithSharp(params: {
 }
 
 /**
- * Flatten confidence from (H, W) to (N,) array
+ * Decode base64-encoded float32 buffer into Float32Array
  */
-function flattenConfidence(confidence: number[][]): number[] {
-  const flat: number[] = [];
-  for (const row of confidence) {
-    for (const val of row) {
-      flat.push(val);
-    }
+function decodeFloat32Base64(base64: string): Float32Array {
+  const buf = Buffer.from(base64, 'base64');
+  // Ensure proper alignment by copying into a new ArrayBuffer
+  const ab = new ArrayBuffer(buf.byteLength);
+  new Uint8Array(ab).set(buf);
+  return new Float32Array(ab);
+}
+
+/**
+ * Parse tensor-format world_points into flat points array
+ */
+function parseTensorPoints(tensor: TensorData): { points: number[][]; height: number; width: number } {
+  const [height, width, channels] = tensor.shape;
+  if (!height || !width || channels !== 3) {
+    throw new TaskError(
+      ERROR_CODES.TASK_PROCESSING_FAILED,
+      `Invalid world_points tensor shape: [${tensor.shape.join(', ')}], expected [H, W, 3]`
+    );
   }
-  return flat;
+
+  const floats = decodeFloat32Base64(tensor.data);
+  const expected = height * width * 3;
+  if (floats.length !== expected) {
+    throw new TaskError(
+      ERROR_CODES.TASK_PROCESSING_FAILED,
+      `world_points data length mismatch: got ${floats.length}, expected ${expected}`
+    );
+  }
+
+  const points: number[][] = [];
+  for (let i = 0; i < floats.length; i += 3) {
+    points.push([floats[i], floats[i + 1], floats[i + 2]]);
+  }
+
+  return { points, height, width };
+}
+
+/**
+ * Parse tensor-format world_points_conf into flat confidence array
+ */
+function parseTensorConfidence(tensor: TensorData): number[] {
+  const floats = decodeFloat32Base64(tensor.data);
+  return Array.from(floats);
 }
 
 /**

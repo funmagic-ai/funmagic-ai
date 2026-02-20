@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "내 작품",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "내 작품",
+    "noAssets": "아직 작품이 없습니다",
+    "deleteConfirm": "이 작품을 삭제하시겠습니까?",
+    "deleted": "작품이 삭제되었습니다",
+    "deleteFailed": "작품 삭제에 실패했습니다",
+    "downloadFailed": "다운로드에 실패했습니다",
+    "downloadUrlFailed": "다운로드 URL을 가져오지 못했습니다",
+    "loadFailed": "작품을 불러오지 못했습니다",
+    "tabs": {
+      "all": "전체",
+      "images": "이미지",
+      "models": "3D 모델",
+      "pointClouds": "포인트 클라우드"
+    },
+    "types": {
+      "image": "이미지",
+      "model": "3D 모델",
+      "pointCloud": "포인트 클라우드",
+      "file": "파일"
+    },
+    "status": {
+      "pending": "대기 중",
+      "queued": "대기열",
+      "processing": "처리 중",
+      "completed": "완료",
+      "failed": "실패"
+    },
+    "credits": "{n} 크레딧",
+    "stillProcessing": "작업이 아직 처리 중입니다...",
+    "taskFailed": "작업이 실패했습니다",
+    "detail": {
+      "filename": "파일명",
+      "size": "크기",
+      "type": "유형",
+      "tool": "도구",
+      "created": "생성일"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

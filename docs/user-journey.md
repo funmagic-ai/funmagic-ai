@@ -301,15 +301,15 @@ When a provider returns a 429 (rate limit exceeded) response, the system handles
 
 1. **Detection** - Worker catches the provider SDK error and identifies it as a 429 via `isProvider429Error()`
 2. **Reschedule** - Job is rescheduled via `DelayedError` (BullMQ) — **not** counted as a task failure
-3. **Exponential backoff** - Retry delays: 1s, 2s, 4s... capped at 60s
+3. **Jittered delay** - Retry delay: 2s base + 0–2s random jitter to prevent thundering herd on recovery
 4. **Max retries** - 3 by default (configurable via `config.rateLimit.maxRetries`)
 5. **Credit safety** - Credits remain reserved during retries, only released on final failure
 6. **User experience** - User sees no difference — the task stays in "processing" state until it completes or exhausts retries
 
 ```
-Worker → Provider API → 429 → DelayedError → re-queued → retry after backoff → Provider API → success
-                                                  ↑                                     |
-                                                  +--------- (if 429 again) ←-----------+
+Worker → Provider API → 429 → DelayedError → re-queued → retry after delay+jitter → Provider API → success
+                                                  ↑                                           |
+                                                  +------------ (if 429 again) ←--------------+
 ```
 
 ---
@@ -564,7 +564,7 @@ This separation allows:
 - **With config** — worker calls `tryAcquire()` before each API call:
   - Denied → job re-queued via `DelayedError` (transparent to user)
   - Allowed → proceeds to API call → `releaseSlot()` in finally block
-- **Provider 429** — auto-retried with exponential backoff if `retryOn429: true`
+- **Provider 429** — auto-retried with jittered delay (2s + 0–2s jitter) if `retryOn429: true`
 
 ### Permissions
 

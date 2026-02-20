@@ -233,7 +233,7 @@ src/
 └── lib/
     ├── credentials.ts               # AES-256-GCM credential decryption
     ├── progress.ts                  # User task progress publishing (Redis Pub/Sub)
-    ├── provider-errors.ts           # Provider 429 detection + exponential backoff
+    ├── provider-errors.ts           # Provider 429 detection
     └── storage.ts                   # S3 upload utilities for workers
 ```
 
@@ -642,7 +642,8 @@ All variables from `.env.example`, grouped by category:
 ### Provider 429 Errors
 
 Provider 429 (rate limit) errors are auto-retried via `DelayedError`:
-- Jobs are rescheduled with exponential backoff (1s, 2s, 4s... capped at 60s), up to 3 retries
+- Jobs are rescheduled with a 2s base delay + 0–2s random jitter, up to 3 retries
+- Jitter desynchronizes retry waves when a provider recovers from being busy
 - They are **not** counted as task failures
 - To tune: set `config.rateLimit` on the provider record with `maxConcurrency`, `maxPerMinute`, `maxPerDay`
 - To disable auto-retry: set `config.rateLimit.retryOn429: false`

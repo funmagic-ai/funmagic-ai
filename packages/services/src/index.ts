@@ -71,6 +71,7 @@ export {
   getProviderRateLimitConfig,
   tryAcquire,
   releaseSlot,
+  markProviderBusy,
 } from './provider-rate-limiter';
 
 // Logger

@@ -6,6 +6,7 @@ import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
+import { useTaskRestore } from '@/composables/useTaskRestore'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 const ModelViewer = defineAsyncComponent(() =>
@@ -29,6 +30,11 @@ const imageAssetId = ref<string | null>(null)
 const threeDTaskId = ref<string | null>(null)
 const threeDResult = ref<string | null>(null)
 const selectedStyle = ref<string | null>(null)
+
+// Task restore
+const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('figme')
+const restored = ref(false)
+const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
 
 // Fetch tool config from API
 const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
@@ -117,6 +123,7 @@ const submitMutation = useMutation({
         stepId: step0Id.value,
         input: {
           imageStorageKey: uploadResult.storageKey,
+          sourceAssetId: uploadResult.assetId,
           styleReferenceId: selectedStyle.value,
         },
       },
@@ -151,6 +158,66 @@ const generate3DMutation = useMutation({
   },
 })
 
+// Restore task state from URL query param
+watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
+  if (!taskIdParam || !tool || restored.value) return
+  restored.value = true
+  const data = await fetchRestoreData()
+  if (!data) return
+
+  const task = data.task
+  const input = task.payload?.input as Record<string, string> | null
+  const output = task.payload?.output as Record<string, string> | null
+  const childTask = task.childTasks?.[0]
+
+  // Fetch source image preview
+  if (input?.sourceAssetId) {
+    fetchSourceImage(input.sourceAssetId)
+  }
+
+  // Helper to fetch image result URL
+  async function loadImageResult(assetId: string) {
+    const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+      params: { path: { id: assetId } },
+    })
+    imageResult.value = urlData?.url ?? null
+    imageAssetId.value = assetId
+  }
+
+  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
+    // Image generation in progress
+    currentStep.value = 1
+    taskId.value = task.id
+  } else if (task.status === 'failed') {
+    currentStep.value = 1
+    taskId.value = task.id
+  } else if (task.status === 'completed') {
+    if (output?.assetId) {
+      await loadImageResult(output.assetId)
+    }
+
+    if (!childTask) {
+      // Image done, no 3D started — user can click "Generate 3D"
+      currentStep.value = 2
+      taskId.value = task.id
+    } else if (childTask.status === 'completed') {
+      // 3D done
+      currentStep.value = 4
+      const childOutput = childTask.payload?.output as Record<string, string> | null
+      if (childOutput?.modelAssetId) {
+        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: childOutput.modelAssetId } },
+        })
+        threeDResult.value = urlData?.url ?? null
+      }
+    } else {
+      // 3D in progress or failed
+      currentStep.value = 3
+      threeDTaskId.value = childTask.id
+    }
+  }
+}, { immediate: true })
+
 function handleFileSelect(file: File | null) {
   upload.setFile(file)
 }
@@ -163,6 +230,8 @@ function handleGenerate3D() {
   generate3DMutation.mutate()
 }
 
+const router = useRouter()
+
 function handleReset() {
   upload.reset()
   currentStep.value = 0
@@ -172,6 +241,11 @@ function handleReset() {
   imageAssetId.value = null
   threeDResult.value = null
   selectedStyle.value = null
+  sourceImageUrl.value = null
+  restored.value = false
+  if (route.query.taskId) {
+    router.replace({ query: { ...route.query, taskId: undefined } })
+  }
 }
 </script>
 
@@ -266,7 +340,7 @@ function handleReset() {
                 <div class="space-y-2">
                   <p class="text-sm font-medium text-muted-foreground">{{ t('tools.original') }}</p>
                   <div class="rounded-lg border overflow-hidden bg-muted">
-                    <img v-if="upload.preview.value" :src="upload.preview.value" :alt="t('tools.original')" class="w-full object-contain" />
+                    <img v-if="originalPreview" :src="originalPreview" :alt="t('tools.original')" class="w-full object-contain" />
                   </div>
                 </div>
                 <div class="space-y-2">

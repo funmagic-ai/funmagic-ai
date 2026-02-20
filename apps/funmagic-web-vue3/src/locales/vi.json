@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "Sáng tạo của tôi",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "Sáng tạo của tôi",
+    "noAssets": "Chưa có sáng tạo nào",
+    "deleteConfirm": "Bạn có chắc chắn muốn xóa sáng tạo này?",
+    "deleted": "Đã xóa sáng tạo",
+    "deleteFailed": "Xóa sáng tạo thất bại",
+    "downloadFailed": "Tải xuống thất bại",
+    "downloadUrlFailed": "Không thể lấy liên kết tải xuống",
+    "loadFailed": "Không thể tải sáng tạo",
+    "tabs": {
+      "all": "Tất cả",
+      "images": "Hình ảnh",
+      "models": "Mô hình 3D",
+      "pointClouds": "Đám mây điểm"
+    },
+    "types": {
+      "image": "Hình ảnh",
+      "model": "Mô hình 3D",
+      "pointCloud": "Đám mây điểm",
+      "file": "Tệp"
+    },
+    "status": {
+      "pending": "Chờ xử lý",
+      "queued": "Trong hàng đợi",
+      "processing": "Đang xử lý",
+      "completed": "Hoàn thành",
+      "failed": "Thất bại"
+    },
+    "credits": "{n} tín dụng",
+    "stillProcessing": "Tác vụ vẫn đang xử lý...",
+    "taskFailed": "Tác vụ thất bại",
+    "detail": {
+      "filename": "Tên tệp",
+      "size": "Kích thước",
+      "type": "Loại",
+      "tool": "Công cụ",
+      "created": "Ngày tạo"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

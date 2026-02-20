@@ -202,13 +202,27 @@ export const backgroundRemoveWorker: ToolWorker = {
         : ERROR_CODES.TASK_PROCESSING_FAILED;
       const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
 
-      console.error(`[background-remove] Task ${taskId} failed: ${technicalMessage}`);
+      // Extract raw provider response from SDK errors
+      const providerResponse: Record<string, unknown> = {};
+      if (error instanceof Error) {
+        if ('status' in error) providerResponse.status = (error as any).status;
+        if ('response' in error) {
+          const resp = (error as any).response;
+          providerResponse.statusCode = resp?.status;
+          providerResponse.body = resp?.body ?? resp?.data ?? resp?.text;
+        }
+      }
+
+      console.error(`[background-remove] Task ${taskId} failed: ${technicalMessage}`, {
+        providerResponse: Object.keys(providerResponse).length > 0 ? providerResponse : undefined,
+      });
 
       await progress.fail(userFacingError);
       return {
         success: false,
         error: userFacingError,
         providerRequest,
+        providerResponse: Object.keys(providerResponse).length > 0 ? providerResponse : undefined,
         providerMeta,
       };
     }

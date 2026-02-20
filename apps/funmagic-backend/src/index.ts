@@ -36,7 +36,7 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
-import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, studioRoutes, adminTasksRoutes, settingsRoutes } from './routes/admin';
+import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, studioRoutes, adminTasksRoutes, settingsRoutes, queueRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
 
@@ -113,6 +113,7 @@ adminApp.route('/users', usersAdminRoutes);
 adminApp.route('/studio', studioRoutes);
 adminApp.route('/tasks', adminTasksRoutes);
 adminApp.route('/settings', settingsRoutes);
+adminApp.route('/queue', queueRoutes);
 
 app.route('/api/admin', adminApp);
 

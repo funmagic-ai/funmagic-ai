@@ -165,6 +165,27 @@ export async function tryAcquire(
 }
 
 /**
+ * After a provider 429, refresh the RPM counter TTL so Gate 1 knows
+ * the provider is busy for another full window.
+ */
+export async function markProviderBusy(
+  redis: Redis,
+  scope: ProviderScope,
+  providerName: string,
+): Promise<void> {
+  const key = rpmKey(scope, providerName);
+  const exists = await redis.exists(key);
+  if (exists) {
+    // Extend the existing RPM window by 60s from NOW
+    await redis.expire(key, 60);
+  } else {
+    // No RPM counter exists — create one at the limit to block further calls
+    // (This handles the case where maxPerMinute is not configured but we still got 429)
+    await redis.set(key, '1', 'EX', 60);
+  }
+}
+
+/**
  * Release the concurrency slot (call in finally block).
  */
 export async function releaseSlot(

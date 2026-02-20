@@ -282,7 +282,22 @@
     "delayed": "Delayed",
     "refresh": "Refresh",
     "notAvailable": "Queue stats API is not yet available.",
-    "notAvailableHint": "The queue monitoring endpoint needs to be implemented in the backend."
+    "notAvailableHint": "The queue monitoring endpoint needs to be implemented in the backend.",
+    "jobs": "Jobs",
+    "jobId": "Job ID",
+    "queueName": "Queue",
+    "attempts": "Attempts",
+    "error": "Error",
+    "processedAt": "Processed At",
+    "finishedAt": "Finished At",
+    "allQueues": "All Queues",
+    "aiTasks": "AI Tasks",
+    "studioTasks": "Studio Tasks",
+    "noJobs": "No jobs found",
+    "taskId": "Task / Message ID",
+    "toolProvider": "Tool / Provider",
+    "createdAt": "Created At",
+    "jobData": "Job Data"
   },
   "studio": {
     "title": "Creative Studio",

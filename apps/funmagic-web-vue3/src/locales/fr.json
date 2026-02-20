@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "Mes créations",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "Mes créations",
+    "noAssets": "Aucune création",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette création ?",
+    "deleted": "Création supprimée",
+    "deleteFailed": "Échec de la suppression",
+    "downloadFailed": "Échec du téléchargement",
+    "downloadUrlFailed": "Impossible d'obtenir le lien de téléchargement",
+    "loadFailed": "Impossible de charger la création",
+    "tabs": {
+      "all": "Tout",
+      "images": "Images",
+      "models": "Modèles 3D",
+      "pointClouds": "Nuages de points"
+    },
+    "types": {
+      "image": "Image",
+      "model": "Modèle 3D",
+      "pointCloud": "Nuage de points",
+      "file": "Fichier"
+    },
+    "status": {
+      "pending": "En attente",
+      "queued": "En file d'attente",
+      "processing": "En cours",
+      "completed": "Terminé",
+      "failed": "Échoué"
+    },
+    "credits": "{n} crédits",
+    "stillProcessing": "Cette tâche est encore en cours de traitement...",
+    "taskFailed": "Cette tâche a échoué",
+    "detail": {
+      "filename": "Nom du fichier",
+      "size": "Taille",
+      "type": "Type",
+      "tool": "Outil",
+      "created": "Créé le"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

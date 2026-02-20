@@ -40,10 +40,12 @@ export const taskPayloads = pgTable('task_payloads', {
 });
 
 // Relations
-export const tasksRelations = relations(tasks, ({ one }) => ({
+export const tasksRelations = relations(tasks, ({ one, many }) => ({
   user: one(users, { fields: [tasks.userId], references: [users.id] }),
   tool: one(tools, { fields: [tasks.toolId], references: [tools.id] }),
   payload: one(taskPayloads, { fields: [tasks.id], references: [taskPayloads.taskId] }),
+  childTasks: many(tasks, { relationName: 'parentChild' }),
+  parentTask: one(tasks, { fields: [tasks.parentTaskId], references: [tasks.id], relationName: 'parentChild' }),
 }));
 
 export const taskPayloadsRelations = relations(taskPayloads, ({ one }) => ({

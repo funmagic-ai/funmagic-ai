@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "マイ作品",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "マイ作品",
+    "noAssets": "作品はまだありません",
+    "deleteConfirm": "この作品を削除してもよろしいですか？",
+    "deleted": "作品を削除しました",
+    "deleteFailed": "作品の削除に失敗しました",
+    "downloadFailed": "ダウンロードに失敗しました",
+    "downloadUrlFailed": "ダウンロードURLの取得に失敗しました",
+    "loadFailed": "作品の読み込みに失敗しました",
+    "tabs": {
+      "all": "すべて",
+      "images": "画像",
+      "models": "3Dモデル",
+      "pointClouds": "点群"
+    },
+    "types": {
+      "image": "画像",
+      "model": "3Dモデル",
+      "pointCloud": "点群",
+      "file": "ファイル"
+    },
+    "status": {
+      "pending": "待機中",
+      "queued": "キュー中",
+      "processing": "処理中",
+      "completed": "完了",
+      "failed": "失敗"
+    },
+    "credits": "{n} クレジット",
+    "stillProcessing": "タスクはまだ処理中です...",
+    "taskFailed": "タスクが失敗しました",
+    "detail": {
+      "filename": "ファイル名",
+      "size": "サイズ",
+      "type": "タイプ",
+      "tool": "ツール",
+      "created": "作成日"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

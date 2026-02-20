@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "Meine Kreationen",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "Meine Kreationen",
+    "noAssets": "Noch keine Kreationen",
+    "deleteConfirm": "Möchten Sie diese Kreation wirklich löschen?",
+    "deleted": "Kreation gelöscht",
+    "deleteFailed": "Löschen fehlgeschlagen",
+    "downloadFailed": "Download fehlgeschlagen",
+    "downloadUrlFailed": "Download-Link konnte nicht abgerufen werden",
+    "loadFailed": "Kreation konnte nicht geladen werden",
+    "tabs": {
+      "all": "Alle",
+      "images": "Bilder",
+      "models": "3D-Modelle",
+      "pointClouds": "Punktwolken"
+    },
+    "types": {
+      "image": "Bild",
+      "model": "3D-Modell",
+      "pointCloud": "Punktwolke",
+      "file": "Datei"
+    },
+    "status": {
+      "pending": "Ausstehend",
+      "queued": "In Warteschlange",
+      "processing": "Verarbeitung",
+      "completed": "Abgeschlossen",
+      "failed": "Fehlgeschlagen"
+    },
+    "credits": "{n} Credits",
+    "stillProcessing": "Diese Aufgabe wird noch verarbeitet...",
+    "taskFailed": "Diese Aufgabe ist fehlgeschlagen",
+    "detail": {
+      "filename": "Dateiname",
+      "size": "Größe",
+      "type": "Typ",
+      "tool": "Werkzeug",
+      "created": "Erstellt am"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

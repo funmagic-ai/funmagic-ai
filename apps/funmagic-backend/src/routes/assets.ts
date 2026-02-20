@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
 import { db, assets } from '@funmagic/database';
-import { eq, and, isNull, desc } from 'drizzle-orm';
+import { eq, and, or, isNull, desc, like, inArray, count, sql } from 'drizzle-orm';
 import {
   generateStorageKey,
   getBucketForVisibility,
@@ -53,6 +53,7 @@ const AssetSchema = z.object({
   visibility: z.enum(['private', 'public', 'admin-private']),
   module: z.string(),
   createdAt: z.string(),
+  thumbnailUrl: z.string().nullable(),
 }).openapi('Asset');
 
 const AssetsListSchema = z.object({
@@ -61,6 +62,12 @@ const AssetsListSchema = z.object({
     total: z.number(),
     limit: z.number(),
     offset: z.number(),
+  }),
+  counts: z.object({
+    all: z.number(),
+    image: z.number(),
+    model: z.number(),
+    pointcloud: z.number(),
   }),
 }).openapi('AssetsList');
 
@@ -132,6 +139,7 @@ const listAssetsRoute = createRoute({
   request: {
     query: z.object({
       module: z.string().optional(),
+      type: z.enum(['image', 'model', 'pointcloud']).optional(),
       limit: z.coerce.number().default(20),
       offset: z.coerce.number().default(0),
     }),
@@ -264,44 +272,143 @@ export const assetsRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
   })
   .openapi(listAssetsRoute, async (c) => {
     const user = c.get('user');
-    const { module, limit, offset } = c.req.valid('query');
+    const { module, type, limit, offset } = c.req.valid('query');
 
-    const conditions = [
+    // Base conditions (used for category counts, unfiltered by type)
+    const baseConditions = [
       eq(assets.userId, user.id),
       isNull(assets.deletedAt),
     ];
-
     if (module) {
-      conditions.push(eq(assets.module, module));
+      baseConditions.push(eq(assets.module, module));
     }
 
+    // Type-specific conditions (for filtered query + pagination count)
+    // Note: GLB files from external APIs (e.g. Tripo) may be stored as
+    // 'application/octet-stream' instead of 'model/gltf-binary', so we
+    // also match by .glb filename extension.
+    const typeConditions = [...baseConditions];
+    if (type === 'image') {
+      typeConditions.push(like(assets.mimeType, 'image/%'));
+    } else if (type === 'model') {
+      typeConditions.push(or(
+        eq(assets.mimeType, 'model/gltf-binary'),
+        like(assets.filename, '%.glb'),
+      )!);
+    } else if (type === 'pointcloud') {
+      typeConditions.push(eq(assets.module, 'crystal-memory'));
+      typeConditions.push(inArray(assets.mimeType, ['application/json', 'text/plain']));
+    }
+
+    // Query assets with task+payload relations (for thumbnail resolution)
     const userAssets = await db.query.assets.findMany({
-      where: and(...conditions),
+      where: and(...typeConditions),
       orderBy: desc(assets.createdAt),
       limit,
       offset,
+      with: {
+        task: {
+          with: {
+            payload: true,
+          },
+        },
+      },
     });
 
-    // Get total count for pagination
-    const allAssets = await db.query.assets.findMany({
-      where: and(...conditions),
-      columns: { id: true },
-    });
+    // Get filtered count for pagination + category counts in parallel
+    const [[totalResult], [categoryCounts]] = await Promise.all([
+      db.select({ total: count() })
+        .from(assets)
+        .where(and(...typeConditions)),
+      db.select({
+        all: count(),
+        image: sql<number>`count(*) filter (where ${assets.mimeType} like 'image/%')`,
+        model: sql<number>`count(*) filter (where ${assets.mimeType} = 'model/gltf-binary' or ${assets.filename} like '%.glb')`,
+        pointcloud: sql<number>`count(*) filter (where ${assets.module} = 'crystal-memory' and ${assets.mimeType} in ('application/json', 'text/plain'))`,
+      }).from(assets).where(and(...baseConditions)),
+    ]);
+
+    // Collect sourceAssetIds from non-image assets for batch lookup
+    const sourceAssetIds = new Set<string>();
+    for (const asset of userAssets) {
+      if (!asset.mimeType.startsWith('image/') && asset.task?.payload?.input) {
+        const input = asset.task.payload.input as Record<string, unknown>;
+        if (typeof input.sourceAssetId === 'string') {
+          sourceAssetIds.add(input.sourceAssetId);
+        }
+      }
+    }
+
+    // Batch-query source assets for thumbnail resolution (scoped to user for safety)
+    const sourceAssetsMap = new Map<string, { visibility: string; bucket: string; storageKey: string; userId: string }>();
+    if (sourceAssetIds.size > 0) {
+      const sources = await db.query.assets.findMany({
+        where: and(
+          inArray(assets.id, [...sourceAssetIds]),
+          eq(assets.userId, user.id),
+          isNull(assets.deletedAt),
+        ),
+      });
+      for (const s of sources) {
+        sourceAssetsMap.set(s.id, s);
+      }
+    }
+
+    // Generate thumbnailUrls
+    const assetsWithThumbnails = await Promise.all(
+      userAssets.map(async (a) => {
+        let thumbnailUrl: string | null = null;
+        try {
+          if (a.mimeType.startsWith('image/')) {
+            // Image assets: use their own presigned URL as thumbnail
+            const result = await resolveAssetUrl(
+              { visibility: a.visibility as AssetVisibility, bucket: a.bucket, storageKey: a.storageKey, userId: a.userId },
+              user.id,
+            );
+            thumbnailUrl = result.url;
+          } else if (a.task?.payload?.input) {
+            // Non-image assets: trace to source image via task payload
+            const input = a.task.payload.input as Record<string, unknown>;
+            if (typeof input.sourceAssetId === 'string') {
+              const source = sourceAssetsMap.get(input.sourceAssetId);
+              if (source) {
+                const result = await resolveAssetUrl(
+                  { visibility: source.visibility as AssetVisibility, bucket: source.bucket, storageKey: source.storageKey, userId: source.userId },
+                  user.id,
+                );
+                thumbnailUrl = result.url;
+              }
+            }
+          }
+        } catch {
+          // Silently ignore errors resolving thumbnail URL
+        }
+
+        return {
+          id: a.id,
+          filename: a.filename,
+          mimeType: a.mimeType,
+          size: a.size,
+          visibility: a.visibility as AssetVisibility,
+          module: a.module,
+          createdAt: a.createdAt.toISOString(),
+          thumbnailUrl,
+        };
+      })
+    );
 
     return c.json({
-      assets: userAssets.map((a) => ({
-        id: a.id,
-        filename: a.filename,
-        mimeType: a.mimeType,
-        size: a.size,
-        visibility: a.visibility as AssetVisibility,
-        module: a.module,
-        createdAt: a.createdAt.toISOString(),
-      })),
+      assets: assetsWithThumbnails,
       pagination: {
-        total: allAssets.length,
+        total: Number(totalResult.total),
         limit,
         offset,
+      },
+      counts: {
+        all: Number(categoryCounts.all),
+        image: Number(categoryCounts.image),
+        model: Number(categoryCounts.model),
+        pointcloud: Number(categoryCounts.pointcloud),
       },
     }, 200);
   })

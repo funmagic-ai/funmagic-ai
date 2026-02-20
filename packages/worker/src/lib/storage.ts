@@ -34,12 +34,18 @@ export async function uploadFromUrl(params: {
     throw new Error(`Failed to fetch file from ${url}: ${response.status}`);
   }
 
-  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+  const rawContentType = response.headers.get('content-type') || 'application/octet-stream';
   const buffer = await response.arrayBuffer();
 
   const timestamp = Date.now();
-  const extension = getExtensionFromContentType(contentType);
+  const extension = getExtensionFromContentType(rawContentType);
   const finalFilename = filename || `result_${timestamp}${extension}`;
+
+  // If the server returned a generic type, try to infer from filename extension
+  const contentType = rawContentType === 'application/octet-stream'
+    ? getContentTypeFromFilename(finalFilename) || rawContentType
+    : rawContentType;
+
   const storageKey = `${userId}/${module}/${timestamp}_${finalFilename}`;
 
   await putObject({
@@ -239,7 +245,30 @@ function getExtensionFromContentType(contentType: string): string {
     'application/pdf': '.pdf',
     'application/json': '.json',
     'text/plain': '.txt',
+    'model/gltf-binary': '.glb',
   };
 
   return map[contentType] || '';
+}
+
+/**
+ * Infer content type from filename extension.
+ * Used when the remote server returns a generic type like application/octet-stream.
+ */
+function getContentTypeFromFilename(filename: string): string | null {
+  const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+  const map: Record<string, string> = {
+    '.glb': 'model/gltf-binary',
+    '.gltf': 'model/gltf+json',
+    '.obj': 'model/obj',
+    '.fbx': 'application/octet-stream',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp',
+    '.json': 'application/json',
+    '.txt': 'text/plain',
+  };
+  return map[ext] || null;
 }

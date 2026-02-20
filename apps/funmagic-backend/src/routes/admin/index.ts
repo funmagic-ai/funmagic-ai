@@ -7,3 +7,4 @@ export { usersRoutes } from './users';
 export { studioRoutes } from './studio';
 export { adminTasksRoutes } from './tasks';
 export { settingsRoutes } from './settings';
+export { queueRoutes } from './queue';

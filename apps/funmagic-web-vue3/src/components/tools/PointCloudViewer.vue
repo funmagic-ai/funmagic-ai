@@ -143,7 +143,7 @@ function initThree() {
 
   // Camera
   camera = new THREE.PerspectiveCamera(50, rect.width / rect.height, 0.1, 1000)
-  camera.position.set(0, 5, 20)
+  camera.position.set(0, 5, -20)
   camera.lookAt(0, 0, 0)
 
   // Controls
@@ -163,6 +163,31 @@ function initThree() {
   // Grid + Axes
   scene.add(new THREE.GridHelper(20, 20, 0x444444, 0x222222))
   scene.add(new THREE.AxesHelper(5))
+
+  // Axis labels
+  const axisLabels = [
+    { text: 'X', color: '#ff4444', position: new THREE.Vector3(5.5, 0, 0) },
+    { text: 'Y', color: '#44ff44', position: new THREE.Vector3(0, 5.5, 0) },
+    { text: 'Z', color: '#4488ff', position: new THREE.Vector3(0, 0, 5.5) },
+  ]
+  for (const { text, color, position } of axisLabels) {
+    const canvas2d = document.createElement('canvas')
+    canvas2d.width = 64
+    canvas2d.height = 64
+    const ctx = canvas2d.getContext('2d')!
+    ctx.fillStyle = color
+    ctx.font = 'bold 48px monospace'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(text, 32, 32)
+
+    const texture = new THREE.CanvasTexture(canvas2d)
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: false })
+    const sprite = new THREE.Sprite(spriteMaterial)
+    sprite.position.copy(position)
+    sprite.scale.set(1, 1, 1)
+    scene.add(sprite)
+  }
 
   // Build point cloud
   buildPointCloud()

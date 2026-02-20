@@ -9,8 +9,7 @@
 5. [Database Schema](#database-schema)
 6. [Authentication & Authorization](#authentication--authorization)
 7. [Task Processing Pipeline](#task-processing-pipeline)
-8. [Per-Provider Rate Limiting](#per-provider-rate-limiting)
-9. [User Rate Limiting](#user-rate-limiting)
+8. [Rate Limiting](#rate-limiting)
 10. [Observability](#observability)
 11. [Admin AI Studio](#admin-ai-studio)
 12. [Storage Architecture](#storage-architecture)
@@ -349,9 +348,74 @@ Both workers run as separate Bun processes, each with their own Prometheus `/met
 
 ---
 
-## Per-Provider Rate Limiting
+## Rate Limiting
 
-### Architecture
+The system uses a three-layer rate limiting strategy, all implemented from scratch using Redis (no external libraries). Each layer protects a different boundary.
+
+```
+User → [Layer 1: API Rate Limit] → [Layer 2: Worker Concurrency] → [Layer 3: Provider Rate Limit] → External AI API
+```
+
+- **Layer 1** protects the system from users (abuse, DDoS)
+- **Layer 2** protects system resources (CPU, memory)
+- **Layer 3** protects external provider API quotas
+
+Each layer fails independently — a provider rate limit hit doesn't block other providers, and a user rate limit doesn't affect other users.
+
+### 8.1 Layer 1: User API Rate Limiting
+
+**Source**: `apps/funmagic-backend/src/middleware/rate-limit.ts`, `packages/services/src/rate-limit-config.ts`
+**Mechanism**: Redis-backed fixed-window counters (INCR + EXPIRE)
+
+Six categories applied at the route level:
+
+| Category | Scope | Target | Default |
+|----------|-------|--------|---------|
+| `globalApi` | IP-based | All `/api/*` routes | 500 req/min |
+| `userApi` | Per-user | Authenticated API routes | 200 req/min |
+| `taskCreation` | Per-user | `POST /api/tasks` | 10 tasks/min |
+| `upload` | IP-based | Asset upload endpoints | 20 uploads/min |
+| `authSession` | IP-based | `GET /api/auth/get-session` | 60 checks/min |
+| `authAction` | IP-based | Sign-in / Sign-up endpoints | 10 actions/min |
+
+#### Tiered Multipliers
+
+Rate limits scale based on lifetime credit purchases. Tiers are configured via the `rate_limit_settings` table:
+
+| Tier | Minimum Purchased | Multiplier |
+|------|-------------------|------------|
+| Free | $0 | 1x base limits |
+| Basic | $1+ | 2x base limits |
+| Premium | $1000+ | 3x base limits |
+
+For per-user categories (`userApi`, `taskCreation`), the effective limit is `base_max * tier_multiplier`. Tier is determined by querying the user's `credits.lifetimePurchased` (cached in Redis for 5 minutes).
+
+Returns standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and `Retry-After` headers. Exceeding a limit returns HTTP 429.
+
+#### Admin Configuration
+
+- `GET /api/admin/settings` — Read current tiers and limits
+- `PUT /api/admin/settings` — Update tiers and limits (invalidates Redis cache)
+
+### 8.2 Layer 2: Worker Concurrency (BullMQ)
+
+**Source**: `packages/worker/src/index.ts`, `packages/worker/src/studio-worker.ts`
+
+Two separate BullMQ queues with hard concurrency caps:
+
+| Queue | Concurrency | Metrics Port |
+|-------|-------------|--------------|
+| `ai-tasks` (user tools) | configurable via `WORKER_CONCURRENCY` (default: 5) | `:9090` |
+| `studio-tasks` (admin studio) | configurable via `STUDIO_WORKER_CONCURRENCY` (default: 3) | `:9091` |
+
+- `maxStalledCount: 0` — no automatic stalled-job retries (prevents duplicate provider calls)
+- `lockDuration` matches tool/provider timeout to accommodate long-running operations (e.g., 3D model generation)
+- Queue depth sampled every 30s and published to Prometheus
+
+### 8.3 Layer 3: Provider Rate Limiting
+
+**Source**: `packages/services/src/provider-rate-limiter.ts`, `packages/worker/src/lib/provider-errors.ts`
+**Mechanism**: Redis sorted sets (Lua script) + counters, per-provider, per-scope
 
 Two separate scopes ensure web user tools and admin studio tasks are rate-limited independently:
 
@@ -360,7 +424,7 @@ Two separate scopes ensure web user tools and admin studio tasks are rate-limite
 | `web` | `prl:web:{provider}:*` | `providers.config.rateLimit` | AI tasks worker |
 | `admin` | `prl:admin:{provider}:*` | `admin_providers.config.rateLimit` | Studio worker |
 
-### Redis Key Layout
+#### Redis Key Layout
 
 | Key | Type | Purpose |
 |-----|------|---------|
@@ -369,7 +433,7 @@ Two separate scopes ensure web user tools and admin studio tasks are rate-limite
 | `prl:{scope}:{provider}:rpm` | Counter | RPM counter (60s TTL) |
 | `prl:{scope}:{provider}:rpd:{YYYY-MM-DD}` | Counter | RPD counter (86400s TTL) |
 
-### Config Shape
+#### Config Shape
 
 Rate limit settings live inside the `config` JSONB field on both `providers` and `admin_providers` tables:
 
@@ -380,93 +444,61 @@ Rate limit settings live inside the `config` JSONB field on both `providers` and
     "maxPerMinute": 100,
     "maxPerDay": 10000,
     "retryOn429": true,
-    "maxRetries": 3,
-    "baseBackoffMs": 1000
+    "maxRetries": 3
   }
 }
 ```
 
 All fields are optional. No config means no rate limiting for that provider.
 
-### Acquire/Release Flow
+#### Three-Gate Acquire/Release Flow
+
+Three gates are checked sequentially via `tryAcquire()`:
+
+1. **Concurrency semaphore** (`maxConcurrency`) — Redis sorted set with atomic Lua script; stale entries auto-cleaned after 10 min
+2. **RPM counter** (`maxPerMinute`) — Redis INCR with 60s TTL
+3. **RPD counter** (`maxPerDay`) — Redis INCR keyed by YYYY-MM-DD with 24h TTL
+
+If any gate denies, earlier gates are rolled back atomically. The job is moved to BullMQ's delayed queue with a `retryAfterMs` value (2s for concurrency, remaining TTL for RPM, 60s for RPD).
 
 ```
 Worker picks job
   → tryAcquire(redis, scope, provider, jobId, config)
-    → Check concurrency (Lua atomic ZADD if under limit)
-    → Check RPM (INCR with 60s TTL)
-    → Check RPD (INCR with 86400s TTL)
+    → Gate 1: Check concurrency (Lua atomic ZADD if under limit)
+    → Gate 2: Check RPM (INCR with 60s TTL)
+    → Gate 3: Check RPD (INCR with 86400s TTL)
   → allowed: proceed to provider API → releaseSlot() in finally block
-  → denied: moveToDelayed(retryAfterMs) → throw DelayedError (re-queued, not a failure)
+  → denied: moveToDelayed(retryAfterMs + jitter) → throw DelayedError (re-queued, not a failure)
 ```
 
-### 429 Handling with Exponential Backoff
+#### 429 Recovery
 
-When a provider API returns HTTP 429:
+When an external provider returns HTTP 429:
 
 1. `isProvider429Error()` detects the error from provider SDK exceptions
 2. If `retryOn429` is enabled (default: `true`) and attempts < `maxRetries` (default: 3):
-   - `calculateBackoff()` computes delay: `baseBackoffMs * 2^attempt`, capped at 60s
-   - Job moved to delayed via `DelayedError` — not counted as a failure
+   - Concurrency slot released before rescheduling to prevent slot starvation
+   - `markProviderBusy()` extends the RPM window by 60s, blocking new jobs from that provider
+   - Job moved to delayed (2s base + 0–2s random jitter) via `DelayedError` — not counted as a failure
+   - Retries tracked separately via `_429retries` on `job.data` (BullMQ's `attemptsMade` is not incremented by `DelayedError`)
 3. After exhausting retries, the job fails normally
 
-### Graceful Degradation
+#### Jitter on Delayed Jobs
+
+All `moveToDelayed` calls in both workers add a random jitter of 0–2000ms on top of the base delay. This prevents a "thundering herd" when a provider recovers from being busy — without jitter, all delayed jobs become eligible simultaneously and flood `tryAcquire` with synchronized Redis calls.
+
+#### Graceful Degradation
 
 - **No config** = no rate limiting (provider runs unrestricted)
 - Jobs denied by rate limiter are re-queued via `DelayedError`, not counted as failures
 - Stale semaphore entries are auto-cleaned (entries older than 10 minutes)
 
-**Source**: `packages/services/src/provider-rate-limiter.ts`, `packages/worker/src/lib/provider-errors.ts`
+### 8.4 How the Layers Interact
 
----
-
-## User Rate Limiting
-
-### 6-Tier Strategy
-
-Six rate limit categories protect the platform at different layers:
-
-| Category | Scope | Target | Default |
-|----------|-------|--------|---------|
-| `globalApi` | IP-based | All `/api/*` routes | High ceiling (bot/DDoS protection) |
-| `userApi` | Per-user | Authenticated API routes | Per-user throughput cap |
-| `taskCreation` | Per-user | `POST /api/tasks` | Strict per-user task submission |
-| `upload` | IP-based | Asset upload endpoints | Upload frequency control |
-| `authSession` | IP-based | `GET /api/auth/get-session` | Generous (multi-tab support) |
-| `authAction` | IP-based | Sign-in / Sign-up endpoints | Strict (brute-force protection) |
-
-### Tiered Multipliers
-
-Rate limits scale based on lifetime credit purchases. Tiers are configured via the `rate_limit_settings` table:
-
-```json
-{
-  "tiers": [
-    { "name": "free",    "minPurchased": 0,    "multiplier": 1 },
-    { "name": "basic",   "minPurchased": 1,    "multiplier": 2 },
-    { "name": "premium", "minPurchased": 1000, "multiplier": 3 }
-  ],
-  "limits": {
-    "globalApi":    { "max": 500, "windowSeconds": 60 },
-    "userApi":      { "max": 200, "windowSeconds": 60 },
-    "taskCreation": { "max": 10,  "windowSeconds": 60 },
-    "upload":       { "max": 20,  "windowSeconds": 60 },
-    "authSession":  { "max": 60,  "windowSeconds": 60 },
-    "authAction":   { "max": 10,  "windowSeconds": 60 }
-  }
-}
-```
-
-For per-user categories (`userApi`, `taskCreation`), the effective limit is `base_max * tier_multiplier`. Tier is determined by querying the user's `credits.lifetimePurchased` (cached in Redis for 5 minutes).
-
-### Admin Configuration
-
-Admins can view and update rate limit settings via the settings API:
-
-- `GET /api/admin/settings` — Read current tiers and limits
-- `PUT /api/admin/settings` — Update tiers and limits (invalidates Redis cache)
-
-**Source**: `apps/funmagic-backend/src/middleware/rate-limit.ts`, `packages/services/src/rate-limit-config.ts`
+1. **User hits API** → Layer 1 checks IP/user-level rate limits. If exceeded, immediate 429 response — request never reaches the queue.
+2. **Task enqueued** → BullMQ picks it up respecting Layer 2 concurrency. If all slots are busy, the job waits in the queue.
+3. **Worker processes job** → Before calling the external API, Layer 3 checks provider-specific limits. If denied, the job is moved back to the delayed queue with a jittered retry timer — the BullMQ concurrency slot is freed for another job.
+4. **Provider returns 429** → Layer 3 marks the provider busy, releases the concurrency slot, and reschedules the job. Other jobs targeting different providers continue unaffected.
 
 ---
 

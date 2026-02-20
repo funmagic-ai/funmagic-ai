@@ -9,6 +9,7 @@ export interface AITaskJobData {
   userId: string;
   parentTaskId?: string;  // For child tasks (e.g., 3D gen after image gen)
   requestId?: string;  // Correlation ID propagated from HTTP request
+  _429retries?: number;  // Tracks 429 retry count (moveToDelayed doesn't increment attemptsMade)
 }
 
 // Context provided to tool workers

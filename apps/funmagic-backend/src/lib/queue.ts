@@ -19,7 +19,7 @@ export function getAITasksQueue(): Queue {
       defaultJobOptions: {
         attempts: 3,
         backoff: { type: 'exponential', delay: JOB_BACKOFF_DELAY },
-        removeOnComplete: 100,
+        removeOnComplete: 1000,
         removeOnFail: 1000,
       },
     });
@@ -34,7 +34,7 @@ export function getStudioTasksQueue(): Queue {
       defaultJobOptions: {
         attempts: 3,
         backoff: { type: 'exponential', delay: JOB_BACKOFF_DELAY },
-        removeOnComplete: 100,
+        removeOnComplete: 1000,
         removeOnFail: 1000,
       },
     });

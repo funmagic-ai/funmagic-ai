@@ -1,6 +1,6 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi';
-import { db, credits, creditTransactions, creditPackages } from '@funmagic/database';
-import { eq, desc, asc, isNull } from 'drizzle-orm';
+import { db, credits, creditTransactions, creditPackages, tasks } from '@funmagic/database';
+import { eq, desc, asc, isNull, and, inArray } from 'drizzle-orm';
 import {
   getLocalizedCreditPackageContent,
   type SupportedLocale,
@@ -181,26 +181,86 @@ export const creditsRoutes = new OpenAPIHono<{ Variables: { user: { id: string }
     const user = c.get('user');
     const { type, limit, offset } = c.req.valid('query');
 
+    // Internal bookkeeping types hidden from user-facing list by default
+    const internalTypes = ['reservation', 'release'];
+
     const conditions = [eq(creditTransactions.userId, user.id)];
     if (type) {
       conditions.push(eq(creditTransactions.type, type));
     }
 
-    const transactions = await db.query.creditTransactions.findMany({
-      where: conditions.length === 1 ? conditions[0] : undefined,
+    // Fetch all user transactions (we group in memory for per-task aggregation)
+    const allRaw = await db.query.creditTransactions.findMany({
+      where: conditions.length === 1 ? conditions[0] : and(...conditions),
       orderBy: desc(creditTransactions.createdAt),
-      limit,
-      offset,
     });
 
-    // Get total count
-    const allTransactions = await db.query.creditTransactions.findMany({
-      where: eq(creditTransactions.userId, user.id),
-      columns: { id: true },
-    });
+    // Filter out internal types unless explicitly requested via type filter
+    const filtered = type
+      ? allRaw
+      : allRaw.filter(t => !internalTypes.includes(t.type));
+
+    // Group task-related transactions by root (parent) task so multi-step
+    // tools show one aggregated row instead of one per step.
+    const taskRefIds = [...new Set(
+      filtered
+        .filter(t => t.referenceType === 'task' && t.referenceId)
+        .map(t => t.referenceId!),
+    )];
+
+    const taskParentMap = new Map<string, string>();
+    if (taskRefIds.length > 0) {
+      const referencedTasks = await db.query.tasks.findMany({
+        where: inArray(tasks.id, taskRefIds),
+        columns: { id: true, parentTaskId: true },
+      });
+      for (const task of referencedTasks) {
+        if (task.parentTaskId) {
+          taskParentMap.set(task.id, task.parentTaskId);
+        }
+      }
+    }
+
+    // Aggregate: group by (type, rootTaskId) for task transactions
+    const groupedMap = new Map<string, (typeof filtered)[0] & { _amount: number }>();
+    const result: Array<(typeof filtered)[0]> = [];
+
+    for (const tx of filtered) {
+      if (tx.referenceType === 'task' && tx.referenceId) {
+        const rootTaskId = taskParentMap.get(tx.referenceId) ?? tx.referenceId;
+        const groupKey = `${tx.type}:${rootTaskId}`;
+
+        const existing = groupedMap.get(groupKey);
+        if (existing) {
+          // Sum amounts
+          existing._amount += tx.amount;
+          existing.amount = existing._amount;
+          // Keep the latest balanceAfter and timestamp
+          if (tx.createdAt > existing.createdAt) {
+            existing.balanceAfter = tx.balanceAfter;
+            existing.createdAt = tx.createdAt;
+          }
+        } else {
+          const entry = { ...tx, _amount: tx.amount, referenceId: rootTaskId };
+          groupedMap.set(groupKey, entry);
+        }
+      } else {
+        result.push(tx);
+      }
+    }
+
+    // Merge grouped task transactions back and sort by date descending
+    for (const entry of groupedMap.values()) {
+      result.push(entry);
+    }
+    result.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    // Paginate the aggregated result
+    const total = result.length;
+    const paginated = result.slice(offset, offset + limit);
 
     return c.json({
-      transactions: transactions.map((t) => ({
+      transactions: paginated.map((t) => ({
         id: t.id,
         type: t.type,
         amount: t.amount,
@@ -211,7 +271,7 @@ export const creditsRoutes = new OpenAPIHono<{ Variables: { user: { id: string }
         createdAt: t.createdAt.toISOString(),
       })),
       pagination: {
-        total: allTransactions.length,
+        total,
         limit,
         offset,
       },

@@ -6,6 +6,7 @@ import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
+import { useTaskRestore } from '@/composables/useTaskRestore'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImagePicker from '@/components/upload/ImagePicker.vue'
@@ -22,6 +23,11 @@ const upload = useUpload({ module: 'background-remove' })
 const currentStep = ref(0)
 const taskId = ref<string | null>(null)
 const resultUrl = ref<string | null>(null)
+
+// Task restore
+const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('background-remove')
+const restored = ref(false)
+const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
 
 // Fetch tool config from API
 const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
@@ -80,7 +86,7 @@ const submitMutation = useMutation({
       body: {
         toolSlug: toolInfo.value?.slug ?? 'background-remove',
         stepId: firstStep.value?.id ?? 'remove-bg',
-        input: { imageStorageKey: uploadResult.storageKey },
+        input: { imageStorageKey: uploadResult.storageKey, sourceAssetId: uploadResult.assetId },
       },
     })
     if (error) throw extractApiError(error, response)
@@ -91,6 +97,38 @@ const submitMutation = useMutation({
     currentStep.value = 1
   },
 })
+
+// Restore task state from URL query param
+watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
+  if (!taskIdParam || !tool || restored.value) return
+  restored.value = true
+  const data = await fetchRestoreData()
+  if (!data) return
+
+  const task = data.task
+  const input = task.payload?.input as Record<string, string> | null
+  const output = task.payload?.output as Record<string, string> | null
+
+  // Fetch source image preview
+  if (input?.sourceAssetId) {
+    fetchSourceImage(input.sourceAssetId)
+  }
+
+  if (task.status === 'completed') {
+    // Show result directly
+    currentStep.value = 2
+    if (output?.assetId) {
+      const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+        params: { path: { id: output.assetId } },
+      })
+      resultUrl.value = urlData?.url ?? null
+    }
+  } else if (task.status === 'failed' || task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
+    // Connect SSE for in-progress or show error for failed
+    currentStep.value = 1
+    taskId.value = task.id
+  }
+}, { immediate: true })
 
 function handleFileSelect(file: File | null) {
   upload.setFile(file)
@@ -106,11 +144,19 @@ function handleRetry() {
   resultUrl.value = null
 }
 
+const router = useRouter()
+
 function handleReset() {
   upload.reset()
   currentStep.value = 0
   taskId.value = null
   resultUrl.value = null
+  sourceImageUrl.value = null
+  restored.value = false
+  // Clear taskId from URL if present
+  if (route.query.taskId) {
+    router.replace({ query: { ...route.query, taskId: undefined } })
+  }
 }
 </script>
 
@@ -193,8 +239,8 @@ function handleReset() {
                   <p class="text-sm font-medium text-muted-foreground">{{ t('tools.original') }}</p>
                   <div class="rounded-lg border overflow-hidden bg-muted">
                     <img
-                      v-if="upload.preview.value"
-                      :src="upload.preview.value"
+                      v-if="originalPreview"
+                      :src="originalPreview"
                       :alt="t('tools.original')"
                       class="w-full object-contain"
                     />

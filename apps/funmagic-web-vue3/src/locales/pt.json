@@ -22,7 +22,7 @@
     "login": "Login",
     "register": "Register",
     "profile": "Profile",
-    "assets": "My Assets",
+    "assets": "Minhas criações",
     "logout": "Logout",
     "help": "Help",
     "terms": "Terms of Service",
@@ -127,9 +127,43 @@
     "noTransactions": "No transactions yet"
   },
   "assets": {
-    "title": "My Assets",
-    "noAssets": "No assets yet",
-    "deleteConfirm": "Are you sure you want to delete this asset?"
+    "title": "Minhas criações",
+    "noAssets": "Nenhuma criação ainda",
+    "deleteConfirm": "Tem certeza de que deseja excluir esta criação?",
+    "deleted": "Criação excluída",
+    "deleteFailed": "Falha ao excluir",
+    "downloadFailed": "Falha no download",
+    "downloadUrlFailed": "Não foi possível obter o link de download",
+    "loadFailed": "Não foi possível carregar a criação",
+    "tabs": {
+      "all": "Todos",
+      "images": "Imagens",
+      "models": "Modelos 3D",
+      "pointClouds": "Nuvens de pontos"
+    },
+    "types": {
+      "image": "Imagem",
+      "model": "Modelo 3D",
+      "pointCloud": "Nuvem de pontos",
+      "file": "Arquivo"
+    },
+    "status": {
+      "pending": "Pendente",
+      "queued": "Na fila",
+      "processing": "Processando",
+      "completed": "Concluído",
+      "failed": "Falhou"
+    },
+    "credits": "{n} créditos",
+    "stillProcessing": "Esta tarefa ainda está sendo processada...",
+    "taskFailed": "Esta tarefa falhou",
+    "detail": {
+      "filename": "Nome do arquivo",
+      "size": "Tamanho",
+      "type": "Tipo",
+      "tool": "Ferramenta",
+      "created": "Criado em"
+    }
   },
   "footer": {
     "copyright": "All rights reserved."

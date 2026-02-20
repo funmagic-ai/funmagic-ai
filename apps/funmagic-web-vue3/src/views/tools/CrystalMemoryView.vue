@@ -6,6 +6,7 @@ import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
+import { useTaskRestore } from '@/composables/useTaskRestore'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImagePicker from '@/components/upload/ImagePicker.vue'
@@ -28,9 +29,15 @@ const currentStep = ref(0)
 // Background removal task
 const bgRemoveTaskId = ref<string | null>(null)
 const bgRemovedAssetId = ref<string | null>(null)
+const bgRemovedImageUrl = ref<string | null>(null)
 
 // Point cloud generation task
 const cloudTaskId = ref<string | null>(null)
+
+// Task restore
+const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('crystal-memory')
+const restored = ref(false)
+const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
 
 interface VGGTOutput {
   assetId: string
@@ -76,6 +83,7 @@ const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum +
 const steps = computed(() => [
   { id: 'upload', label: t('tools.uploadImage') },
   { id: 'removing-bg', label: step0Name.value },
+  { id: 'bg-result', label: t('tools.result') },
   { id: 'generating-cloud', label: step1Name.value },
   { id: 'result', label: t('tools.result') },
 ])
@@ -84,14 +92,15 @@ const steps = computed(() => [
 const { progress: bgProgress, isFailed: bgFailed } = useTaskProgress(
   bgRemoveTaskId,
   {
-    onComplete: (output: unknown) => {
-      // Null out task ID to prevent reconnect from firing onComplete again
-      bgRemoveTaskId.value = null
+    onComplete: async (output: unknown) => {
+      currentStep.value = 2
       const out = output as Record<string, string>
       bgRemovedAssetId.value = out?.assetId ?? null
-      // Auto-start point cloud generation
-      if (bgRemovedAssetId.value) {
-        startCloudGeneration()
+      if (out?.assetId) {
+        const { data } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: out.assetId } },
+        })
+        bgRemovedImageUrl.value = data?.url ?? null
       }
     },
   },
@@ -122,7 +131,7 @@ const { progress: cloudProgress, isFailed: cloudFailed } = useTaskProgress(
 
         const data = await response.json() as PointCloudData
         pointCloudData.value = data
-        currentStep.value = 3
+        currentStep.value = 4
       } catch (err) {
         console.error('[CrystalMemory] Failed to load point cloud data:', err)
       } finally {
@@ -142,7 +151,7 @@ const submitMutation = useMutation({
       body: {
         toolSlug: toolInfo.value?.slug ?? 'crystal-memory',
         stepId: step0Id.value,
-        input: { imageStorageKey: uploadResult.storageKey },
+        input: { imageStorageKey: uploadResult.storageKey, sourceAssetId: uploadResult.assetId },
       },
     })
     if (error) throw extractApiError(error, response)
@@ -175,9 +184,81 @@ const cloudMutation = useMutation({
 })
 
 function startCloudGeneration() {
-  currentStep.value = 2
+  // Guard: prevent duplicate cloud task creation
+  if (cloudTaskId.value || cloudMutation.isPending.value) return
+  currentStep.value = 3
   cloudMutation.mutate()
 }
+
+// Restore task state from URL query param
+watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
+  if (!taskIdParam || !tool || restored.value) return
+  restored.value = true
+  const data = await fetchRestoreData()
+  if (!data) return
+
+  const task = data.task
+  const input = task.payload?.input as Record<string, string> | null
+  const output = task.payload?.output as Record<string, string> | null
+  const childTask = task.childTasks?.[0]
+
+  // Fetch source image preview
+  if (input?.sourceAssetId) {
+    fetchSourceImage(input.sourceAssetId)
+  }
+
+  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
+    // BG removal in progress
+    currentStep.value = 1
+    bgRemoveTaskId.value = task.id
+  } else if (task.status === 'failed') {
+    currentStep.value = 1
+    bgRemoveTaskId.value = task.id
+  } else if (task.status === 'completed') {
+    if (output?.assetId) {
+      bgRemovedAssetId.value = output.assetId
+    }
+
+    if (!childTask) {
+      // BG removal done, no cloud started — show bg-result step
+      currentStep.value = 2
+      bgRemoveTaskId.value = task.id
+
+      // Fetch bg-removed image
+      if (output?.assetId) {
+        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+          params: { path: { id: output.assetId } },
+        })
+        bgRemovedImageUrl.value = urlData?.url ?? null
+      }
+    } else if (childTask.status === 'completed') {
+      // Point cloud done
+      const childOutput = childTask.payload?.output as VGGTOutput | null
+      if (childOutput?.assetId) {
+        cloudOutput.value = childOutput
+        loadingPointCloud.value = true
+        try {
+          const { data: urlData } = await api.GET('/api/assets/{id}/url', {
+            params: { path: { id: childOutput.assetId } },
+          })
+          if (urlData?.url) {
+            const response = await fetch(urlData.url)
+            if (response.ok) {
+              pointCloudData.value = await response.json()
+              currentStep.value = 4
+            }
+          }
+        } finally {
+          loadingPointCloud.value = false
+        }
+      }
+    } else {
+      // Cloud generation in progress or failed
+      currentStep.value = 3
+      cloudTaskId.value = childTask.id
+    }
+  }
+}, { immediate: true })
 
 function handleFileSelect(file: File | null) {
   upload.setFile(file)
@@ -187,15 +268,23 @@ function handleSubmit() {
   submitMutation.mutate()
 }
 
+const router = useRouter()
+
 function handleReset() {
   upload.reset()
   currentStep.value = 0
   bgRemoveTaskId.value = null
   cloudTaskId.value = null
   bgRemovedAssetId.value = null
+  bgRemovedImageUrl.value = null
   cloudOutput.value = null
   pointCloudData.value = null
   loadingPointCloud.value = false
+  sourceImageUrl.value = null
+  restored.value = false
+  if (route.query.taskId) {
+    router.replace({ query: { ...route.query, taskId: undefined } })
+  }
 }
 </script>
 
@@ -264,8 +353,42 @@ function handleReset() {
             </div>
           </div>
 
-          <!-- Step 2: Point Cloud Generation -->
-          <div v-if="currentStep === 2">
+          <!-- Step 2: Background Removal Result -->
+          <div v-if="currentStep === 2" class="space-y-6">
+            <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                  <p class="text-sm font-medium text-muted-foreground">{{ t('tools.original') }}</p>
+                  <div class="rounded-lg border overflow-hidden bg-muted">
+                    <img v-if="originalPreview" :src="originalPreview" :alt="t('tools.original')" class="w-full object-contain" />
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-sm font-medium text-muted-foreground">{{ t('tools.result') }}</p>
+                  <div class="rounded-lg border overflow-hidden bg-muted">
+                    <img v-if="bgRemovedImageUrl" :src="bgRemovedImageUrl" :alt="t('tools.result')" class="w-full object-contain" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-center gap-3">
+              <n-button
+                type="primary"
+                :loading="cloudMutation.isPending.value"
+                @click="startCloudGeneration"
+              >
+                {{ step1Name }}
+                <template v-if="step1?.cost">
+                  &nbsp;· {{ step1.cost }} {{ t('tools.credits') }}
+                </template>
+              </n-button>
+              <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>
+            </div>
+          </div>
+
+          <!-- Step 3: Point Cloud Generation -->
+          <div v-if="currentStep === 3">
             <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center space-y-4">
               <TaskProgressDisplay :progress="cloudProgress" />
               <div v-if="loadingPointCloud" class="flex items-center justify-center gap-2 py-4">
@@ -278,8 +401,8 @@ function handleReset() {
             </div>
           </div>
 
-          <!-- Step 3: Result -->
-          <div v-if="currentStep === 3 && pointCloudData" class="space-y-6">
+          <!-- Step 4: Result -->
+          <div v-if="currentStep === 4 && pointCloudData" class="space-y-6">
             <div class="space-y-1">
               <h3 class="text-lg font-semibold">{{ t('tools.resultReady') }}</h3>
               <p v-if="cloudOutput" class="text-sm text-muted-foreground">
@@ -290,7 +413,7 @@ function handleReset() {
             <Suspense>
               <PointCloudViewer
                 :data="pointCloudData"
-                :original-image="upload.preview.value ?? undefined"
+                :original-image="originalPreview ?? undefined"
                 :show-export="showExport"
               />
               <template #fallback>

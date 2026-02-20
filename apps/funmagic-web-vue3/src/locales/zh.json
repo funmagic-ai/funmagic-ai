@@ -22,7 +22,7 @@
     "login": "登录",
     "register": "注册",
     "profile": "个人中心",
-    "assets": "我的资源",
+    "assets": "我的创作",
     "logout": "退出登录",
     "help": "帮助",
     "terms": "服务条款",
@@ -177,13 +177,43 @@
     }
   },
   "assets": {
-    "title": "我的资源",
-    "noAssets": "暂无资源",
-    "deleteConfirm": "确定要删除此资源吗？",
-    "deleted": "资源已删除",
-    "deleteFailed": "删除资源失败",
-    "downloadFailed": "下载资源失败",
-    "downloadUrlFailed": "获取下载链接失败"
+    "title": "我的创作",
+    "noAssets": "暂无创作",
+    "deleteConfirm": "确定要删除此创作吗？",
+    "deleted": "创作已删除",
+    "deleteFailed": "删除创作失败",
+    "downloadFailed": "下载失败",
+    "downloadUrlFailed": "获取下载链接失败",
+    "loadFailed": "加载创作失败",
+    "tabs": {
+      "all": "全部",
+      "images": "图片",
+      "models": "3D 模型",
+      "pointClouds": "点云"
+    },
+    "types": {
+      "image": "图片",
+      "model": "3D 模型",
+      "pointCloud": "点云",
+      "file": "文件"
+    },
+    "status": {
+      "pending": "等待中",
+      "queued": "排队中",
+      "processing": "处理中",
+      "completed": "已完成",
+      "failed": "失败"
+    },
+    "credits": "{n} 积分",
+    "stillProcessing": "任务仍在处理中...",
+    "taskFailed": "任务失败",
+    "detail": {
+      "filename": "文件名",
+      "size": "大小",
+      "type": "类型",
+      "tool": "工具",
+      "created": "创建时间"
+    }
   },
   "help": {
     "subtitle": "查找有关使用 FunMagic AI 工具的常见问题解答。",

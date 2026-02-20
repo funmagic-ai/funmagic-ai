@@ -13,6 +13,8 @@ const typeMap: Record<string, 'warning' | 'info' | 'success' | 'error' | 'defaul
   failed: 'error',
   active: 'success',
   inactive: 'default',
+  waiting: 'warning',
+  delayed: 'warning',
 }
 
 const tagType = computed(() => typeMap[props.status.toLowerCase()] ?? 'default')

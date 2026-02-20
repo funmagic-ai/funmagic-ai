@@ -22,6 +22,7 @@ export interface StudioGenerationJobData {
   apiKey: string;
   // Correlation ID propagated from HTTP request
   requestId?: string;
+  _429retries?: number;  // Tracks 429 retry count (moveToDelayed doesn't increment attemptsMade)
 }
 
 // Session data for multi-turn conversations

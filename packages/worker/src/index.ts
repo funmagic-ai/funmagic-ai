@@ -24,13 +24,13 @@ import { db, tasks, taskPayloads, credits, creditTransactions, tools as toolsTab
 import { eq } from 'drizzle-orm';
 import {
   createRedisConnection, redis, createLogger, createTaskLogger,
-  getProviderRateLimitConfig, tryAcquire, releaseSlot,
+  getProviderRateLimitConfig, tryAcquire, releaseSlot, markProviderBusy,
   taskDuration, tasksTotal, taskQueueWait,
   bullmqWaiting, bullmqActive, bullmqFailed,
   createMetricsHandler,
 } from '@funmagic/services';
 import { ERROR_CODES } from '@funmagic/shared';
-import { isProvider429Error, calculateBackoff } from './lib/provider-errors';
+import { isProvider429Error } from './lib/provider-errors';
 import { TaskError } from './lib/task-error';
 import { publishTaskCompleted, publishTaskFailed } from './lib/progress';
 import { getToolWorker, getRegisteredTools } from './tools';
@@ -90,7 +90,8 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       const rlResult = await tryAcquire(redis, 'web', providerName, job.id!, rlConfig);
       if (!rlResult.allowed) {
         taskLog.info({ provider: providerName, reason: rlResult.reason }, 'Rate limited, delaying job');
-        await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000), job.token);
+        const jitter = Math.floor(Math.random() * 2000);
+        await job.moveToDelayed(Date.now() + (rlResult.retryAfterMs ?? 5000) + jitter, job.token);
         throw new DelayedError();
       }
       rlAcquired = true;
@@ -128,19 +129,27 @@ const aiTaskWorker = new Worker<AITaskJobData>(
         ),
       ]);
     } catch (error) {
-      // Handle provider 429 errors: reschedule instead of failing
+      // Handle provider 429 errors: reschedule instead of failing.
+      // NOTE: job.attemptsMade is NOT incremented by moveToDelayed + DelayedError,
+      // so we track 429 retries separately via job.data to prevent infinite loops.
       if (providerName && rlConfig?.retryOn429 !== false && isProvider429Error(error)) {
         const maxRetries = rlConfig?.maxRetries ?? 3;
-        if (job.attemptsMade < maxRetries) {
-          const backoff = calculateBackoff(job.attemptsMade, rlConfig?.baseBackoffMs ?? 1000);
-          taskLog.info({ provider: providerName, backoff, attempt: job.attemptsMade + 1, maxRetries }, 'Provider 429, rescheduling');
+        const retryCount = (job.data as any)._429retries ?? 0;
+        if (retryCount < maxRetries) {
+          taskLog.info({ provider: providerName, attempt: retryCount + 1, maxRetries }, 'Provider 429, rescheduling');
           if (rlAcquired) {
             await releaseSlot(redis, 'web', providerName, job.id!);
             rlAcquired = false;
           }
-          await job.moveToDelayed(Date.now() + backoff, job.token);
+          // Tell Gate 1 the provider is busy for another full RPM window
+          await markProviderBusy(redis, 'web', providerName);
+          await job.updateData({ ...job.data, _429retries: retryCount + 1 });
+          // Short delay — Gate 1 will handle the actual timing on next run
+          const jitter = Math.floor(Math.random() * 2000);
+          await job.moveToDelayed(Date.now() + 2000 + jitter, job.token);
           throw new DelayedError();
         }
+        taskLog.warn({ provider: providerName, retryCount, maxRetries }, 'Provider 429 retries exhausted, failing task');
       }
 
       result = {
@@ -206,7 +215,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
 
     } else {
       const errorCode = result.error || ERROR_CODES.TASK_PROCESSING_FAILED;
-      taskLog.error({ err: errorCode }, 'Task failed');
+      taskLog.error({ err: errorCode, providerResponse: result.providerResponse }, 'Task failed');
 
       // Update task as failed
       await db.update(tasks)
@@ -245,7 +254,16 @@ const aiTaskWorker = new Worker<AITaskJobData>(
   },
   {
     connection: createRedisConnection(),
-    concurrency: 5,
+    concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+    // Match lock duration to tool timeout so long-running jobs (e.g. VGGT
+    // point-cloud generation) are not falsely detected as stalled.
+    // BullMQ auto-extends the lock every lockDuration/2 ms.
+    lockDuration: TOOL_TIMEOUT_MS,
+    // Disable stalled-job retries: the worker handles all failures
+    // internally (never throws), so a "stalled" job is just a slow job.
+    // Re-running it creates duplicate provider calls (e.g. Replicate
+    // predictions) without duplicate DB records.
+    maxStalledCount: 0,
   }
 );
 
@@ -255,6 +273,10 @@ aiTaskWorker.on('completed', (job) => {
 
 aiTaskWorker.on('failed', (job, err) => {
   log.error({ jobId: job?.id, err }, 'Job failed');
+});
+
+aiTaskWorker.on('stalled', (jobId) => {
+  log.warn({ jobId }, 'Job stalled (lock expired before completion)');
 });
 
 aiTaskWorker.on('error', (err) => {

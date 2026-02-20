@@ -368,7 +368,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: {
+            parameters: {
+                query?: {
+                    category?: string;
+                    limit?: number | null;
+                    offset?: number | null;
+                    locale?: "en" | "zh" | "ja" | "fr" | "es" | "pt" | "de" | "vi" | "ko";
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description List of user tasks */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UserTasksList"];
+                    };
+                };
+            };
+        };
         put?: never;
         post: {
             parameters: {
@@ -458,7 +482,46 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    taskId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Task deleted */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DeleteUserTaskSuccess"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Task not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -687,6 +750,7 @@ export interface paths {
             parameters: {
                 query?: {
                     module?: string;
+                    type?: "image" | "model" | "pointcloud";
                     limit?: number | null;
                     offset?: number | null;
                 };
@@ -3202,6 +3266,38 @@ export interface components {
         UserMe: {
             message: string;
         };
+        UserTasksList: {
+            tasks: components["schemas"]["UserTaskItem"][];
+            pagination: {
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            totalCount: number;
+            categories: {
+                id: string;
+                name: string;
+                title: string;
+                count: number;
+            }[];
+        };
+        UserTaskItem: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            toolTypeName: string;
+            toolSlug: string;
+            toolTitle: string;
+            thumbnailUrl: string | null;
+            /** Format: uuid */
+            outputAssetId: string | null;
+            creditsCost: number;
+            createdAt: string;
+            completedAt: string | null;
+        };
+        DeleteUserTaskSuccess: {
+            success: boolean;
+        };
         Task: {
             task: {
                 /** Format: uuid */
@@ -3226,9 +3322,11 @@ export interface components {
                 userId: string;
                 /** Format: uuid */
                 toolId: string;
+                toolSlug: string;
                 /** Format: uuid */
                 parentTaskId?: string | null;
                 status: string;
+                currentStepId: string | null;
                 creditsCost: number | null;
                 createdAt: string;
                 updatedAt: string;
@@ -3240,6 +3338,21 @@ export interface components {
                     input?: unknown;
                     output?: unknown;
                 } | null;
+                childTasks: {
+                    /** Format: uuid */
+                    id: string;
+                    status: string;
+                    currentStepId: string | null;
+                    creditsCost: number | null;
+                    payload: {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        taskId: string;
+                        input?: unknown;
+                        output?: unknown;
+                    } | null;
+                }[];
             };
         };
         Balance: {
@@ -3298,6 +3411,12 @@ export interface components {
                 limit: number;
                 offset: number;
             };
+            counts: {
+                all: number;
+                image: number;
+                model: number;
+                pointcloud: number;
+            };
         };
         Asset: {
             /** Format: uuid */
@@ -3309,6 +3428,7 @@ export interface components {
             visibility: "private" | "public" | "admin-private";
             module: string;
             createdAt: string;
+            thumbnailUrl: string | null;
         };
         PublishResponse: {
             url: string;

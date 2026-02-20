@@ -92,8 +92,10 @@ export const TaskDetailSchema = z.object({
     id: z.string().uuid(),
     userId: z.string(),
     toolId: z.string().uuid(),
+    toolSlug: z.string(),
     parentTaskId: z.string().uuid().nullable().optional(),
     status: z.string(),
+    currentStepId: z.string().nullable(),
     creditsCost: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -103,8 +105,54 @@ export const TaskDetailSchema = z.object({
       input: z.any(),
       output: z.any(),
     }).nullable(),
+    childTasks: z.array(z.object({
+      id: z.string().uuid(),
+      status: z.string(),
+      currentStepId: z.string().nullable(),
+      creditsCost: z.number().nullable(),
+      payload: z.object({
+        id: z.string().uuid(),
+        taskId: z.string().uuid(),
+        input: z.any(),
+        output: z.any(),
+      }).nullable(),
+    })),
   }),
 }).openapi('TaskDetail')
+
+// User task list schemas
+export const UserTaskItemSchema = z.object({
+  id: z.string().uuid(),
+  status: z.string(),
+  toolTypeName: z.string(),
+  toolSlug: z.string(),
+  toolTitle: z.string(),
+  thumbnailUrl: z.string().nullable(),
+  outputAssetId: z.string().uuid().nullable(),
+  creditsCost: z.number(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+}).openapi('UserTaskItem')
+
+export const UserTasksListSchema = z.object({
+  tasks: z.array(UserTaskItemSchema),
+  pagination: z.object({
+    total: z.number(),
+    limit: z.number(),
+    offset: z.number(),
+  }),
+  totalCount: z.number(),
+  categories: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    title: z.string(),
+    count: z.number(),
+  })),
+}).openapi('UserTasksList')
+
+export const DeleteTaskSuccessSchema = z.object({
+  success: z.boolean(),
+}).openapi('DeleteUserTaskSuccess')
 
 // User schemas
 export const UserMeSchema = z.object({
