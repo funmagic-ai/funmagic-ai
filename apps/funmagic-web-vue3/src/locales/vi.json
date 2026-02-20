@@ -101,6 +101,15 @@
       "formats": "PNG, JPG, WebP tối đa {size}MB",
       "invalidType": "Vui lòng chọn tệp hình ảnh",
       "sizeExceeded": "Kích thước tệp vượt quá giới hạn {size}MB"
+    },
+    "modelViewer": {
+      "loading": "Đang tải trình xem 3D...",
+      "loadingModel": "Đang tải mô hình 3D...",
+      "autoRotate": "Tự động xoay",
+      "wireframe": "Khung dây",
+      "settings": "Cài đặt",
+      "triangles": "Tam giác",
+      "downloadGLB": "Tải GLB"
     }
   },
   "pricing": {

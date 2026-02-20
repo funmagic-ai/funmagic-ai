@@ -115,6 +115,15 @@
       "invalidType": "请选择图片文件",
       "sizeExceeded": "文件大小超过 {size}MB 限制"
     },
+    "modelViewer": {
+      "loading": "加载 3D 查看器...",
+      "loadingModel": "加载 3D 模型...",
+      "autoRotate": "自动旋转",
+      "wireframe": "线框模式",
+      "settings": "设置",
+      "triangles": "三角面",
+      "downloadGLB": "下载 GLB"
+    },
     "pointCloud": {
       "tab3D": "3D 模型",
       "loading": "加载 3D 查看器...",

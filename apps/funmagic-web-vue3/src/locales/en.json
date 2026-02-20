@@ -115,6 +115,15 @@
       "invalidType": "Please select an image file",
       "sizeExceeded": "File size exceeds {size}MB limit"
     },
+    "modelViewer": {
+      "loading": "Loading 3D Viewer...",
+      "loadingModel": "Loading 3D model...",
+      "autoRotate": "Auto-rotate",
+      "wireframe": "Wireframe",
+      "settings": "Settings",
+      "triangles": "Triangles",
+      "downloadGLB": "Download GLB"
+    },
     "pointCloud": {
       "tab3D": "3D Model",
       "loading": "Loading 3D Viewer...",

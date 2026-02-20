@@ -8,6 +8,9 @@ import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
+const ModelViewer = defineAsyncComponent(() =>
+  import('@/components/tools/ModelViewer.vue'),
+)
 import ImagePicker from '@/components/upload/ImagePicker.vue'
 import StepIndicator from '@/components/tools/StepIndicator.vue'
 import ToolBreadcrumb from '@/components/tools/ToolBreadcrumb.vue'
@@ -299,24 +302,24 @@ function handleReset() {
 
           <!-- Step 4: 3D Result -->
           <div v-if="currentStep === 4" class="space-y-6">
-            <div class="rounded-xl border bg-card p-6 space-y-4">
-              <div class="text-center space-y-1">
-                <h3 class="text-lg font-semibold">{{ t('tools.resultReady') }}</h3>
-                <p class="text-sm text-muted-foreground">{{ t('tools.3dPointCloud') }}</p>
-              </div>
-              <div v-if="threeDResult" class="rounded-lg border overflow-hidden bg-zinc-900 aspect-video flex items-center justify-center">
-                <div class="text-center space-y-2 p-6">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-10 w-10 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 7.5l-9-5.25L3 7.5m18 0l-9 5.25m9-5.25v9l-9 5.25M3 7.5l9 5.25M3 7.5v9l9 5.25m0-9v9" /></svg>
-                  <p class="text-sm text-zinc-400">{{ t('tools.3dViewerComingSoon') }}</p>
+            <div class="space-y-1">
+              <h3 class="text-lg font-semibold">{{ t('tools.resultReady') }}</h3>
+            </div>
+            <Suspense>
+              <ModelViewer
+                :url="threeDResult!"
+                :original-image="imageResult ?? undefined"
+              />
+              <template #fallback>
+                <div class="rounded-lg bg-zinc-900 h-[500px] flex items-center justify-center">
+                  <div class="text-center text-muted-foreground">
+                    <div class="animate-spin w-8 h-8 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2" />
+                    <p class="text-sm">{{ t('tools.modelViewer.loading') }}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div class="flex justify-center gap-3">
-              <n-button v-if="threeDResult" tag="a" :href="threeDResult" download type="primary">
-                {{ t('tools.download') }}
-              </n-button>
-              <n-button @click="handleReset">{{ t('tools.processAnother') }}</n-button>
-            </div>
+              </template>
+            </Suspense>
+            <n-button @click="handleReset">{{ t('tools.processAnother') }}</n-button>
           </div>
         </template>
       </div>

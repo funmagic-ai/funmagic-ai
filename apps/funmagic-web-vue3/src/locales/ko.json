@@ -101,6 +101,15 @@
       "formats": "PNG, JPG, WebP 최대 {size}MB",
       "invalidType": "이미지 파일을 선택해주세요",
       "sizeExceeded": "파일 크기가 {size}MB 제한을 초과합니다"
+    },
+    "modelViewer": {
+      "loading": "3D 뷰어 로딩 중...",
+      "loadingModel": "3D 모델 로딩 중...",
+      "autoRotate": "자동 회전",
+      "wireframe": "와이어프레임",
+      "settings": "설정",
+      "triangles": "삼각면",
+      "downloadGLB": "GLB 다운로드"
     }
   },
   "pricing": {

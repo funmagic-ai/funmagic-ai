@@ -101,6 +101,15 @@
       "formats": "PNG, JPG, WebP bis zu {size}MB",
       "invalidType": "Bitte wählen Sie eine Bilddatei",
       "sizeExceeded": "Dateigröße überschreitet {size}MB Limit"
+    },
+    "modelViewer": {
+      "loading": "3D-Viewer wird geladen...",
+      "loadingModel": "3D-Modell wird geladen...",
+      "autoRotate": "Automatisch drehen",
+      "wireframe": "Drahtgitter",
+      "settings": "Einstellungen",
+      "triangles": "Dreiecke",
+      "downloadGLB": "GLB herunterladen"
     }
   },
   "pricing": {

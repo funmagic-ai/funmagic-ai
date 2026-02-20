@@ -101,6 +101,15 @@
       "formats": "PNG、JPG、WebP 最大{size}MB",
       "invalidType": "画像ファイルを選択してください",
       "sizeExceeded": "ファイルサイズが{size}MBの制限を超えています"
+    },
+    "modelViewer": {
+      "loading": "3Dビューアを読み込み中...",
+      "loadingModel": "3Dモデルを読み込み中...",
+      "autoRotate": "自動回転",
+      "wireframe": "ワイヤーフレーム",
+      "settings": "設定",
+      "triangles": "三角面",
+      "downloadGLB": "GLBをダウンロード"
     }
   },
   "pricing": {

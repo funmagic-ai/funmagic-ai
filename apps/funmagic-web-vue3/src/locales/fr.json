@@ -101,6 +101,15 @@
       "formats": "PNG, JPG, WebP jusqu'à {size}Mo",
       "invalidType": "Veuillez sélectionner un fichier image",
       "sizeExceeded": "La taille du fichier dépasse la limite de {size}Mo"
+    },
+    "modelViewer": {
+      "loading": "Chargement du visualiseur 3D...",
+      "loadingModel": "Chargement du modèle 3D...",
+      "autoRotate": "Rotation automatique",
+      "wireframe": "Fil de fer",
+      "settings": "Paramètres",
+      "triangles": "Triangles",
+      "downloadGLB": "Télécharger GLB"
     }
   },
   "pricing": {
