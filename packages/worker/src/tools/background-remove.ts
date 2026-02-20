@@ -67,6 +67,9 @@ export const backgroundRemoveWorker: ToolWorker = {
     const { taskId, userId, input, redis } = context;
     const progress = createProgressTracker(redis, taskId);
 
+    let providerRequest: Record<string, unknown> | undefined;
+    let providerMeta: Record<string, unknown> | undefined;
+
     try {
       // Get task with tool config
       const task = await db.query.tasks.findFirst({
@@ -142,6 +145,8 @@ export const backgroundRemoveWorker: ToolWorker = {
 
       // Build provider request
       const providerInput = { image_url: falImageUrl };
+      providerRequest = { model: modelId, input: providerInput };
+      providerMeta = { provider: 'fal', model: modelId };
 
       // Use fal.subscribe for async operation with progress updates
       const result = await fal.subscribe(modelId, {
@@ -183,9 +188,9 @@ export const backgroundRemoveWorker: ToolWorker = {
           assetId: asset.id,
           storageKey: asset.storageKey,
         },
-        providerRequest: { model: modelId, input: providerInput },
+        providerRequest,
         providerResponse: { data: result.data },
-        providerMeta: { provider: 'fal', model: modelId, requestId: result.requestId },
+        providerMeta: { ...providerMeta, requestId: result.requestId },
       };
 
     } catch (error) {
@@ -203,6 +208,8 @@ export const backgroundRemoveWorker: ToolWorker = {
       return {
         success: false,
         error: userFacingError,
+        providerRequest,
+        providerMeta,
       };
     }
   },

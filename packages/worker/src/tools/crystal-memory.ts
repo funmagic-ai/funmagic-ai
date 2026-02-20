@@ -215,83 +215,107 @@ async function executeBackgroundRemoveStep(params: {
 }): Promise<StepResult> {
   const { taskId, userId, input, stepConfig, apiKey, progress, toolSlug } = params;
 
-  await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
+  let providerRequest: Record<string, unknown> | undefined;
+  let providerMeta: Record<string, unknown> | undefined;
 
-  // Get image URL - either directly provided or from storage key
-  let imageUrl = input.imageUrl;
+  try {
+    await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
 
-  if (!imageUrl && input.imageStorageKey) {
-    imageUrl = await getDownloadUrl(input.imageStorageKey);
-  }
+    // Get image URL - either directly provided or from storage key
+    let imageUrl = input.imageUrl;
 
-  if (!imageUrl) {
-    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'Image URL or storage key is required');
-  }
+    if (!imageUrl && input.imageStorageKey) {
+      imageUrl = await getDownloadUrl(input.imageStorageKey);
+    }
 
-  await progress.updateProgress(5, 'Preparing image');
+    if (!imageUrl) {
+      throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'Image URL or storage key is required');
+    }
 
-  // Configure FAL client with API key
-  fal.config({ credentials: apiKey });
+    await progress.updateProgress(5, 'Preparing image');
 
-  // Upload image to fal.ai storage first (required for non-public URLs like S3 presigned URLs)
-  await progress.updateProgress(10, 'Uploading to processing server');
-  const imageResponse = await fetch(imageUrl);
-  if (!imageResponse.ok) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
-  }
-  const imageBlob = await imageResponse.blob();
-  const falImageUrl = await fal.storage.upload(imageBlob);
+    // Configure FAL client with API key
+    fal.config({ credentials: apiKey });
 
-  await progress.updateProgress(20, 'Starting background removal');
+    // Upload image to fal.ai storage first (required for non-public URLs like S3 presigned URLs)
+    await progress.updateProgress(10, 'Uploading to processing server');
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
+    }
+    const imageBlob = await imageResponse.blob();
+    const falImageUrl = await fal.storage.upload(imageBlob);
 
-  // Get model from step config
-  const modelId = getProviderModel(stepConfig);
+    await progress.updateProgress(20, 'Starting background removal');
 
-  // Build provider request
-  const providerInput = { image_url: falImageUrl };
+    // Get model from step config
+    const modelId = getProviderModel(stepConfig);
 
-  // Use fal.subscribe for async operation with progress updates
-  const result = await fal.subscribe(modelId, {
-    input: providerInput,
-    logs: true,
-    onQueueUpdate: (update) => {
-      if (update.status === 'IN_PROGRESS') {
-        const logsCount = update.logs?.length ?? 0;
-        const progressPercent = Math.min(30 + logsCount * 10, 80);
-        progress.updateProgress(progressPercent, 'Processing background removal...');
-      }
-    },
-  }) as { data: FalResult; requestId?: string };
+    // Build provider request
+    const providerInput = { image_url: falImageUrl };
+    providerRequest = { model: modelId, input: providerInput };
+    providerMeta = { provider: 'fal', model: modelId, stepId: stepConfig.id };
 
-  if (!result.data?.image?.url) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image URL in fal.ai response');
-  }
+    // Use fal.subscribe for async operation with progress updates
+    const result = await fal.subscribe(modelId, {
+      input: providerInput,
+      logs: true,
+      onQueueUpdate: (update) => {
+        if (update.status === 'IN_PROGRESS') {
+          const logsCount = update.logs?.length ?? 0;
+          const progressPercent = Math.min(30 + logsCount * 10, 80);
+          progress.updateProgress(progressPercent, 'Processing background removal...');
+        }
+      },
+    }) as { data: FalResult; requestId?: string };
 
-  await progress.updateProgress(90, 'Saving result');
+    if (!result.data?.image?.url) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No image URL in fal.ai response');
+    }
 
-  // Upload to S3
-  const asset = await uploadFromUrl({
-    url: result.data.image.url,
-    userId,
-    module: toolSlug,
-    taskId,
-    filename: `bg_removed_${Date.now()}.png`,
-  });
+    await progress.updateProgress(90, 'Saving result');
 
-  await progress.updateProgress(100, 'Complete');
-  await progress.completeStep({ assetId: asset.id });
+    // Upload to S3
+    const asset = await uploadFromUrl({
+      url: result.data.image.url,
+      userId,
+      module: toolSlug,
+      taskId,
+      filename: `bg_removed_${Date.now()}.png`,
+    });
 
-  return {
-    success: true,
-    assetId: asset.id,
-    output: {
+    await progress.updateProgress(100, 'Complete');
+    await progress.completeStep({ assetId: asset.id });
+
+    return {
+      success: true,
       assetId: asset.id,
-      storageKey: asset.storageKey,
-    },
-    providerRequest: { model: modelId, input: providerInput },
-    providerResponse: { data: result.data },
-    providerMeta: { provider: 'fal', model: modelId, stepId: stepConfig.id, requestId: result.requestId },
-  };
+      output: {
+        assetId: asset.id,
+        storageKey: asset.storageKey,
+      },
+      providerRequest,
+      providerResponse: { data: result.data },
+      providerMeta: { ...providerMeta, requestId: result.requestId },
+    };
+  } catch (error) {
+    if (isProvider429Error(error)) throw error;
+
+    const userFacingError = error instanceof TaskError
+      ? error.code
+      : ERROR_CODES.TASK_PROCESSING_FAILED;
+    const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    console.error(`[crystal-memory] bg-remove task ${taskId} failed: ${technicalMessage}`);
+
+    await progress.fail(userFacingError);
+    return {
+      success: false,
+      error: userFacingError,
+      providerRequest,
+      providerMeta,
+    };
+  }
 }
 
 /**
@@ -308,142 +332,166 @@ async function executeVGGTStep(params: {
 }): Promise<StepResult> {
   const { taskId, userId, input, stepConfig, apiKey, progress, toolSlug } = params;
 
-  await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
+  let providerRequest: Record<string, unknown> | undefined;
+  let providerMeta: Record<string, unknown> | undefined;
 
-  // Resolve the bg-removed image URL from the asset saved in step 1
-  if (!input.sourceAssetId) {
-    throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'sourceAssetId is required for VGGT step');
-  }
-  const imageUrl = await getAssetDownloadUrl(input.sourceAssetId);
+  try {
+    await progress.startStep(stepConfig.id, stepConfig.name || stepConfig.id);
 
-  // Get VGGT options from step provider options
-  const providerOptions = getMergedProviderOptions(stepConfig);
-  const vggtOptions: VGGTOptions = {
-    pcdSource: (providerOptions.pcd_source as string) || (providerOptions.pcdSource as string) || 'point_head',
-    returnPcd: (providerOptions.return_pcd as boolean) ?? (providerOptions.returnPcd as boolean) ?? true,
-    outputImageSize: (providerOptions.output_image_size as number) || (providerOptions.outputImageSize as number) || 518,
-    scaleExtent: (providerOptions.scale_extent as number) || (providerOptions.scaleExtent as number) || 10,
-  };
+    // Resolve the bg-removed image URL from the asset saved in step 1
+    if (!input.sourceAssetId) {
+      throw new TaskError(ERROR_CODES.TASK_INPUT_INVALID, 'sourceAssetId is required for VGGT step');
+    }
+    const imageUrl = await getAssetDownloadUrl(input.sourceAssetId);
 
-  await progress.updateProgress(5, 'Preparing image for VGGT');
+    // Get VGGT options from step provider options
+    const providerOptions = getMergedProviderOptions(stepConfig);
+    const vggtOptions: VGGTOptions = {
+      pcdSource: (providerOptions.pcd_source as string) || (providerOptions.pcdSource as string) || 'point_head',
+      returnPcd: (providerOptions.return_pcd as boolean) ?? (providerOptions.returnPcd as boolean) ?? true,
+      outputImageSize: (providerOptions.output_image_size as number) || (providerOptions.outputImageSize as number) || 518,
+      scaleExtent: (providerOptions.scale_extent as number) || (providerOptions.scaleExtent as number) || 10,
+    };
 
-  // Fetch image and convert to base64 data URI (like Python reference)
-  const imageResponse = await fetch(imageUrl);
-  if (!imageResponse.ok) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
-  }
-  const imageBuffer = await imageResponse.arrayBuffer();
-  const contentType = imageResponse.headers.get('content-type') || 'image/png';
-  const base64Image = Buffer.from(imageBuffer).toString('base64');
-  const imageDataUri = `data:${contentType};base64,${base64Image}`;
+    await progress.updateProgress(5, 'Preparing image for VGGT');
 
-  await progress.updateProgress(10, 'Initializing Replicate client');
+    // Fetch image and convert to base64 data URI (like Python reference)
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, `Failed to fetch image: ${imageResponse.status}`);
+    }
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const contentType = imageResponse.headers.get('content-type') || 'image/png';
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+    const imageDataUri = `data:${contentType};base64,${base64Image}`;
 
-  // Initialize Replicate SDK
-  const replicate = new Replicate({ auth: apiKey });
+    await progress.updateProgress(10, 'Initializing Replicate client');
 
-  // Get model from step config
-  const modelId = getProviderModel(stepConfig);
+    // Initialize Replicate SDK
+    const replicate = new Replicate({ auth: apiKey });
 
-  await progress.updateProgress(15, 'Calling VGGT API');
+    // Get model from step config
+    const modelId = getProviderModel(stepConfig);
 
-  // Build provider request
-  const replicateInput = {
-    images: [imageDataUri],
-    pcd_source: vggtOptions.pcdSource,
-    return_pcd: vggtOptions.returnPcd,
-  };
+    await progress.updateProgress(15, 'Calling VGGT API');
 
-  // Run VGGT prediction using Replicate SDK - it handles polling automatically
-  const output = await replicate.run(modelId as `${string}/${string}:${string}`, {
-    input: replicateInput,
-  }) as {
-    data?: string[];
-  };
+    // Build provider request
+    const replicateInput = {
+      images: [imageDataUri],
+      pcd_source: vggtOptions.pcdSource,
+      return_pcd: vggtOptions.returnPcd,
+    };
+    providerRequest = { model: modelId, input: { ...replicateInput, images: ['[data_uri]'] } };
+    providerMeta = { provider: 'replicate', model: modelId, stepId: stepConfig.id };
 
-  await progress.updateProgress(70, 'Processing VGGT output');
+    // Run VGGT prediction using Replicate SDK - it handles polling automatically
+    const output = await replicate.run(modelId as `${string}/${string}:${string}`, {
+      input: replicateInput,
+    }) as {
+      data?: string[];
+    };
 
-  if (!output.data || output.data.length === 0) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No data in VGGT output');
-  }
+    await progress.updateProgress(70, 'Processing VGGT output');
 
-  // Fetch the data JSON file (contains world_points and world_points_conf)
-  const dataResponse = await fetch(output.data[0]);
-  if (!dataResponse.ok) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Failed to fetch VGGT data file');
-  }
-  const vggtData = await dataResponse.json() as {
-    world_points?: number[][][];
-    world_points_conf?: number[][];
-  };
+    if (!output.data || output.data.length === 0) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No data in VGGT output');
+    }
 
-  if (!vggtData.world_points) {
-    throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No world_points in VGGT data');
-  }
+    // Fetch the data JSON file (contains world_points and world_points_conf)
+    const dataResponse = await fetch(output.data[0]);
+    if (!dataResponse.ok) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'Failed to fetch VGGT data file');
+    }
+    const vggtData = await dataResponse.json() as {
+      world_points?: number[][][];
+      world_points_conf?: number[][];
+    };
 
-  const worldPoints = vggtData.world_points;
-  const confidence = vggtData.world_points_conf ?? [];
+    if (!vggtData.world_points) {
+      throw new TaskError(ERROR_CODES.TASK_PROCESSING_FAILED, 'No world_points in VGGT data');
+    }
 
-  await progress.updateProgress(85, 'Processing point cloud data');
+    const worldPoints = vggtData.world_points;
+    const confidence = vggtData.world_points_conf ?? [];
 
-  // Reshape points from (H, W, 3) to (N, 3)
-  const { points: rawPoints, height, width } = reshapePoints(worldPoints);
+    await progress.updateProgress(85, 'Processing point cloud data');
 
-  // Rotate 180 degrees around Y axis
-  const rotatedPoints = rotateAroundZ(rawPoints);
+    // Reshape points from (H, W, 3) to (N, 3)
+    const { points: rawPoints, height, width } = reshapePoints(worldPoints);
 
-  // Center and scale to [-extent, extent]
-  const scaledPoints = centerAndScale(rotatedPoints, vggtOptions.scaleExtent);
+    // Rotate 180 degrees around Y axis
+    const rotatedPoints = rotateAroundZ(rawPoints);
 
-  await progress.updateProgress(90, 'Extracting colors');
+    // Center and scale to [-extent, extent]
+    const scaledPoints = centerAndScale(rotatedPoints, vggtOptions.scaleExtent);
 
-  // Extract colors from source image
-  const colors = await extractColorsWithSharp({
-    imageUrl,
-    height,
-    width,
-    outputSize: vggtOptions.outputImageSize,
-  });
+    await progress.updateProgress(90, 'Extracting colors');
 
-  // Flatten confidence
-  const flatConfidence = flattenConfidence(confidence);
+    // Extract colors from source image
+    const colors = await extractColorsWithSharp({
+      imageUrl,
+      height,
+      width,
+      outputSize: vggtOptions.outputImageSize,
+    });
 
-  await progress.updateProgress(95, 'Generating output');
+    // Flatten confidence
+    const flatConfidence = flattenConfidence(confidence);
 
-  // Generate output
-  const outputData = generateOutput({
-    points: scaledPoints,
-    colors,
-    confidence: flatConfidence,
-  });
+    await progress.updateProgress(95, 'Generating output');
 
-  // Save output as JSON
-  const outputJson = JSON.stringify(outputData);
-  const asset = await uploadBuffer({
-    buffer: Buffer.from(outputJson, 'utf-8'),
-    userId,
-    module: toolSlug,
-    taskId,
-    filename: `point_cloud_${Date.now()}.json`,
-    contentType: 'application/json',
-  });
+    // Generate output
+    const outputData = generateOutput({
+      points: scaledPoints,
+      colors,
+      confidence: flatConfidence,
+    });
 
-  await progress.updateProgress(100, 'Complete');
-  await progress.completeStep({ assetId: asset.id });
+    // Save output as JSON
+    const outputJson = JSON.stringify(outputData);
+    const asset = await uploadBuffer({
+      buffer: Buffer.from(outputJson, 'utf-8'),
+      userId,
+      module: toolSlug,
+      taskId,
+      filename: `point_cloud_${Date.now()}.json`,
+      contentType: 'application/json',
+    });
 
-  return {
-    success: true,
-    assetId: asset.id,
-    output: {
+    await progress.updateProgress(100, 'Complete');
+    await progress.completeStep({ assetId: asset.id });
+
+    return {
+      success: true,
       assetId: asset.id,
-      storageKey: asset.storageKey,
-      pointCount: scaledPoints.length,
-      dimensions: { height, width },
-    },
-    providerRequest: { model: modelId, input: { ...replicateInput, images: ['[data_uri]'] } },
-    providerResponse: { data: output.data },
-    providerMeta: { provider: 'replicate', model: modelId, stepId: stepConfig.id },
-  };
+      output: {
+        assetId: asset.id,
+        storageKey: asset.storageKey,
+        pointCount: scaledPoints.length,
+        dimensions: { height, width },
+      },
+      providerRequest,
+      providerResponse: { data: output.data },
+      providerMeta,
+    };
+  } catch (error) {
+    if (isProvider429Error(error)) throw error;
+
+    const userFacingError = error instanceof TaskError
+      ? error.code
+      : ERROR_CODES.TASK_PROCESSING_FAILED;
+    const technicalMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    console.error(`[crystal-memory] VGGT task ${taskId} failed: ${technicalMessage}`);
+
+    await progress.fail(userFacingError);
+    return {
+      success: false,
+      error: userFacingError,
+      providerRequest,
+      providerMeta,
+    };
+  }
 }
 
 /**
