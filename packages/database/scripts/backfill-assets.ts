@@ -31,7 +31,7 @@ const s3Client = new S3Client({
 
 const BUCKET_PUBLIC = process.env.S3_BUCKET_PUBLIC!;
 const BUCKET_ADMIN = process.env.S3_BUCKET_ADMIN!;
-const CDN_BASE_URL = process.env.CDN_BASE_URL || '';
+const CDN_BASE_URL = process.env.CDN_BASE_URL ?? '';
 
 interface HeadResult {
   size: number;

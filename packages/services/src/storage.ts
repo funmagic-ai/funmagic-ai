@@ -2,7 +2,6 @@ import { S3Client, PutObjectCommand, GetObjectCommand, CopyObjectCommand, Delete
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getSignedUrl as getCloudFrontSignedUrlFn } from '@aws-sdk/cloudfront-signer';
 
-// Environment variables for URL expirations
 const PRESIGNED_URL_EXPIRATION_PRIVATE = parseInt(process.env.PRESIGNED_URL_EXPIRATION_PRIVATE!, 10);
 const PRESIGNED_URL_EXPIRATION_UPLOAD = parseInt(process.env.PRESIGNED_URL_EXPIRATION_UPLOAD!, 10);
 
@@ -69,6 +68,10 @@ function createS3Client(config?: Partial<StorageConfig>): S3Client {
       secretAccessKey: finalConfig.secretAccessKey,
     },
     forcePathStyle: true, // Required for MinIO
+    // AWS SDK v3.723+ adds x-amz-checksum-mode=ENABLED to GetObject by default.
+    // MinIO rejects presigned URLs containing this parameter with 403.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 }
 

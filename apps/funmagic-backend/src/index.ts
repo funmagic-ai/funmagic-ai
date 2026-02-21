@@ -176,7 +176,7 @@ app.onError((err, c) => {
   }, 500);
 });
 
-const port = Number(process.env.PORT) || 8000;
+const port = Number(process.env.PORT!);
 log.info({ port }, 'Server running');
 
 // Export app type for type inference

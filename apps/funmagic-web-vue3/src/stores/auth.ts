@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
     const locale = (router.currentRoute.value.params.locale as string) || 'en'
     const result = await authClient.signIn.social({
       provider,
-      callbackURL: `/${locale}/`,
+      callbackURL: `${window.location.origin}/${locale}/`,
     })
     return result
   }

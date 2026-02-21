@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { useAuthStore } from '@/stores/auth'
 import { NIcon } from 'naive-ui'
 import {
@@ -28,7 +29,8 @@ const userInitial = computed(() => {
 const { data: balanceData } = useQuery({
   queryKey: ['credit-balance'],
   queryFn: async () => {
-    const { data } = await api.GET('/api/credits/balance')
+    const { data, error, response } = await api.GET('/api/credits/balance')
+    if (error) throw extractApiError(error, response)
     return data
   },
   enabled: computed(() => authStore.isAuthenticated),
@@ -98,10 +100,9 @@ async function handleSelect(key: string) {
           round
           :size="28"
           :src="authStore.user?.image ?? undefined"
+          :img-props="{ referrerpolicy: 'no-referrer' }"
         >
-          <template v-if="!authStore.user?.image">
-            {{ userInitial }}
-          </template>
+          {{ userInitial }}
         </n-avatar>
       </button>
     </n-dropdown>

@@ -187,10 +187,9 @@ watch(() => route.fullPath, () => {
                   round
                   :size="28"
                   :src="authStore.user?.image ?? undefined"
+                  :img-props="{ referrerpolicy: 'no-referrer' }"
                 >
-                  <template v-if="!authStore.user?.image">
-                    {{ authStore.user?.name?.charAt(0)?.toUpperCase() ?? '?' }}
-                  </template>
+                  {{ authStore.user?.name?.charAt(0)?.toUpperCase() ?? '?' }}
                 </n-avatar>
                 <span class="text-sm font-medium">{{ authStore.user?.name }}</span>
               </div>

@@ -54,7 +54,10 @@ watch(activeTab, () => {
   currentPage.value = 1
 })
 
-// Tasks query with polling fallback for active tasks
+// Signed thumbnail URLs expire after 15 min (900s).
+// Refetch every 10 min while on the page to keep URLs valid.
+const SIGNED_URL_REFRESH_MS = 10 * 60 * 1000
+
 const { data, isLoading, isError, refetch } = useQuery({
   queryKey: ['user-tasks', currentPage, activeTab],
   queryFn: async () => {
@@ -66,14 +69,17 @@ const { data, isLoading, isError, refetch } = useQuery({
     if (activeTab.value) {
       query.category = activeTab.value
     }
-    const { data } = await api.GET('/api/tasks', {
+    const { data, error, response } = await api.GET('/api/tasks', {
       params: { query: query as any },
     })
+    if (error) throw extractApiError(error, response)
     return data as unknown as TasksResponse
   },
   refetchInterval: (query) => {
     const list = (query.state.data as TasksResponse | undefined)?.tasks ?? []
-    return list.some(t => ['pending', 'queued', 'processing'].includes(t.status)) ? 30000 : false
+    return list.some(t => ['pending', 'queued', 'processing'].includes(t.status))
+      ? 30_000
+      : SIGNED_URL_REFRESH_MS
   },
 })
 

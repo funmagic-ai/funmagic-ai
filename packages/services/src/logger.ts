@@ -5,7 +5,7 @@ import pino from 'pino';
  * No transports, no worker threads, just fast stdout JSON.
  */
 const rootLogger = pino({
-  level: process.env.LOG_LEVEL ?? 'info',
+  level: process.env.LOG_LEVEL!,
 });
 
 export type Logger = pino.Logger;

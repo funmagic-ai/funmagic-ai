@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
@@ -14,9 +15,10 @@ const locale = computed(() => (route.params.locale as string) || 'en')
 const { data, isLoading, isError } = useQuery({
   queryKey: ['packages', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/credits/packages', {
+    const { data, error, response } = await api.GET('/api/credits/packages', {
       params: { query: { locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })

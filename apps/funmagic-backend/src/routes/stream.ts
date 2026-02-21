@@ -182,7 +182,7 @@ export const streamRoutes = new OpenAPIHono<{ Variables: { user: { id: string } 
         }
 
         // 5. DB poll fallback (every 3s) — catches terminal status if stream missed it
-        const SSE_MAX_DURATION_MS = parseInt(process.env.SSE_MAX_DURATION_MS!, 10) || 600_000;
+        const SSE_MAX_DURATION_MS = parseInt(process.env.SSE_MAX_DURATION_MS!, 10);
         const sseStartTime = Date.now();
         // Track task IDs already seen as terminal to avoid duplicate DB polls
         const terminalSentTaskIds = new Set<string>();

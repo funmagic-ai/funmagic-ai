@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import HeroCarousel from '@/components/home/HeroCarousel.vue'
@@ -18,9 +19,10 @@ const locale = computed(() => (route.params.locale as string) || 'en')
 const { data: mainBannersData, isLoading: loadingMainBanners } = useQuery({
   queryKey: ['banners', 'main', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/banners', {
+    const { data, error, response } = await api.GET('/api/banners', {
       params: { query: { type: 'main', locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -29,9 +31,10 @@ const { data: mainBannersData, isLoading: loadingMainBanners } = useQuery({
 const { data: sideBannersData, isLoading: loadingSideBanners } = useQuery({
   queryKey: ['banners', 'side', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/banners', {
+    const { data, error, response } = await api.GET('/api/banners', {
       params: { query: { type: 'side', locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -40,9 +43,10 @@ const { data: sideBannersData, isLoading: loadingSideBanners } = useQuery({
 const { data: toolsData, isLoading: loadingTools } = useQuery({
   queryKey: ['featured-tools', locale],
   queryFn: async () => {
-    const { data } = await api.GET('/api/tools', {
+    const { data, error, response } = await api.GET('/api/tools', {
       params: { query: { limit: 8, locale: locale.value as SupportedLocale } },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })

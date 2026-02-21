@@ -1,7 +1,7 @@
 import 'dotenv/config';
 
 // Validate required env vars before importing anything else
-const WORKER_REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'SECRET_KEY', 'PROVIDER_TIMEOUT_MS'];
+const WORKER_REQUIRED_ENV = ['DATABASE_URL', 'REDIS_URL', 'SECRET_KEY', 'PROVIDER_TIMEOUT_MS', 'STUDIO_WORKER_CONCURRENCY', 'STUDIO_WORKER_METRICS_PORT', 'LOG_LEVEL'];
 const missingEnv = WORKER_REQUIRED_ENV.filter((v) => !process.env[v]);
 if (missingEnv.length > 0) {
   console.error(`[Studio Worker] Missing required environment variables:\n${missingEnv.map((v) => `  - ${v}`).join('\n')}`);
@@ -229,7 +229,7 @@ const studioWorker = new Worker<StudioGenerationJobData>(
   },
   {
     connection: createRedisConnection(),
-    concurrency: parseInt(process.env.STUDIO_WORKER_CONCURRENCY ?? '3', 10),
+    concurrency: parseInt(process.env.STUDIO_WORKER_CONCURRENCY!, 10),
     // Match lock duration to provider timeout so long-running jobs (e.g.
     // Tripo 3D generation) are not falsely detected as stalled.
     lockDuration: PROVIDER_TIMEOUT_MS,
@@ -274,7 +274,7 @@ const queueSampler = setInterval(async () => {
 }, 30_000);
 
 // ─── Metrics HTTP endpoint ───
-const metricsPort = Number(process.env.STUDIO_WORKER_METRICS_PORT) || 9091;
+const metricsPort = Number(process.env.STUDIO_WORKER_METRICS_PORT!);
 const metricsServer = Bun.serve({
   port: metricsPort,
   fetch: createMetricsHandler(process.env.METRICS_AUTH_TOKEN),

@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ToolCard from '@/components/tools/ToolCard.vue'
@@ -61,7 +62,7 @@ const {
 } = useQuery({
   queryKey: ['tools', locale, debouncedSearch, selectedCategory, currentPage],
   queryFn: async () => {
-    const { data } = await api.GET('/api/tools', {
+    const { data, error, response } = await api.GET('/api/tools', {
       params: {
         query: {
           q: debouncedSearch.value || undefined,
@@ -72,6 +73,7 @@ const {
         },
       },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })

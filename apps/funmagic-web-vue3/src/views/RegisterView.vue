@@ -4,7 +4,7 @@ import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import type { FormInst, FormRules } from 'naive-ui'
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
@@ -74,14 +74,15 @@ async function handleSubmit() {
       formValue.value.password,
     )
     if (result.error) {
-      errorMsg.value = result.error.message || t('auth.registerError')
+      const code = result.error.code
+      const key = `auth.errorCodes.${code}`
+      errorMsg.value = te(key) ? t(key) : t('auth.registerError')
       return
     }
     message.success(t('auth.accountCreated'))
     router.push({ name: 'home', params: { locale: locale.value } })
-  } catch (err: unknown) {
-    const e = err as { message?: string }
-    errorMsg.value = e?.message || t('auth.registerError')
+  } catch {
+    errorMsg.value = t('auth.registerError')
   } finally {
     loading.value = false
   }

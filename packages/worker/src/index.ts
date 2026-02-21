@@ -12,6 +12,9 @@ const WORKER_REQUIRED_ENV = [
   'S3_BUCKET_PRIVATE',
   'S3_BUCKET_ADMIN',
   'TOOL_TIMEOUT_MS',
+  'WORKER_CONCURRENCY',
+  'WORKER_METRICS_PORT',
+  'LOG_LEVEL',
 ];
 const missingEnv = WORKER_REQUIRED_ENV.filter((v) => !process.env[v]);
 if (missingEnv.length > 0) {
@@ -254,7 +257,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
   },
   {
     connection: createRedisConnection(),
-    concurrency: parseInt(process.env.WORKER_CONCURRENCY ?? '5', 10),
+    concurrency: parseInt(process.env.WORKER_CONCURRENCY!, 10),
     // Match lock duration to tool timeout so long-running jobs (e.g. VGGT
     // point-cloud generation) are not falsely detected as stalled.
     // BullMQ auto-extends the lock every lockDuration/2 ms.
@@ -301,7 +304,7 @@ const queueSampler = setInterval(async () => {
 }, 30_000);
 
 // ─── Metrics HTTP endpoint ───
-const metricsPort = Number(process.env.WORKER_METRICS_PORT) || 9090;
+const metricsPort = Number(process.env.WORKER_METRICS_PORT!);
 const metricsServer = Bun.serve({
   port: metricsPort,
   fetch: createMetricsHandler(process.env.METRICS_AUTH_TOKEN),

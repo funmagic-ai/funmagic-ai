@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
+import { extractApiError } from '@/lib/api-error'
 import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
@@ -18,7 +19,8 @@ const transactionLimit = 10
 const { data: balanceData, isLoading: balanceLoading } = useQuery({
   queryKey: ['credit-balance'],
   queryFn: async () => {
-    const { data } = await api.GET('/api/credits/balance')
+    const { data, error, response } = await api.GET('/api/credits/balance')
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -30,7 +32,7 @@ const {
 } = useQuery({
   queryKey: ['credit-transactions', transactionPage],
   queryFn: async () => {
-    const { data } = await api.GET('/api/credits/transactions', {
+    const { data, error, response } = await api.GET('/api/credits/transactions', {
       params: {
         query: {
           limit: transactionLimit,
@@ -38,6 +40,7 @@ const {
         },
       },
     })
+    if (error) throw extractApiError(error, response)
     return data
   },
 })
@@ -86,7 +89,12 @@ function getTransactionTypeTag(type: string) {
       <!-- User Info -->
       <n-card class="mb-6">
         <div class="flex items-center gap-6">
-          <n-avatar :size="72" round>
+          <n-avatar
+            :size="72"
+            round
+            :src="authStore.user?.image ?? undefined"
+            :img-props="{ referrerpolicy: 'no-referrer' }"
+          >
             {{ authStore.user?.name?.charAt(0)?.toUpperCase() || '?' }}
           </n-avatar>
           <div>
