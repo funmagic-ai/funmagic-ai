@@ -1,4 +1,4 @@
-import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom-client';
+import { Registry, Counter, Histogram, Gauge } from 'prom-client';
 
 /**
  * Shared Prometheus metrics registry.
@@ -10,8 +10,43 @@ import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from 'prom
 
 export const metricsRegistry = new Registry();
 
-// Collect default Node.js metrics (event loop lag, heap, GC, etc.)
-collectDefaultMetrics({ register: metricsRegistry });
+// ─── Process Metrics (Bun-compatible) ───
+
+const processResidentMemory = new Gauge({
+  name: 'process_resident_memory_bytes',
+  help: 'Resident memory size in bytes',
+  registers: [metricsRegistry],
+  collect() {
+    this.set(process.memoryUsage.rss());
+  },
+});
+
+const processHeapUsed = new Gauge({
+  name: 'process_heap_used_bytes',
+  help: 'Process heap size used in bytes',
+  registers: [metricsRegistry],
+  collect() {
+    this.set(process.memoryUsage().heapUsed);
+  },
+});
+
+const processHeapTotal = new Gauge({
+  name: 'process_heap_total_bytes',
+  help: 'Process heap size total in bytes',
+  registers: [metricsRegistry],
+  collect() {
+    this.set(process.memoryUsage().heapTotal);
+  },
+});
+
+const processUptimeSeconds = new Gauge({
+  name: 'process_uptime_seconds',
+  help: 'Process uptime in seconds',
+  registers: [metricsRegistry],
+  collect() {
+    this.set(process.uptime());
+  },
+});
 
 // ─── HTTP Metrics (Backend) ───
 
