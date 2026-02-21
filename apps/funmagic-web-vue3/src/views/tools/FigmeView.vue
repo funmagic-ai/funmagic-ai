@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
 import type { SupportedLocale } from '@/lib/i18n'
@@ -19,6 +19,7 @@ import TaskProgressDisplay from '@/components/tools/TaskProgressDisplay.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const queryClient = useQueryClient()
 const route = useRoute()
 const locale = computed(() => (route.params.locale as string) || 'en')
 
@@ -134,6 +135,7 @@ const submitMutation = useMutation({
   onSuccess: (data) => {
     taskId.value = data.task.id
     currentStep.value = 1
+    queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
 })
 
@@ -155,6 +157,7 @@ const generate3DMutation = useMutation({
   onSuccess: (data) => {
     threeDTaskId.value = data.task.id
     currentStep.value = 3
+    queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
 })
 

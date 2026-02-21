@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/vue-query'
+import { subscribeToGeneration } from './useAdminStream'
 
 export interface GenerationStreamEvent {
   type: 'connected' | 'text_delta' | 'text_done' | 'partial_image' | 'image_done' | 'complete' | 'error' | 'heartbeat'
@@ -16,56 +17,39 @@ export interface GenerationStreamEvent {
 
 export function useGenerationStream(projectId: Ref<string>) {
   const queryClient = useQueryClient()
-  const activeStreams = ref<Map<string, EventSource>>(new Map())
+  const unsubscribeFns = ref<Map<string, () => void>>(new Map())
 
   function connectStream(generationId: string) {
-    // Don't create duplicate connections
-    if (activeStreams.value.has(generationId)) return
+    // Don't create duplicate subscriptions
+    if (unsubscribeFns.value.has(generationId)) return
 
-    const baseUrl = import.meta.env.VITE_API_URL
-    const url = `${baseUrl}/api/admin/studio/generations/${generationId}/stream`
+    const unsubscribe = subscribeToGeneration(generationId, (event) => {
+      const parsed = event as unknown as GenerationStreamEvent
 
-    const es = new EventSource(url, { withCredentials: true })
-    activeStreams.value.set(generationId, es)
+      if (parsed.type === 'image_done') {
+        // Partial update - refresh to show new image
+        queryClient.invalidateQueries({ queryKey: ['studio-project', projectId] })
+      }
 
-    const handleTerminal = () => {
-      es.close()
-      activeStreams.value.delete(generationId)
-      // Invalidate project query to refresh generation data
-      queryClient.invalidateQueries({ queryKey: ['studio-project', projectId] })
-    }
-
-    es.addEventListener('complete', handleTerminal)
-    es.addEventListener('error', (e) => {
-      // SSE error can mean either a server error event or connection failure
-      const event = e as MessageEvent
-      if (event.data) {
-        // Server sent an error event
-        handleTerminal()
-      } else {
-        // Connection error - close and let polling handle it
-        es.close()
-        activeStreams.value.delete(generationId)
+      if (parsed.type === 'complete' || parsed.type === 'error') {
+        // Terminal event - clean up subscription and refresh
+        const unsub = unsubscribeFns.value.get(generationId)
+        if (unsub) {
+          unsub()
+          unsubscribeFns.value.delete(generationId)
+        }
+        queryClient.invalidateQueries({ queryKey: ['studio-project', projectId] })
       }
     })
 
-    es.addEventListener('image_done', () => {
-      // Partial update - refresh to show new image
-      queryClient.invalidateQueries({ queryKey: ['studio-project', projectId] })
-    })
-
-    es.onerror = () => {
-      // Connection failed - fall back to polling
-      es.close()
-      activeStreams.value.delete(generationId)
-    }
+    unsubscribeFns.value.set(generationId, unsubscribe)
   }
 
   function disconnectAll() {
-    for (const [, es] of activeStreams.value) {
-      es.close()
+    for (const [, unsub] of unsubscribeFns.value) {
+      unsub()
     }
-    activeStreams.value.clear()
+    unsubscribeFns.value.clear()
   }
 
   onUnmounted(() => {
@@ -75,6 +59,6 @@ export function useGenerationStream(projectId: Ref<string>) {
   return {
     connectStream,
     disconnectAll,
-    activeStreams: readonly(activeStreams),
+    activeStreams: readonly(unsubscribeFns),
   }
 }

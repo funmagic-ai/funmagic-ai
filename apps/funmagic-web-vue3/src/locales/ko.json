@@ -152,7 +152,8 @@
       "queued": "대기열",
       "processing": "처리 중",
       "completed": "완료",
-      "failed": "실패"
+      "failed": "실패",
+      "action_required": "계속"
     },
     "credits": "{n} 크레딧",
     "stillProcessing": "작업이 아직 처리 중입니다...",

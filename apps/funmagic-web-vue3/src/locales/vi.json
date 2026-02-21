@@ -152,7 +152,8 @@
       "queued": "Trong hàng đợi",
       "processing": "Đang xử lý",
       "completed": "Hoàn thành",
-      "failed": "Thất bại"
+      "failed": "Thất bại",
+      "action_required": "Tiếp tục"
     },
     "credits": "{n} tín dụng",
     "stillProcessing": "Tác vụ vẫn đang xử lý...",

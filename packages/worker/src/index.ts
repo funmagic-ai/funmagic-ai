@@ -208,7 +208,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       // Publish completion signal (no output — it can be massive, e.g. 13MB
       // point cloud data). Client fetches full output via REST after receiving
       // this notification. Output is already persisted in taskPayloads above.
-      await publishTaskCompleted(redis, taskId);
+      await publishTaskCompleted(redis, taskId, undefined, userId);
 
       taskLog.info('Task completed successfully');
       return result.output;
@@ -245,7 +245,7 @@ const aiTaskWorker = new Worker<AITaskJobData>(
       }
 
       // Publish failure event
-      await publishTaskFailed(redis, taskId, errorCode);
+      await publishTaskFailed(redis, taskId, errorCode, userId);
 
       // Do NOT throw here — the failure is fully handled (DB updated, credits
       // released, event published). Throwing would cause BullMQ to retry the

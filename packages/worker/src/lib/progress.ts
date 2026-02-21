@@ -19,6 +19,6 @@ export {
 /**
  * Create a progress tracker for a task
  */
-export function createProgressTracker(redis: Redis, taskId: string): ProgressTracker {
-  return new ProgressTracker(redis, taskId);
+export function createProgressTracker(redis: Redis, taskId: string, userId?: string): ProgressTracker {
+  return new ProgressTracker(redis, taskId, userId);
 }

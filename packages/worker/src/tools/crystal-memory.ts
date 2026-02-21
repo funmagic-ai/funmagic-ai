@@ -133,7 +133,7 @@ interface FalResult {
 export const crystalMemoryWorker: ToolWorker = {
   async execute(context: WorkerContext): Promise<StepResult> {
     const { taskId, stepId, userId, input, redis } = context;
-    const progress = createProgressTracker(redis, taskId);
+    const progress = createProgressTracker(redis, taskId, userId);
 
     try {
       // Get task with tool config

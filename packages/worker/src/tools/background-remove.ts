@@ -65,7 +65,7 @@ interface FalResult {
 export const backgroundRemoveWorker: ToolWorker = {
   async execute(context: WorkerContext): Promise<StepResult> {
     const { taskId, userId, input, redis } = context;
-    const progress = createProgressTracker(redis, taskId);
+    const progress = createProgressTracker(redis, taskId, userId);
 
     let providerRequest: Record<string, unknown> | undefined;
     let providerMeta: Record<string, unknown> | undefined;

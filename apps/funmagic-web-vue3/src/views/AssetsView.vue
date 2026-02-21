@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
 import { useApiError } from '@/composables/useApiError'
+import { subscribeToTask } from '@/composables/useUserStream'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
 interface TaskItem {
@@ -53,7 +54,7 @@ watch(activeTab, () => {
   currentPage.value = 1
 })
 
-// Tasks query with auto-polling when processing tasks exist
+// Tasks query with polling fallback for active tasks
 const { data, isLoading, isError, refetch } = useQuery({
   queryKey: ['user-tasks', currentPage, activeTab],
   queryFn: async () => {
@@ -72,7 +73,7 @@ const { data, isLoading, isError, refetch } = useQuery({
   },
   refetchInterval: (query) => {
     const list = (query.state.data as TasksResponse | undefined)?.tasks ?? []
-    return list.some(t => ['pending', 'queued', 'processing'].includes(t.status)) ? 15000 : false
+    return list.some(t => ['pending', 'queued', 'processing'].includes(t.status)) ? 30000 : false
   },
 })
 
@@ -83,6 +84,51 @@ const categories = computed(() => data.value?.categories ?? [])
 const totalPages = computed(() => {
   if (!pagination.value) return 1
   return Math.ceil(pagination.value.total / pageSize)
+})
+
+// Subscribe to SSE for active tasks — instant list refresh on completion/failure
+const activeUnsubscribes = ref<Map<string, () => void>>(new Map())
+
+function syncSubscriptions(taskList: TaskItem[]) {
+  const activeIds = new Set(
+    taskList
+      .filter(t => ['pending', 'queued', 'processing'].includes(t.status))
+      .map(t => t.id)
+  )
+
+  // Unsubscribe from tasks no longer active
+  for (const [id, unsub] of activeUnsubscribes.value) {
+    if (!activeIds.has(id)) {
+      unsub()
+      activeUnsubscribes.value.delete(id)
+    }
+  }
+
+  // Subscribe to newly active tasks
+  for (const id of activeIds) {
+    if (activeUnsubscribes.value.has(id)) continue
+    const unsub = subscribeToTask(id, (event) => {
+      const type = event.type as string
+      if (type === 'completed' || type === 'failed') {
+        queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
+        const u = activeUnsubscribes.value.get(id)
+        if (u) {
+          u()
+          activeUnsubscribes.value.delete(id)
+        }
+      }
+    })
+    activeUnsubscribes.value.set(id, unsub)
+  }
+}
+
+watch(tasks, (list) => syncSubscriptions(list), { immediate: true })
+
+onUnmounted(() => {
+  for (const [, unsub] of activeUnsubscribes.value) {
+    unsub()
+  }
+  activeUnsubscribes.value.clear()
 })
 
 // Delete mutation (now uses tasks endpoint)
@@ -143,6 +189,10 @@ function openDetail(task: TaskItem) {
 // Status helpers
 function isProcessing(task: { status: string }) {
   return ['pending', 'queued', 'processing'].includes(task.status)
+}
+
+function isActionRequired(task: { status: string }) {
+  return task.status === 'action_required'
 }
 
 function isFailed(task: { status: string }) {
@@ -295,6 +345,7 @@ function formatDate(dateStr: string) {
                 class="absolute top-2 right-2 rounded px-1.5 py-0.5 text-[10px] font-medium text-white"
                 :class="{
                   'bg-blue-500 animate-pulse': isProcessing(task),
+                  'bg-amber-500': isActionRequired(task),
                   'bg-red-500': isFailed(task),
                 }"
               >
@@ -309,14 +360,11 @@ function formatDate(dateStr: string) {
           </template>
 
           <div class="space-y-2">
-            <p class="text-sm font-medium text-foreground truncate" :title="task.toolTitle">
-              {{ task.toolTitle }}
-            </p>
             <div class="flex items-center justify-between text-xs text-muted-foreground">
               <span>{{ t('assets.credits', { n: task.creditsCost }) }}</span>
               <span>{{ formatDate(task.createdAt) }}</span>
             </div>
-            <div class="flex items-center gap-2 pt-2">
+            <div class="flex items-center gap-2">
               <n-button
                 v-if="isCompleted(task) && task.outputAssetId"
                 size="small"

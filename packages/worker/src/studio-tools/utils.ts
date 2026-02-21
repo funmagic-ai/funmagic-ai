@@ -85,7 +85,7 @@ export async function uploadBase64Image(
  * Create a progress tracker for a context
  */
 export function createProgressTracker(context: StudioWorkerContext) {
-  return createStudioProgressTracker(context.redis, context.messageId);
+  return createStudioProgressTracker(context.redis, context.messageId, context.adminId);
 }
 
 // Re-export storage functions for convenience

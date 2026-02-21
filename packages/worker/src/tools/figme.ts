@@ -106,7 +106,7 @@ type OpenAIEditSize = '256x256' | '512x512' | '1024x1024' | '1536x1024' | '1024x
 export const figmeWorker: ToolWorker = {
   async execute(context: WorkerContext): Promise<StepResult> {
     const { taskId, stepId, userId, input, redis } = context;
-    const progress = createProgressTracker(redis, taskId);
+    const progress = createProgressTracker(redis, taskId, userId);
 
     try {
       // Get task with tool config

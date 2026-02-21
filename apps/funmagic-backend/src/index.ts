@@ -36,6 +36,7 @@ import { tasksRoutes } from './routes/tasks';
 import { creditsRoutes, creditsPublicRoutes } from './routes/credits';
 import { bannersPublicRoutes, bannersAdminRoutes } from './routes/banners';
 import { assetsRoutes } from './routes/assets';
+import { streamRoutes } from './routes/stream';
 import { toolTypesRoutes, toolsAdminRoutes, providersRoutes, adminProvidersRoutes, packagesRoutes, usersRoutes as usersAdminRoutes, studioRoutes, adminTasksRoutes, settingsRoutes, queueRoutes } from './routes/admin';
 
 const app = new OpenAPIHono();
@@ -93,6 +94,7 @@ protectedApp.route('/tasks', tasksRoutes);
 protectedApp.route('/credits', creditsRoutes);
 protectedApp.use('/assets/upload', uploadRateLimit);
 protectedApp.route('/assets', assetsRoutes);
+protectedApp.route('/stream', streamRoutes);
 
 app.route('/api', protectedApp);
 

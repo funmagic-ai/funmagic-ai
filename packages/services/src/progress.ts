@@ -50,37 +50,24 @@ export interface TaskFailedEvent extends ProgressEvent {
 }
 
 /**
- * Get the Redis channel name for a task
+ * Get the Redis Stream key for a user's event stream
  */
-export function getTaskChannel(taskId: string): string {
-  return `task:${taskId}`;
+export function getUserStreamKey(userId: string): string {
+  return `stream:user:${userId}`;
 }
 
 /**
- * Get the Redis Stream key for a task
- */
-export function getTaskStreamKey(taskId: string): string {
-  return `stream:task:${taskId}`;
-}
-
-/**
- * Publish a progress event to Redis
+ * Publish a progress event to the user's Redis Stream.
  *
- * Uses Redis Streams + Pub/Sub hybrid pattern:
- * 1. Store event in Redis Stream (persistent, auto-trim at 1000 events)
- * 2. Set TTL on stream (5 minutes)
- * 3. Publish to Pub/Sub for real-time delivery
- *
- * This ensures events are not lost if SSE connects after worker starts publishing.
+ * All events for a user flow through a single per-user stream.
+ * The SSE endpoint reads from this stream via XREAD BLOCK.
  */
 export async function publishProgress(
   redis: Redis,
   taskId: string,
-  event: Omit<ProgressEvent, 'timestamp'>
+  event: Omit<ProgressEvent, 'timestamp'>,
+  userId?: string
 ): Promise<void> {
-  const channel = getTaskChannel(taskId);
-  const streamKey = getTaskStreamKey(taskId);
-
   const fullEvent: ProgressEvent = {
     ...event,
     taskId,
@@ -89,14 +76,11 @@ export async function publishProgress(
 
   const eventJson = JSON.stringify(fullEvent);
 
-  // 1. Store in Redis Stream (persistent, auto-trim at ~1000 events)
-  await redis.xadd(streamKey, 'MAXLEN', '~', '1000', '*', 'data', eventJson);
-
-  // 2. Set TTL on stream (5 minutes) - refreshes on each event
-  await redis.expire(streamKey, 300);
-
-  // 3. Publish to Pub/Sub for real-time delivery
-  await redis.publish(channel, eventJson);
+  if (userId) {
+    const streamKey = getUserStreamKey(userId);
+    await redis.xadd(streamKey, 'MAXLEN', '~', '1000', '*', 'data', eventJson);
+    await redis.expire(streamKey, 300);
+  }
 }
 
 /**
@@ -106,14 +90,15 @@ export async function publishStepStarted(
   redis: Redis,
   taskId: string,
   stepId: string,
-  stepName?: string
+  stepName?: string,
+  userId?: string
 ): Promise<void> {
   await publishProgress(redis, taskId, {
     type: 'step_started',
     stepId,
     stepName,
     message: stepName ? `Starting ${stepName}` : `Starting step ${stepId}`,
-  } as Omit<StepStartedEvent, 'timestamp'>);
+  } as Omit<StepStartedEvent, 'timestamp'>, userId);
 }
 
 /**
@@ -124,14 +109,15 @@ export async function publishProgressUpdate(
   taskId: string,
   progress: number,
   message?: string,
-  stepId?: string
+  stepId?: string,
+  userId?: string
 ): Promise<void> {
   await publishProgress(redis, taskId, {
     type: 'progress',
     stepId,
     progress: Math.min(100, Math.max(0, progress)),
     message,
-  });
+  }, userId);
 }
 
 /**
@@ -141,13 +127,14 @@ export async function publishStepCompleted(
   redis: Redis,
   taskId: string,
   stepId: string,
-  output?: unknown
+  output?: unknown,
+  userId?: string
 ): Promise<void> {
   await publishProgress(redis, taskId, {
     type: 'step_completed',
     stepId,
     output,
-  });
+  }, userId);
 }
 
 /**
@@ -156,12 +143,13 @@ export async function publishStepCompleted(
 export async function publishTaskCompleted(
   redis: Redis,
   taskId: string,
-  output?: unknown
+  output?: unknown,
+  userId?: string
 ): Promise<void> {
   await publishProgress(redis, taskId, {
     type: 'completed',
     output,
-  });
+  }, userId);
 }
 
 /**
@@ -170,12 +158,13 @@ export async function publishTaskCompleted(
 export async function publishTaskFailed(
   redis: Redis,
   taskId: string,
-  error: string
+  error: string,
+  userId?: string
 ): Promise<void> {
   await publishProgress(redis, taskId, {
     type: 'failed',
     error,
-  });
+  }, userId);
 }
 
 /**
@@ -184,33 +173,35 @@ export async function publishTaskFailed(
 export class ProgressTracker {
   private redis: Redis;
   private taskId: string;
+  private userId?: string;
   private currentStepId?: string;
 
-  constructor(redis: Redis, taskId: string) {
+  constructor(redis: Redis, taskId: string, userId?: string) {
     this.redis = redis;
     this.taskId = taskId;
+    this.userId = userId;
   }
 
   async startStep(stepId: string, stepName?: string): Promise<void> {
     this.currentStepId = stepId;
-    await publishStepStarted(this.redis, this.taskId, stepId, stepName);
+    await publishStepStarted(this.redis, this.taskId, stepId, stepName, this.userId);
   }
 
   async updateProgress(progress: number, message?: string): Promise<void> {
-    await publishProgressUpdate(this.redis, this.taskId, progress, message, this.currentStepId);
+    await publishProgressUpdate(this.redis, this.taskId, progress, message, this.currentStepId, this.userId);
   }
 
   async completeStep(output?: unknown): Promise<void> {
     if (this.currentStepId) {
-      await publishStepCompleted(this.redis, this.taskId, this.currentStepId, output);
+      await publishStepCompleted(this.redis, this.taskId, this.currentStepId, output, this.userId);
     }
   }
 
   async complete(output?: unknown): Promise<void> {
-    await publishTaskCompleted(this.redis, this.taskId, output);
+    await publishTaskCompleted(this.redis, this.taskId, output, this.userId);
   }
 
   async fail(error: string): Promise<void> {
-    await publishTaskFailed(this.redis, this.taskId, error);
+    await publishTaskFailed(this.redis, this.taskId, error, this.userId);
   }
 }

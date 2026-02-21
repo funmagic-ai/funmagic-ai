@@ -152,7 +152,8 @@
       "queued": "Na fila",
       "processing": "Processando",
       "completed": "Concluído",
-      "failed": "Falhou"
+      "failed": "Falhou",
+      "action_required": "Continuar"
     },
     "credits": "{n} créditos",
     "stillProcessing": "Esta tarefa ainda está sendo processada...",

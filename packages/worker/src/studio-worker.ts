@@ -216,7 +216,7 @@ const studioWorker = new Worker<StudioGenerationJobData>(
       await publishStudioProgress(redis, messageId, {
         type: 'error',
         error: errorCode,
-      });
+      }, adminId);
 
       // Do NOT throw here — the failure is fully handled (DB updated, event
       // published). Throwing would cause BullMQ to retry the job, leading to

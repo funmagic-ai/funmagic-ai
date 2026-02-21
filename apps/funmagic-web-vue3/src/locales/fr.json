@@ -152,7 +152,8 @@
       "queued": "En file d'attente",
       "processing": "En cours",
       "completed": "Terminé",
-      "failed": "Échoué"
+      "failed": "Échoué",
+      "action_required": "Continuer"
     },
     "credits": "{n} crédits",
     "stillProcessing": "Cette tâche est encore en cours de traitement...",

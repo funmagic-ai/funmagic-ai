@@ -39,7 +39,7 @@ export {
   type StepCompletedEvent,
   type TaskCompletedEvent,
   type TaskFailedEvent,
-  getTaskChannel,
+  getUserStreamKey,
   publishProgress,
   publishStepStarted,
   publishProgressUpdate,

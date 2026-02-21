@@ -202,7 +202,8 @@
       "queued": "Queued",
       "processing": "Processing",
       "completed": "Completed",
-      "failed": "Failed"
+      "failed": "Failed",
+      "action_required": "Continue"
     },
     "credits": "{n} credits",
     "stillProcessing": "This task is still processing...",

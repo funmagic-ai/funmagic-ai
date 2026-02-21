@@ -1,38 +1,19 @@
 import type { Redis } from 'ioredis';
 import type { StudioProgressEvent, GeneratedImage } from './types';
+import { getUserStreamKey } from '@funmagic/services/progress';
 
 /**
- * Get the Redis channel name for a studio generation
- */
-export function getStudioGenerationChannel(messageId: string): string {
-  return `studio-gen:${messageId}`;
-}
-
-/**
- * Get the Redis Stream key for a studio generation
- */
-export function getStudioGenerationStreamKey(messageId: string): string {
-  return `stream:studio-gen:${messageId}`;
-}
-
-/**
- * Publish a studio progress event to Redis
+ * Publish a studio progress event to the user's Redis Stream.
  *
- * Uses Redis Streams + Pub/Sub hybrid pattern:
- * 1. Store event in Redis Stream (persistent, auto-trim at 1000 events)
- * 2. Set TTL on stream (5 minutes)
- * 3. Publish to Pub/Sub for real-time delivery
- *
- * This ensures events are not lost if SSE connects after worker starts publishing.
+ * All events for a user flow through a single per-user stream.
+ * The SSE endpoint reads from this stream via XREAD BLOCK.
  */
 export async function publishStudioProgress(
   redis: Redis,
   messageId: string,
-  event: Omit<StudioProgressEvent, 'timestamp' | 'messageId'>
+  event: Omit<StudioProgressEvent, 'timestamp' | 'messageId'>,
+  userId?: string
 ): Promise<void> {
-  const channel = getStudioGenerationChannel(messageId);
-  const streamKey = getStudioGenerationStreamKey(messageId);
-
   const fullEvent: StudioProgressEvent = {
     ...event,
     messageId,
@@ -41,14 +22,11 @@ export async function publishStudioProgress(
 
   const eventJson = JSON.stringify(fullEvent);
 
-  // 1. Store in Redis Stream (persistent, auto-trim at ~1000 events)
-  await redis.xadd(streamKey, 'MAXLEN', '~', '1000', '*', 'data', eventJson);
-
-  // 2. Set TTL on stream (5 minutes) - refreshes on each event
-  await redis.expire(streamKey, 300);
-
-  // 3. Publish to Pub/Sub for real-time delivery
-  await redis.publish(channel, eventJson);
+  if (userId) {
+    const streamKey = getUserStreamKey(userId);
+    await redis.xadd(streamKey, 'MAXLEN', '~', '1000', '*', 'data', eventJson);
+    await redis.expire(streamKey, 300);
+  }
 }
 
 /**
@@ -57,10 +35,12 @@ export async function publishStudioProgress(
 export class StudioProgressTracker {
   private redis: Redis;
   private messageId: string;
+  private userId?: string;
 
-  constructor(redis: Redis, messageId: string) {
+  constructor(redis: Redis, messageId: string, userId?: string) {
     this.redis = redis;
     this.messageId = messageId;
+    this.userId = userId;
   }
 
   /**
@@ -70,7 +50,7 @@ export class StudioProgressTracker {
     await publishStudioProgress(this.redis, this.messageId, {
       type: 'text_delta',
       chunk,
-    });
+    }, this.userId);
   }
 
   /**
@@ -80,7 +60,7 @@ export class StudioProgressTracker {
     await publishStudioProgress(this.redis, this.messageId, {
       type: 'text_done',
       content,
-    });
+    }, this.userId);
   }
 
   /**
@@ -91,7 +71,7 @@ export class StudioProgressTracker {
       type: 'partial_image',
       index,
       data: base64Data,
-    });
+    }, this.userId);
   }
 
   /**
@@ -102,7 +82,7 @@ export class StudioProgressTracker {
       type: 'image_done',
       index,
       storageKey,
-    });
+    }, this.userId);
   }
 
   /**
@@ -113,7 +93,7 @@ export class StudioProgressTracker {
       type: 'complete',
       images,
       content: text,
-    });
+    }, this.userId);
   }
 
   /**
@@ -123,7 +103,7 @@ export class StudioProgressTracker {
     await publishStudioProgress(this.redis, this.messageId, {
       type: 'error',
       error: errorMessage,
-    });
+    }, this.userId);
   }
 }
 
@@ -132,7 +112,8 @@ export class StudioProgressTracker {
  */
 export function createStudioProgressTracker(
   redis: Redis,
-  messageId: string
+  messageId: string,
+  userId?: string
 ): StudioProgressTracker {
-  return new StudioProgressTracker(redis, messageId);
+  return new StudioProgressTracker(redis, messageId, userId);
 }

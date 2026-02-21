@@ -152,7 +152,8 @@
       "queued": "In Warteschlange",
       "processing": "Verarbeitung",
       "completed": "Abgeschlossen",
-      "failed": "Fehlgeschlagen"
+      "failed": "Fehlgeschlagen",
+      "action_required": "Fortfahren"
     },
     "credits": "{n} Credits",
     "stillProcessing": "Diese Aufgabe wird noch verarbeitet...",
