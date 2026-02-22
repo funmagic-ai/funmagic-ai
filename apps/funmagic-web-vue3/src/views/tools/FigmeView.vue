@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useMutation } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
-import type { SupportedLocale } from '@/lib/i18n'
-import { useUpload } from '@/composables/useUpload'
+import { useToolBase } from '@/composables/useToolBase'
 import { useTaskProgress } from '@/composables/useTaskProgress'
-import { useTaskRestore } from '@/composables/useTaskRestore'
-import { useAuthStore } from '@/stores/auth'
 import { useApiError } from '@/composables/useApiError'
 import AppLayout from '@/components/layout/AppLayout.vue'
 const ModelViewer = defineAsyncComponent(() =>
@@ -18,15 +14,16 @@ import StepIndicator from '@/components/tools/StepIndicator.vue'
 import ToolBreadcrumb from '@/components/tools/ToolBreadcrumb.vue'
 import TaskProgressDisplay from '@/components/tools/TaskProgressDisplay.vue'
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const { handleError } = useApiError()
-const queryClient = useQueryClient()
-const route = useRoute()
-const locale = computed(() => (route.params.locale as string) || 'en')
+const {
+  t, locale, authStore, upload, queryClient,
+  toolInfo, toolTitle, toolDescription, toolError, toolErrorData, toolData, totalCost,
+  currentStep, originalPreview, restored,
+  restoreTaskId, fetchRestoreData, fetchSourceImage,
+  getStep, availableStyles, createSubmitMutation, fetchAssetUrl, handleFileSelect, resetBase,
+} = useToolBase('figme', { defaultTitle: 'FigMe' })
 
-const upload = useUpload({ module: 'figme' })
-const currentStep = ref(0)
+const { handleError } = useApiError()
+
 const taskId = ref<string | null>(null)
 const imageResult = ref<string | null>(null)
 const imageAssetId = ref<string | null>(null)
@@ -34,33 +31,9 @@ const threeDTaskId = ref<string | null>(null)
 const threeDResult = ref<string | null>(null)
 const selectedStyle = ref<string | null>(null)
 
-// Task restore
-const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('figme')
-const restored = ref(false)
-const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
-
-// Fetch tool config from API
-const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
-  queryKey: ['tool', 'figme', locale],
-  queryFn: async () => {
-    const { data, error, response } = await api.GET('/api/tools/{slug}', {
-      params: { path: { slug: 'figme' }, query: { locale: locale.value as SupportedLocale } },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-})
-
-const toolInfo = computed(() => toolData.value?.tool)
-const toolTitle = computed(() => toolInfo.value?.title ?? 'FigMe')
-const toolDescription = computed(() => toolInfo.value?.description ?? '')
-const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; styleReferences?: Array<{ imageUrl?: string }>; [key: string]: unknown }> })
-const step0 = computed(() => toolConfig.value.steps[0])
-const step1 = computed(() => toolConfig.value.steps[1])
-const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum + (s.cost ?? 0), 0))
-const step0Id = computed(() => step0.value?.id ?? 'image-gen')
+const step0 = getStep(0)
+const step1 = getStep(1)
 const step0Name = computed(() => step0.value?.name ?? t('tools.generateImage'))
-const step1Id = computed(() => step1.value?.id ?? '3d-gen')
 const step1Name = computed(() => step1.value?.name ?? t('tools.generate3D'))
 
 const steps = computed(() => [
@@ -71,15 +44,6 @@ const steps = computed(() => [
   { id: '3d-result', label: t('tools.result') },
 ])
 
-const availableStyles = computed(() => {
-  const s0 = toolConfig.value.steps[0]
-  const rawStyles = (s0?.styleReferences ?? []) as Array<{ imageUrl?: string }>
-  return rawStyles.map((s, i) => ({
-    id: String(i),
-    imageUrl: s.imageUrl || '',
-  }))
-})
-
 // Image generation progress
 const { progress: imageProgress, isFailed: imageFailed } = useTaskProgress(
   taskId,
@@ -89,10 +53,7 @@ const { progress: imageProgress, isFailed: imageFailed } = useTaskProgress(
       const out = output as Record<string, string>
       imageAssetId.value = out?.assetId ?? null
       if (out?.assetId) {
-        const { data } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: out.assetId } },
-        })
-        imageResult.value = data?.url ?? null
+        imageResult.value = await fetchAssetUrl(out.assetId)
       }
     },
   },
@@ -106,38 +67,22 @@ const { progress: threeDProgress, isFailed: threeDFailed } = useTaskProgress(
       currentStep.value = 4
       const out = output as Record<string, any>
       if (out?.modelAssetId) {
-        const { data } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: out.modelAssetId } },
-        })
-        threeDResult.value = data?.url ?? null
+        threeDResult.value = await fetchAssetUrl(out.modelAssetId)
       }
     },
   },
 )
 
-const submitMutation = useMutation({
-  mutationFn: async () => {
-    const uploadResult = await upload.uploadOnSubmit()
-    if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
-
-    const { data, error, response } = await api.POST('/api/tasks', {
-      body: {
-        toolSlug: toolInfo.value?.slug ?? 'figme',
-        stepId: step0Id.value,
-        input: {
-          imageStorageKey: uploadResult.storageKey,
-          sourceAssetId: uploadResult.assetId,
-          styleReferenceId: selectedStyle.value,
-        },
-      },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-  onSuccess: (data) => {
-    taskId.value = data.task.id
+const submitMutation = createSubmitMutation({
+  stepId: computed(() => step0.value?.id ?? 'image-gen'),
+  buildInput: (uploadResult) => ({
+    imageStorageKey: uploadResult.storageKey,
+    sourceAssetId: uploadResult.assetId,
+    styleReferenceId: selectedStyle.value,
+  }),
+  onSuccess: (id) => {
+    taskId.value = id
     currentStep.value = 1
-    queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
 })
 
@@ -146,11 +91,9 @@ const generate3DMutation = useMutation({
     const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'figme',
-        stepId: step1Id.value,
+        stepId: step1.value?.id ?? '3d-gen',
         parentTaskId: taskId.value ?? undefined,
-        input: {
-          sourceAssetId: imageAssetId.value,
-        },
+        input: { sourceAssetId: imageAssetId.value },
       },
     })
     if (error) throw extractApiError(error, response)
@@ -176,82 +119,41 @@ watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
   const output = task.payload?.output as Record<string, string> | null
   const childTask = task.childTasks?.[0]
 
-  // Fetch source image preview
-  if (input?.sourceAssetId) {
-    fetchSourceImage(input.sourceAssetId)
-  }
+  if (input?.sourceAssetId) fetchSourceImage(input.sourceAssetId)
 
-  // Helper to fetch image result URL
-  async function loadImageResult(assetId: string) {
-    const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-      params: { path: { id: assetId } },
-    })
-    imageResult.value = urlData?.url ?? null
-    imageAssetId.value = assetId
-  }
-
-  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
-    // Image generation in progress
-    currentStep.value = 1
-    taskId.value = task.id
-  } else if (task.status === 'failed') {
+  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing' || task.status === 'failed') {
     currentStep.value = 1
     taskId.value = task.id
   } else if (task.status === 'completed') {
     if (output?.assetId) {
-      await loadImageResult(output.assetId)
+      imageResult.value = await fetchAssetUrl(output.assetId)
+      imageAssetId.value = output.assetId
     }
 
     if (!childTask) {
-      // Image done, no 3D started — user can click "Generate 3D"
       currentStep.value = 2
       taskId.value = task.id
     } else if (childTask.status === 'completed') {
-      // 3D done
       currentStep.value = 4
       const childOutput = childTask.payload?.output as Record<string, string> | null
       if (childOutput?.modelAssetId) {
-        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: childOutput.modelAssetId } },
-        })
-        threeDResult.value = urlData?.url ?? null
+        threeDResult.value = await fetchAssetUrl(childOutput.modelAssetId)
       }
     } else {
-      // 3D in progress or failed
       currentStep.value = 3
       threeDTaskId.value = childTask.id
     }
   }
 }, { immediate: true })
 
-function handleFileSelect(file: File | null) {
-  upload.setFile(file)
-}
-
-function handleSubmit() {
-  submitMutation.mutate()
-}
-
-function handleGenerate3D() {
-  generate3DMutation.mutate()
-}
-
-const router = useRouter()
-
 function handleReset() {
-  upload.reset()
-  currentStep.value = 0
+  resetBase()
   taskId.value = null
   threeDTaskId.value = null
   imageResult.value = null
   imageAssetId.value = null
   threeDResult.value = null
   selectedStyle.value = null
-  sourceImageUrl.value = null
-  restored.value = false
-  if (route.query.taskId) {
-    router.replace({ query: { ...route.query, taskId: undefined } })
-  }
 }
 </script>
 
@@ -259,10 +161,8 @@ function handleReset() {
   <AppLayout>
     <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div class="space-y-8">
-        <!-- Breadcrumb -->
         <ToolBreadcrumb :tool-name="toolTitle" />
 
-        <!-- Header -->
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-4">
             <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
@@ -273,13 +173,11 @@ function handleReset() {
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
-        <!-- Error State -->
         <div v-if="toolError" class="flex flex-col items-center justify-center py-20">
           <p class="text-lg text-muted-foreground mb-4">{{ toolErrorData?.message ?? t('common.error') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'tools', params: { locale } })">{{ t('common.back') }}</n-button>
         </div>
 
-        <!-- Auth Gate -->
         <div v-else-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
           <p class="text-muted-foreground">{{ t('tools.signInRequired') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'login', params: { locale } })">
@@ -292,7 +190,6 @@ function handleReset() {
 
           <!-- Step 0: Style Selection + Upload -->
           <div v-if="currentStep === 0" class="space-y-6">
-            <!-- Style Selector -->
             <div v-if="availableStyles.length > 0" class="rounded-xl border bg-card p-6 space-y-4">
               <h3 class="font-medium">{{ t('tools.selectStyle') }}</h3>
               <div class="grid grid-cols-4 gap-2">
@@ -309,7 +206,6 @@ function handleReset() {
               </div>
             </div>
 
-            <!-- Upload -->
             <div class="rounded-xl border bg-card p-6 min-h-[500px] flex flex-col justify-center">
               <ImagePicker
                 :preview="upload.preview.value"
@@ -324,7 +220,7 @@ function handleReset() {
               block
               :disabled="!upload.pendingFile.value || (availableStyles.length > 0 && !selectedStyle)"
               :loading="submitMutation.isPending.value || upload.isUploading.value"
-              @click="handleSubmit"
+              @click="submitMutation.mutate()"
             >
               {{ t('tools.generateImage') }}
               <template v-if="step0?.cost">
@@ -370,7 +266,7 @@ function handleReset() {
               <n-button v-if="imageResult" tag="a" :href="imageResult" download>
                 {{ t('tools.download') }}
               </n-button>
-              <n-button type="primary" :loading="generate3DMutation.isPending.value" @click="handleGenerate3D">
+              <n-button type="primary" :loading="generate3DMutation.isPending.value" @click="generate3DMutation.mutate()">
                 {{ t('tools.generate3D') }}
                 <template v-if="step1?.cost">
                   &nbsp;· {{ step1.cost }}/{{ totalCost }} {{ t('tools.credits') }}

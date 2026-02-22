@@ -3,20 +3,17 @@ import { NButton, NDataTable, NIcon, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
 import { useMediaQuery } from '@vueuse/core'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
-import { useApiError } from '@/composables/useApiError'
+import { useDeleteDialog, useToggleActive } from '@/composables/useAdminCrud'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
-const message = useMessage()
-const { handleError } = useApiError()
-const queryClient = useQueryClient()
 const isMobile = useMediaQuery('(max-width: 767px)')
 
 const { data, isLoading, isError, error } = useQuery({
@@ -28,9 +25,8 @@ const { data, isLoading, isError, error } = useQuery({
   },
 })
 
-// Toggle active status
-const toggleActiveMutation = useMutation({
-  mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+const { mutation: toggleActiveMutation } = useToggleActive({
+  toggleFn: async (id, isActive) => {
     const { data, error, response } = await api.PUT('/api/admin/providers/{id}', {
       params: { path: { id } },
       body: { isActive },
@@ -38,43 +34,18 @@ const toggleActiveMutation = useMutation({
     if (error) throw extractApiError(error, response)
     return data
   },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['providers'] })
-    message.success(t('common.updateSuccess'))
-  },
-  onError: handleError,
+  invalidateKeys: [['providers']],
 })
 
-// Delete provider
-const showDeleteDialog = ref(false)
-const deleteTarget = ref<{ id: string; name: string } | null>(null)
-
-const deleteMutation = useMutation({
-  mutationFn: async (id: string) => {
+const del = useDeleteDialog({
+  deleteFn: async (id) => {
     const { error, response } = await api.DELETE('/api/admin/providers/{id}', {
       params: { path: { id } },
     })
     if (error) throw extractApiError(error, response)
   },
-  onSuccess: () => {
-    message.success(t('common.deleteSuccess'))
-    showDeleteDialog.value = false
-    deleteTarget.value = null
-    queryClient.invalidateQueries({ queryKey: ['providers'] })
-  },
-  onError: handleError,
+  invalidateKeys: [['providers']],
 })
-
-function openDeleteDialog(item: { id: string; displayName: string }) {
-  deleteTarget.value = { id: item.id, name: item.displayName }
-  showDeleteDialog.value = true
-}
-
-function confirmDelete() {
-  if (deleteTarget.value) {
-    deleteMutation.mutate(deleteTarget.value.id)
-  }
-}
 
 const providers = computed(() => data.value?.providers ?? [])
 
@@ -149,7 +120,7 @@ const columns = computed<DataTableColumns>(() => {
               size: 'small',
               quaternary: true,
               type: 'error',
-              onClick: () => openDeleteDialog({ id: row.id, displayName: row.displayName }),
+              onClick: () => del.open({ id: row.id, name: row.displayName }),
             },
             {
               icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
@@ -195,11 +166,11 @@ const columns = computed<DataTableColumns>(() => {
     </div>
 
     <DeleteConfirmDialog
-      v-model:show="showDeleteDialog"
-      :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
+      v-model:show="del.showDialog.value"
+      :title="`Delete &quot;${del.target.value?.name ?? ''}&quot;?`"
       :message="t('common.deleteConfirm')"
-      :loading="deleteMutation.isPending.value"
-      @confirm="confirmDelete"
+      :loading="del.mutation.isPending.value"
+      @confirm="del.confirm"
     />
   </div>
 </template>

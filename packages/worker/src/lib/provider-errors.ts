@@ -22,9 +22,3 @@ export function isProvider429Error(error: unknown): boolean {
   return false;
 }
 
-/**
- * Calculate exponential backoff delay, capped at 60 seconds.
- */
-export function calculateBackoff(attempt: number, baseMs: number): number {
-  return Math.min(baseMs * Math.pow(2, attempt), 60_000);
-}

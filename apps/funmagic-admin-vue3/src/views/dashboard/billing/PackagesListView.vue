@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
+import { useDeleteDialog } from '@/composables/useAdminCrud'
 import { useApiError } from '@/composables/useApiError'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
@@ -14,8 +15,8 @@ import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
-const { handleError } = useApiError()
 const queryClient = useQueryClient()
+const { handleError } = useApiError()
 const isMobile = useMediaQuery('(max-width: 767px)')
 
 const { data, isLoading, isError, error } = useQuery({
@@ -27,6 +28,7 @@ const { data, isLoading, isError, error } = useQuery({
   },
 })
 
+// Packages uses PATCH toggle-active endpoint (different from standard PUT pattern)
 const toggleActiveMutation = useMutation({
   mutationFn: async (id: string) => {
     const { data, error, response } = await api.PATCH('/api/admin/packages/{id}/toggle-active', {
@@ -42,36 +44,15 @@ const toggleActiveMutation = useMutation({
   onError: handleError,
 })
 
-// Delete package
-const showDeleteDialog = ref(false)
-const deleteTarget = ref<{ id: string; name: string } | null>(null)
-
-const deleteMutation = useMutation({
-  mutationFn: async (id: string) => {
+const del = useDeleteDialog({
+  deleteFn: async (id) => {
     const { error, response } = await api.DELETE('/api/admin/packages/{id}', {
       params: { path: { id } },
     })
     if (error) throw extractApiError(error, response)
   },
-  onSuccess: () => {
-    message.success(t('common.deleteSuccess'))
-    showDeleteDialog.value = false
-    deleteTarget.value = null
-    queryClient.invalidateQueries({ queryKey: ['packages'] })
-  },
-  onError: handleError,
+  invalidateKeys: [['packages']],
 })
-
-function openDeleteDialog(item: { id: string; name: string }) {
-  deleteTarget.value = item
-  showDeleteDialog.value = true
-}
-
-function confirmDelete() {
-  if (deleteTarget.value) {
-    deleteMutation.mutate(deleteTarget.value.id)
-  }
-}
 
 const packages = computed(() => data.value?.packages ?? [])
 
@@ -146,7 +127,7 @@ const columns = computed<DataTableColumns<PackageRow>>(() => {
               size: 'small',
               quaternary: true,
               type: 'error',
-              onClick: () => openDeleteDialog({ id: row.id, name: row.name }),
+              onClick: () => del.open({ id: row.id, name: row.name }),
             },
             {
               icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
@@ -192,11 +173,11 @@ const columns = computed<DataTableColumns<PackageRow>>(() => {
     </div>
 
     <DeleteConfirmDialog
-      v-model:show="showDeleteDialog"
-      :title="`Delete &quot;${deleteTarget?.name ?? ''}&quot;?`"
+      v-model:show="del.showDialog.value"
+      :title="`Delete &quot;${del.target.value?.name ?? ''}&quot;?`"
       :message="t('common.deleteConfirm')"
-      :loading="deleteMutation.isPending.value"
-      @confirm="confirmDelete"
+      :loading="del.mutation.isPending.value"
+      @confirm="del.confirm"
     />
   </div>
 </template>

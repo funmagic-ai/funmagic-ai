@@ -70,57 +70,38 @@ export function rateLimiter(options: RateLimitOptions) {
 
 // ─── Config-driven presets ───────────────────────────────────────────
 
-/** Helper: resolve tiered max for a per-user limit category */
-async function getTieredMax(c: any, category: keyof Awaited<ReturnType<typeof getRateLimitConfig>>['limits']): Promise<number> {
-  const config = await getRateLimitConfig(db);
-  const baseMax = config.limits[category].max;
-  const userId = c.get('user')?.id;
-  if (!userId) return baseMax;
-  const tierName = await getUserTier(db, userId);
-  const tierDef = config.tiers.find((t: { name: string }) => t.name === tierName);
-  return baseMax * (tierDef?.multiplier ?? 1);
+type LimitCategory = keyof Awaited<ReturnType<typeof getRateLimitConfig>>['limits'];
+
+/** IP-based rate limiter that reads max from config */
+function ipLimiter(category: LimitCategory, prefix: string) {
+  return rateLimiter({
+    max: async () => (await getRateLimitConfig(db)).limits[category].max,
+    windowSeconds: 60,
+    prefix,
+  });
 }
 
-/** IP-based outer layer — high ceiling to catch bots/DDoS */
-export const globalApiRateLimit = rateLimiter({
-  max: async () => (await getRateLimitConfig(db)).limits.globalApi.max,
-  windowSeconds: 60,
-  prefix: 'rl:ip:api',
-});
+/** Per-user rate limiter with tier-based multiplier */
+function userLimiter(category: LimitCategory, prefix: string) {
+  return rateLimiter({
+    max: async (c) => {
+      const config = await getRateLimitConfig(db);
+      const baseMax = config.limits[category].max;
+      const userId = c.get('user')?.id;
+      if (!userId) return baseMax;
+      const tierName = await getUserTier(db, userId);
+      const tierDef = config.tiers.find((t: { name: string }) => t.name === tierName);
+      return baseMax * (tierDef?.multiplier ?? 1);
+    },
+    windowSeconds: 60,
+    prefix,
+    keyGenerator: (c) => c.get('user')?.id ?? 'anonymous',
+  });
+}
 
-/** Per-user API limit — tiered by lifetimePurchased */
-export const userApiRateLimit = rateLimiter({
-  max: async (c) => getTieredMax(c, 'userApi'),
-  windowSeconds: 60,
-  prefix: 'rl:user:api',
-  keyGenerator: (c) => c.get('user')?.id ?? 'anonymous',
-});
-
-/** Task creation — strict, per-user, tiered */
-export const taskCreationRateLimit = rateLimiter({
-  max: async (c) => getTieredMax(c, 'taskCreation'),
-  windowSeconds: 60,
-  prefix: 'rl:user:tasks',
-  keyGenerator: (c) => c.get('user')?.id ?? 'anonymous',
-});
-
-/** Auth session checks (get-session) — IP-based, generous for multi-tab */
-export const authSessionRateLimit = rateLimiter({
-  max: async () => (await getRateLimitConfig(db)).limits.authSession.max,
-  windowSeconds: 60,
-  prefix: 'rl:auth:session',
-});
-
-/** Auth actions (sign-in, sign-up) — IP-based, strict for brute-force protection */
-export const authActionRateLimit = rateLimiter({
-  max: async () => (await getRateLimitConfig(db)).limits.authAction.max,
-  windowSeconds: 60,
-  prefix: 'rl:auth:action',
-});
-
-/** Upload endpoints — IP-based */
-export const uploadRateLimit = rateLimiter({
-  max: async () => (await getRateLimitConfig(db)).limits.upload.max,
-  windowSeconds: 60,
-  prefix: 'rl:upload',
-});
+export const globalApiRateLimit = ipLimiter('globalApi', 'rl:ip:api');
+export const userApiRateLimit = userLimiter('userApi', 'rl:user:api');
+export const taskCreationRateLimit = userLimiter('taskCreation', 'rl:user:tasks');
+export const authSessionRateLimit = ipLimiter('authSession', 'rl:auth:session');
+export const authActionRateLimit = ipLimiter('authAction', 'rl:auth:action');
+export const uploadRateLimit = ipLimiter('upload', 'rl:upload');

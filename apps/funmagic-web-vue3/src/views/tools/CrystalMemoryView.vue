@@ -1,13 +1,9 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useMutation } from '@tanstack/vue-query'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
-import type { SupportedLocale } from '@/lib/i18n'
-import { useUpload } from '@/composables/useUpload'
+import { useToolBase } from '@/composables/useToolBase'
 import { useTaskProgress } from '@/composables/useTaskProgress'
-import { useTaskRestore } from '@/composables/useTaskRestore'
-import { useAuthStore } from '@/stores/auth'
 import { useApiError } from '@/composables/useApiError'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImagePicker from '@/components/upload/ImagePicker.vue'
@@ -19,15 +15,15 @@ const PointCloudViewer = defineAsyncComponent(() =>
   import('@/components/tools/PointCloudViewer.vue'),
 )
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const { handleError } = useApiError()
-const queryClient = useQueryClient()
-const route = useRoute()
-const locale = computed(() => (route.params.locale as string) || 'en')
+const {
+  t, locale, route, authStore, upload, queryClient,
+  toolInfo, toolTitle, toolDescription, toolError, toolErrorData, toolData, totalCost,
+  currentStep, originalPreview, restored,
+  restoreTaskId, fetchRestoreData, fetchSourceImage,
+  getStep, createSubmitMutation, fetchAssetUrl, handleFileSelect, resetBase,
+} = useToolBase('crystal-memory', { defaultTitle: 'Crystal Memory' })
 
-const upload = useUpload({ module: 'crystal-memory' })
-const currentStep = ref(0)
+const { handleError } = useApiError()
 
 // Background removal task
 const bgRemoveTaskId = ref<string | null>(null)
@@ -36,11 +32,6 @@ const bgRemovedImageUrl = ref<string | null>(null)
 
 // Point cloud generation task
 const cloudTaskId = ref<string | null>(null)
-
-// Task restore
-const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('crystal-memory')
-const restored = ref(false)
-const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
 
 interface VGGTOutput {
   assetId: string
@@ -59,35 +50,14 @@ const pointCloudData = ref<PointCloudData | null>(null)
 const loadingPointCloud = ref(false)
 const showExport = computed(() => route.query.query === 'bsltest')
 
-// Fetch tool config from API
-const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
-  queryKey: ['tool', 'crystal-memory', locale],
-  queryFn: async () => {
-    const { data, error, response } = await api.GET('/api/tools/{slug}', {
-      params: { path: { slug: 'crystal-memory' }, query: { locale: locale.value as SupportedLocale } },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-})
-
-const toolInfo = computed(() => toolData.value?.tool)
-const toolTitle = computed(() => toolInfo.value?.title ?? 'Crystal Memory')
-const toolDescription = computed(() => toolInfo.value?.description ?? '')
-const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; [key: string]: unknown }> })
-const step0 = computed(() => toolConfig.value.steps[0])
-const step1 = computed(() => toolConfig.value.steps[1])
-const step0Id = computed(() => step0.value?.id ?? 'background-remove')
-const step0Name = computed(() => step0.value?.name ?? t('tools.processing'))
-const step1Id = computed(() => step1.value?.id ?? 'vggt')
-const step1Name = computed(() => step1.value?.name ?? t('tools.processing'))
-const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum + (s.cost ?? 0), 0))
+const step0 = getStep(0)
+const step1 = getStep(1)
 
 const steps = computed(() => [
   { id: 'upload', label: t('tools.uploadImage') },
-  { id: 'removing-bg', label: step0Name.value },
+  { id: 'removing-bg', label: step0.value?.name ?? t('tools.processing') },
   { id: 'bg-result', label: t('tools.result') },
-  { id: 'generating-cloud', label: step1Name.value },
+  { id: 'generating-cloud', label: step1.value?.name ?? t('tools.processing') },
   { id: 'result', label: t('tools.result') },
 ])
 
@@ -100,10 +70,7 @@ const { progress: bgProgress, isFailed: bgFailed } = useTaskProgress(
       const out = output as Record<string, string>
       bgRemovedAssetId.value = out?.assetId ?? null
       if (out?.assetId) {
-        const { data } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: out.assetId } },
-        })
-        bgRemovedImageUrl.value = data?.url ?? null
+        bgRemovedImageUrl.value = await fetchAssetUrl(out.assetId)
       }
     },
   },
@@ -114,7 +81,6 @@ const { progress: cloudProgress, isFailed: cloudFailed } = useTaskProgress(
   cloudTaskId,
   {
     onComplete: async (output: unknown) => {
-      // Null out task ID to prevent reconnect from firing onComplete again
       cloudTaskId.value = null
       const out = output as VGGTOutput | null
       if (!out?.assetId) return
@@ -123,17 +89,13 @@ const { progress: cloudProgress, isFailed: cloudFailed } = useTaskProgress(
       loadingPointCloud.value = true
 
       try {
-        // Fetch point cloud data from S3 via presigned URL
-        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: out.assetId } },
-        })
-        if (!urlData?.url) throw new Error('Failed to get download URL')
+        const url = await fetchAssetUrl(out.assetId)
+        if (!url) throw new Error('Failed to get download URL')
 
-        const response = await fetch(urlData.url)
+        const response = await fetch(url)
         if (!response.ok) throw new Error(`Failed to fetch point cloud data: ${response.status}`)
 
-        const data = await response.json() as PointCloudData
-        pointCloudData.value = data
+        pointCloudData.value = await response.json() as PointCloudData
         currentStep.value = 4
       } catch (err) {
         console.error('[CrystalMemory] Failed to load point cloud data:', err)
@@ -144,26 +106,15 @@ const { progress: cloudProgress, isFailed: cloudFailed } = useTaskProgress(
   },
 )
 
-const submitMutation = useMutation({
-  mutationFn: async () => {
-    const uploadResult = await upload.uploadOnSubmit()
-    if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
-
-    // Start bg-remove task
-    const { data, error, response } = await api.POST('/api/tasks', {
-      body: {
-        toolSlug: toolInfo.value?.slug ?? 'crystal-memory',
-        stepId: step0Id.value,
-        input: { imageStorageKey: uploadResult.storageKey, sourceAssetId: uploadResult.assetId },
-      },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-  onSuccess: (data) => {
-    bgRemoveTaskId.value = data.task.id
+const submitMutation = createSubmitMutation({
+  stepId: computed(() => step0.value?.id ?? 'background-remove'),
+  buildInput: (uploadResult) => ({
+    imageStorageKey: uploadResult.storageKey,
+    sourceAssetId: uploadResult.assetId,
+  }),
+  onSuccess: (id) => {
+    bgRemoveTaskId.value = id
     currentStep.value = 1
-    queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
 })
 
@@ -172,11 +123,9 @@ const cloudMutation = useMutation({
     const { data, error, response } = await api.POST('/api/tasks', {
       body: {
         toolSlug: toolInfo.value?.slug ?? 'crystal-memory',
-        stepId: step1Id.value,
+        stepId: step1.value?.id ?? 'vggt',
         parentTaskId: bgRemoveTaskId.value ?? undefined,
-        input: {
-          sourceAssetId: bgRemovedAssetId.value,
-        },
+        input: { sourceAssetId: bgRemovedAssetId.value },
       },
     })
     if (error) throw extractApiError(error, response)
@@ -190,7 +139,6 @@ const cloudMutation = useMutation({
 })
 
 function startCloudGeneration() {
-  // Guard: prevent duplicate cloud task creation
   if (cloudTaskId.value || cloudMutation.isPending.value) return
   currentStep.value = 3
   cloudMutation.mutate()
@@ -208,47 +156,29 @@ watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
   const output = task.payload?.output as Record<string, string> | null
   const childTask = task.childTasks?.[0]
 
-  // Fetch source image preview
-  if (input?.sourceAssetId) {
-    fetchSourceImage(input.sourceAssetId)
-  }
+  if (input?.sourceAssetId) fetchSourceImage(input.sourceAssetId)
 
-  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
-    // BG removal in progress
-    currentStep.value = 1
-    bgRemoveTaskId.value = task.id
-  } else if (task.status === 'failed') {
+  if (task.status === 'pending' || task.status === 'queued' || task.status === 'processing' || task.status === 'failed') {
     currentStep.value = 1
     bgRemoveTaskId.value = task.id
   } else if (task.status === 'completed') {
-    if (output?.assetId) {
-      bgRemovedAssetId.value = output.assetId
-    }
+    if (output?.assetId) bgRemovedAssetId.value = output.assetId
 
     if (!childTask) {
-      // BG removal done, no cloud started — show bg-result step
       currentStep.value = 2
       bgRemoveTaskId.value = task.id
-
-      // Fetch bg-removed image
       if (output?.assetId) {
-        const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: output.assetId } },
-        })
-        bgRemovedImageUrl.value = urlData?.url ?? null
+        bgRemovedImageUrl.value = await fetchAssetUrl(output.assetId)
       }
     } else if (childTask.status === 'completed') {
-      // Point cloud done
       const childOutput = childTask.payload?.output as VGGTOutput | null
       if (childOutput?.assetId) {
         cloudOutput.value = childOutput
         loadingPointCloud.value = true
         try {
-          const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-            params: { path: { id: childOutput.assetId } },
-          })
-          if (urlData?.url) {
-            const response = await fetch(urlData.url)
+          const url = await fetchAssetUrl(childOutput.assetId)
+          if (url) {
+            const response = await fetch(url)
             if (response.ok) {
               pointCloudData.value = await response.json()
               currentStep.value = 4
@@ -259,26 +189,14 @@ watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
         }
       }
     } else {
-      // Cloud generation in progress or failed
       currentStep.value = 3
       cloudTaskId.value = childTask.id
     }
   }
 }, { immediate: true })
 
-function handleFileSelect(file: File | null) {
-  upload.setFile(file)
-}
-
-function handleSubmit() {
-  submitMutation.mutate()
-}
-
-const router = useRouter()
-
 function handleReset() {
-  upload.reset()
-  currentStep.value = 0
+  resetBase()
   bgRemoveTaskId.value = null
   cloudTaskId.value = null
   bgRemovedAssetId.value = null
@@ -286,11 +204,6 @@ function handleReset() {
   cloudOutput.value = null
   pointCloudData.value = null
   loadingPointCloud.value = false
-  sourceImageUrl.value = null
-  restored.value = false
-  if (route.query.taskId) {
-    router.replace({ query: { ...route.query, taskId: undefined } })
-  }
 }
 </script>
 
@@ -298,10 +211,8 @@ function handleReset() {
   <AppLayout>
     <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div class="space-y-8">
-        <!-- Breadcrumb -->
         <ToolBreadcrumb :tool-name="toolTitle" />
 
-        <!-- Header -->
         <div class="space-y-2">
           <div class="flex items-center justify-between gap-4">
             <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
@@ -312,13 +223,11 @@ function handleReset() {
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
-        <!-- Error State -->
         <div v-if="toolError" class="flex flex-col items-center justify-center py-20">
           <p class="text-lg text-muted-foreground mb-4">{{ toolErrorData?.message ?? t('common.error') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'tools', params: { locale } })">{{ t('common.back') }}</n-button>
         </div>
 
-        <!-- Auth Gate -->
         <div v-else-if="!authStore.isAuthenticated" class="rounded-xl border bg-card p-8 text-center space-y-4">
           <p class="text-muted-foreground">{{ t('tools.signInRequired') }}</p>
           <n-button type="primary" @click="$router.push({ name: 'login', params: { locale } })">
@@ -344,7 +253,7 @@ function handleReset() {
               block
               :disabled="!upload.pendingFile.value"
               :loading="submitMutation.isPending.value || upload.isUploading.value"
-              @click="handleSubmit"
+              @click="submitMutation.mutate()"
             >
               {{ t('tools.startProcessing') }}
               <template v-if="step0?.cost">
@@ -392,7 +301,7 @@ function handleReset() {
                 :loading="cloudMutation.isPending.value"
                 @click="startCloudGeneration"
               >
-                {{ step1Name }}
+                {{ step1?.name ?? t('tools.processing') }}
                 <template v-if="step1?.cost">
                   &nbsp;· {{ step1.cost }}/{{ totalCost }} {{ t('tools.credits') }}
                 </template>

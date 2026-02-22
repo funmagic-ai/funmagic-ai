@@ -1,26 +1,19 @@
 <script setup lang="ts">
 import { NButton, NInput, NDataTable, NSpin, NIcon, NPagination, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { TrashOutline, CreateOutline, AddOutline, SearchOutline } from '@vicons/ionicons5'
 import { useMediaQuery } from '@vueuse/core'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
-import { useApiError } from '@/composables/useApiError'
+import { useDeleteDialog, useToggleActive, useSearchPagination } from '@/composables/useAdminCrud'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import DeleteConfirmDialog from '@/components/shared/DeleteConfirmDialog.vue'
 
 const { t } = useI18n()
 const router = useRouter()
-const message = useMessage()
-const { handleError } = useApiError()
-const queryClient = useQueryClient()
 const isMobile = useMediaQuery('(max-width: 767px)')
-
-const search = ref('')
-const currentPage = ref(1)
-const pageSize = ref(20)
 
 // Fetch tools
 const { data, isLoading, isError, refetch } = useQuery({
@@ -34,28 +27,17 @@ const { data, isLoading, isError, refetch } = useQuery({
   },
 })
 
-// Filtered and paginated tools
-const filteredTools = computed(() => {
-  const tools = data.value?.tools ?? []
-  if (!search.value.trim()) return tools
-  const q = search.value.toLowerCase()
-  return tools.filter(
-    (tool) =>
-      tool.title.toLowerCase().includes(q) ||
-      tool.slug.toLowerCase().includes(q) ||
-      (tool.toolType?.title?.toLowerCase().includes(q) ?? false),
-  )
-})
+const allTools = computed(() => data.value?.tools ?? [])
 
-const totalItems = computed(() => filteredTools.value.length)
-const paginatedTools = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value
-  return filteredTools.value.slice(start, start + pageSize.value)
-})
+const { search, currentPage, pageSize, paginated: paginatedTools, totalItems } =
+  useSearchPagination(allTools, (tool) => [
+    tool.title,
+    tool.slug,
+    tool.toolType?.title ?? '',
+  ])
 
-// Toggle active status
-const toggleActiveMutation = useMutation({
-  mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
+const { mutation: toggleActiveMutation } = useToggleActive({
+  toggleFn: async (id, isActive) => {
     const { data, error, response } = await api.PUT('/api/admin/tools/{id}', {
       params: { path: { id } },
       body: { isActive },
@@ -63,43 +45,18 @@ const toggleActiveMutation = useMutation({
     if (error) throw extractApiError(error, response)
     return data
   },
-  onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ['admin', 'tools'] })
-    message.success(t('common.statusUpdated'))
-  },
-  onError: handleError,
+  invalidateKeys: [['admin', 'tools']],
 })
 
-// Delete tool
-const showDeleteDialog = ref(false)
-const deleteTarget = ref<{ id: string; title: string } | null>(null)
-
-const deleteMutation = useMutation({
-  mutationFn: async (id: string) => {
+const del = useDeleteDialog({
+  deleteFn: async (id) => {
     const { error, response } = await api.DELETE('/api/admin/tools/{id}', {
       params: { path: { id } },
     })
     if (error) throw extractApiError(error, response)
   },
-  onSuccess: () => {
-    message.success(t('common.deleteSuccess'))
-    showDeleteDialog.value = false
-    deleteTarget.value = null
-    queryClient.invalidateQueries({ queryKey: ['admin', 'tools'] })
-  },
-  onError: handleError,
+  invalidateKeys: [['admin', 'tools']],
 })
-
-function openDeleteDialog(tool: { id: string; title: string }) {
-  deleteTarget.value = tool
-  showDeleteDialog.value = true
-}
-
-function confirmDelete() {
-  if (deleteTarget.value) {
-    deleteMutation.mutate(deleteTarget.value.id)
-  }
-}
 
 // Table columns
 const columns = computed<DataTableColumns>(() => {
@@ -172,7 +129,7 @@ const columns = computed<DataTableColumns>(() => {
               type: 'error',
               onClick: (e: Event) => {
                 e.stopPropagation()
-                openDeleteDialog({ id: row.id, title: row.title })
+                del.open({ id: row.id, name: row.title })
               },
             },
             {
@@ -187,11 +144,6 @@ const columns = computed<DataTableColumns>(() => {
     return all.filter((col: any) => col.key === 'title' || col.key === 'actions')
   }
   return all
-})
-
-// Reset page on search
-watch(search, () => {
-  currentPage.value = 1
 })
 </script>
 
@@ -259,11 +211,11 @@ watch(search, () => {
 
     <!-- Delete Confirmation -->
     <DeleteConfirmDialog
-      v-model:show="showDeleteDialog"
-      :title="`Delete &quot;${deleteTarget?.title ?? ''}&quot;?`"
+      v-model:show="del.showDialog.value"
+      :title="`Delete &quot;${del.target.value?.name ?? ''}&quot;?`"
       :message="t('tools.deleteConfirm')"
-      :loading="deleteMutation.isPending.value"
-      @confirm="confirmDelete"
+      :loading="del.mutation.isPending.value"
+      @confirm="del.confirm"
     />
   </div>
 </template>

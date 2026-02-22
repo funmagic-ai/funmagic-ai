@@ -1,53 +1,23 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import { api } from '@/lib/api'
-import { extractApiError } from '@/lib/api-error'
-import type { SupportedLocale } from '@/lib/i18n'
-import { useUpload } from '@/composables/useUpload'
+import { useToolBase } from '@/composables/useToolBase'
 import { useTaskProgress } from '@/composables/useTaskProgress'
-import { useTaskRestore } from '@/composables/useTaskRestore'
-import { useAuthStore } from '@/stores/auth'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImagePicker from '@/components/upload/ImagePicker.vue'
 import StepIndicator from '@/components/tools/StepIndicator.vue'
 import ToolBreadcrumb from '@/components/tools/ToolBreadcrumb.vue'
 import TaskProgressDisplay from '@/components/tools/TaskProgressDisplay.vue'
 
-const { t } = useI18n()
-const authStore = useAuthStore()
-const queryClient = useQueryClient()
-const route = useRoute()
-const locale = computed(() => (route.params.locale as string) || 'en')
+const {
+  t, locale, authStore, upload,
+  toolTitle, toolDescription, toolError, toolErrorData, toolData, totalCost,
+  currentStep, originalPreview, restored,
+  restoreTaskId, fetchRestoreData, fetchSourceImage,
+  getStep, createSubmitMutation, fetchAssetUrl, handleFileSelect, resetBase,
+} = useToolBase('background-remove', { defaultTitle: 'Background Remover' })
 
-const upload = useUpload({ module: 'background-remove' })
-const currentStep = ref(0)
 const taskId = ref<string | null>(null)
 const resultUrl = ref<string | null>(null)
-
-// Task restore
-const { restoreTaskId, sourceImageUrl, fetchRestoreData, fetchSourceImage } = useTaskRestore('background-remove')
-const restored = ref(false)
-const originalPreview = computed(() => upload.preview.value || sourceImageUrl.value)
-
-// Fetch tool config from API
-const { data: toolData, isError: toolError, error: toolErrorData } = useQuery({
-  queryKey: ['tool', 'background-remove', locale],
-  queryFn: async () => {
-    const { data, error, response } = await api.GET('/api/tools/{slug}', {
-      params: { path: { slug: 'background-remove' }, query: { locale: locale.value as SupportedLocale } },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-})
-
-const toolInfo = computed(() => toolData.value?.tool)
-const toolTitle = computed(() => toolInfo.value?.title ?? 'Background Remover')
-const toolDescription = computed(() => toolInfo.value?.description ?? '')
-const toolConfig = computed(() => (toolInfo.value?.config ?? { steps: [] }) as { steps: Array<{ id: string; name?: string; cost?: number; [key: string]: unknown }> })
-const firstStep = computed(() => toolConfig.value.steps[0])
-const totalCost = computed(() => toolConfig.value.steps.reduce((sum, s) => sum + (s.cost ?? 0), 0))
+const firstStep = getStep(0)
 
 const steps = computed(() => [
   { id: 'upload', label: t('tools.uploadImage') },
@@ -59,44 +29,26 @@ const { progress, isFailed } = useTaskProgress(
   taskId,
   {
     onComplete: async (output: unknown) => {
-      // Null out task ID to prevent reconnect from firing onComplete again
       taskId.value = null
       currentStep.value = 2
       const out = output as Record<string, string>
       if (out?.assetId) {
-        const { data } = await api.GET('/api/assets/{id}/url', {
-          params: { path: { id: out.assetId } },
-        })
-        resultUrl.value = data?.url ?? null
+        resultUrl.value = await fetchAssetUrl(out.assetId)
       }
     },
-    onFailed: () => {
-      // Stay on processing step but show error
-    },
+    onFailed: () => {},
   },
 )
 
-const submitMutation = useMutation({
-  mutationFn: async () => {
-    // Upload file
-    const uploadResult = await upload.uploadOnSubmit()
-    if (!uploadResult) throw new Error(upload.error.value ?? 'Upload failed')
-
-    // Create task
-    const { data, error, response } = await api.POST('/api/tasks', {
-      body: {
-        toolSlug: toolInfo.value?.slug ?? 'background-remove',
-        stepId: firstStep.value?.id ?? 'remove-bg',
-        input: { imageStorageKey: uploadResult.storageKey, sourceAssetId: uploadResult.assetId },
-      },
-    })
-    if (error) throw extractApiError(error, response)
-    return data
-  },
-  onSuccess: (data) => {
-    taskId.value = data.task.id
+const submitMutation = createSubmitMutation({
+  stepId: computed(() => firstStep.value?.id ?? 'remove-bg'),
+  buildInput: (uploadResult) => ({
+    imageStorageKey: uploadResult.storageKey,
+    sourceAssetId: uploadResult.assetId,
+  }),
+  onSuccess: (id) => {
+    taskId.value = id
     currentStep.value = 1
-    queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
 })
 
@@ -111,34 +63,18 @@ watch([restoreTaskId, toolData], async ([taskIdParam, tool]) => {
   const input = task.payload?.input as Record<string, string> | null
   const output = task.payload?.output as Record<string, string> | null
 
-  // Fetch source image preview
-  if (input?.sourceAssetId) {
-    fetchSourceImage(input.sourceAssetId)
-  }
+  if (input?.sourceAssetId) fetchSourceImage(input.sourceAssetId)
 
   if (task.status === 'completed') {
-    // Show result directly
     currentStep.value = 2
     if (output?.assetId) {
-      const { data: urlData } = await api.GET('/api/assets/{id}/url', {
-        params: { path: { id: output.assetId } },
-      })
-      resultUrl.value = urlData?.url ?? null
+      resultUrl.value = await fetchAssetUrl(output.assetId)
     }
   } else if (task.status === 'failed' || task.status === 'pending' || task.status === 'queued' || task.status === 'processing') {
-    // Connect SSE for in-progress or show error for failed
     currentStep.value = 1
     taskId.value = task.id
   }
 }, { immediate: true })
-
-function handleFileSelect(file: File | null) {
-  upload.setFile(file)
-}
-
-function handleSubmit() {
-  submitMutation.mutate()
-}
 
 function handleRetry() {
   currentStep.value = 0
@@ -146,19 +82,10 @@ function handleRetry() {
   resultUrl.value = null
 }
 
-const router = useRouter()
-
 function handleReset() {
-  upload.reset()
-  currentStep.value = 0
+  resetBase()
   taskId.value = null
   resultUrl.value = null
-  sourceImageUrl.value = null
-  restored.value = false
-  // Clear taskId from URL if present
-  if (route.query.taskId) {
-    router.replace({ query: { ...route.query, taskId: undefined } })
-  }
 }
 </script>
 
@@ -213,7 +140,7 @@ function handleReset() {
               block
               :disabled="!upload.pendingFile.value"
               :loading="submitMutation.isPending.value || upload.isUploading.value"
-              @click="handleSubmit"
+              @click="submitMutation.mutate()"
             >
               {{ t('tools.startProcessing') }}
               <template v-if="totalCost > 0">
