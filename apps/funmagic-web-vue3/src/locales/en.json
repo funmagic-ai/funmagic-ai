@@ -88,6 +88,7 @@
     "searchPlaceholder": "Search tools...",
     "noTools": "No tools available",
     "credits": "credits",
+    "totalCredits": "Total: {n} credits",
     "tryNow": "Try Now",
     "processing": "Processing...",
     "uploadImage": "Upload Image",

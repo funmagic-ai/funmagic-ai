@@ -13,6 +13,7 @@ import type { DataTableColumns } from 'naive-ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { EyeOutline, TrashOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -24,6 +25,7 @@ const router = useRouter()
 const message = useMessage()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const statusFilter = ref<string>('all')
 const currentPage = ref(1)
@@ -138,228 +140,240 @@ const statusTabs = computed(() => [
   { name: 'failed', label: t('tasks.failed') },
 ])
 
-const columns = computed<DataTableColumns<TaskRow>>(() => [
-  {
-    type: 'expand',
-    expandable: (row) => row.childCount > 0,
-    renderExpand(row) {
-      const children = expandedChildTasks.value[row.id]
-      const loading = loadingChildren.value[row.id]
+const columns = computed<DataTableColumns<TaskRow>>(() => {
+  const all: DataTableColumns<TaskRow> = [
+    {
+      type: 'expand',
+      expandable: (row) => row.childCount > 0,
+      renderExpand(row) {
+        const children = expandedChildTasks.value[row.id]
+        const loading = loadingChildren.value[row.id]
 
-      if (loading || !children) {
-        return h('div', { class: 'flex justify-center py-4' }, [
-          h(NSpin, { size: 'small' }),
-        ])
-      }
+        if (loading || !children) {
+          return h('div', { class: 'flex justify-center py-4' }, [
+            h(NSpin, { size: 'small' }),
+          ])
+        }
 
-      if (children.length === 0) {
-        return h('div', { class: 'py-3 text-center text-sm opacity-50' }, t('common.noResults'))
-      }
+        if (children.length === 0) {
+          return h('div', { class: 'py-3 text-center text-sm opacity-50' }, t('common.noResults'))
+        }
 
-      return h('div', { class: 'pl-8 py-2' }, [
-        h(NDataTable, {
-          columns: childColumns.value,
-          data: children,
-          bordered: false,
-          singleLine: false,
-          size: 'small',
-          rowProps: (childRow: any) => ({
-            style: 'cursor: pointer;',
-            onClick: () => router.push({ name: 'tasks-detail', params: { id: childRow.id } }),
-          }),
-        }),
-      ])
-    },
-  },
-  {
-    title: t('tasks.taskId'),
-    key: 'id',
-    width: 120,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.id.substring(0, 8) + '...'
-    },
-  },
-  {
-    title: t('tasks.user'),
-    key: 'userName',
-    width: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.userName ?? row.userEmail
-    },
-  },
-  {
-    title: t('tasks.tool'),
-    key: 'tool',
-    minWidth: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.tool?.title ?? '--'
-    },
-  },
-  {
-    title: t('tasks.status'),
-    key: 'status',
-    width: 120,
-    render(row) {
-      return h(StatusBadge, { status: row.status })
-    },
-  },
-  {
-    title: t('users.credits'),
-    key: 'creditsCost',
-    width: 80,
-  },
-  {
-    title: t('common.createdAt'),
-    key: 'createdAt',
-    width: 160,
-    render(row) {
-      return new Date(row.createdAt).toLocaleString()
-    },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: authStore.isAdmin ? 100 : 80,
-    fixed: 'right',
-    render(row) {
-      const buttons = [
-        h(
-          NButton,
-          {
+        return h('div', { class: 'pl-8 py-2' }, [
+          h(NDataTable, {
+            columns: childColumns.value,
+            data: children,
+            bordered: false,
+            singleLine: false,
             size: 'small',
-            quaternary: true,
-            onClick: (e: Event) => {
-              e.stopPropagation()
-              router.push({ name: 'tasks-detail', params: { id: row.id } })
-            },
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
-          },
-        ),
-      ]
-      if (authStore.isAdmin) {
-        buttons.push(
+            rowProps: (childRow: any) => ({
+              style: 'cursor: pointer;',
+              onClick: () => router.push({ name: 'tasks-detail', params: { id: childRow.id } }),
+            }),
+          }),
+        ])
+      },
+    },
+    {
+      title: t('tasks.taskId'),
+      key: 'id',
+      width: 120,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.id.substring(0, 8) + '...'
+      },
+    },
+    {
+      title: t('tasks.user'),
+      key: 'userName',
+      width: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.userName ?? row.userEmail
+      },
+    },
+    {
+      title: t('tasks.tool'),
+      key: 'tool',
+      minWidth: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.tool?.title ?? '--'
+      },
+    },
+    {
+      title: t('tasks.status'),
+      key: 'status',
+      width: 120,
+      render(row) {
+        return h(StatusBadge, { status: row.status })
+      },
+    },
+    {
+      title: t('users.credits'),
+      key: 'creditsCost',
+      width: 80,
+    },
+    {
+      title: t('common.createdAt'),
+      key: 'createdAt',
+      width: 160,
+      render(row) {
+        return new Date(row.createdAt).toLocaleString()
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: authStore.isAdmin ? 100 : 80,
+      fixed: 'right',
+      render(row) {
+        const buttons = [
           h(
             NButton,
             {
               size: 'small',
               quaternary: true,
-              type: 'error',
               onClick: (e: Event) => {
                 e.stopPropagation()
-                openDeleteDialog(row)
+                router.push({ name: 'tasks-detail', params: { id: row.id } })
               },
             },
             {
-              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+              icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
             },
           ),
-        )
-      }
-      return h('div', { class: 'flex items-center gap-1' }, buttons)
+        ]
+        if (authStore.isAdmin) {
+          buttons.push(
+            h(
+              NButton,
+              {
+                size: 'small',
+                quaternary: true,
+                type: 'error',
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  openDeleteDialog(row)
+                },
+              },
+              {
+                icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+              },
+            ),
+          )
+        }
+        return h('div', { class: 'flex items-center gap-1' }, buttons)
+      },
     },
-  },
-])
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'tool' || col.key === 'actions')
+  }
+  return all
+})
 
 // Child table columns — same as parent but without expand column
-const childColumns = computed<DataTableColumns<TaskRow>>(() => [
-  {
-    title: t('tasks.taskId'),
-    key: 'id',
-    width: 120,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.id.substring(0, 8) + '...'
+const childColumns = computed<DataTableColumns<TaskRow>>(() => {
+  const all: DataTableColumns<TaskRow> = [
+    {
+      title: t('tasks.taskId'),
+      key: 'id',
+      width: 120,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.id.substring(0, 8) + '...'
+      },
     },
-  },
-  {
-    title: t('tasks.user'),
-    key: 'userName',
-    width: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.userName ?? row.userEmail
+    {
+      title: t('tasks.user'),
+      key: 'userName',
+      width: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.userName ?? row.userEmail
+      },
     },
-  },
-  {
-    title: t('tasks.tool'),
-    key: 'tool',
-    minWidth: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.tool?.title ?? '--'
+    {
+      title: t('tasks.tool'),
+      key: 'tool',
+      minWidth: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.tool?.title ?? '--'
+      },
     },
-  },
-  {
-    title: t('tasks.status'),
-    key: 'status',
-    width: 120,
-    render(row) {
-      return h(StatusBadge, { status: row.status })
+    {
+      title: t('tasks.status'),
+      key: 'status',
+      width: 120,
+      render(row) {
+        return h(StatusBadge, { status: row.status })
+      },
     },
-  },
-  {
-    title: t('users.credits'),
-    key: 'creditsCost',
-    width: 80,
-  },
-  {
-    title: t('common.createdAt'),
-    key: 'createdAt',
-    width: 160,
-    render(row) {
-      return new Date(row.createdAt).toLocaleString()
+    {
+      title: t('users.credits'),
+      key: 'creditsCost',
+      width: 80,
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: authStore.isAdmin ? 100 : 80,
-    fixed: 'right',
-    render(row) {
-      const buttons = [
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            onClick: (e: Event) => {
-              e.stopPropagation()
-              router.push({ name: 'tasks-detail', params: { id: row.id } })
-            },
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
-          },
-        ),
-      ]
-      if (authStore.isAdmin) {
-        buttons.push(
+    {
+      title: t('common.createdAt'),
+      key: 'createdAt',
+      width: 160,
+      render(row) {
+        return new Date(row.createdAt).toLocaleString()
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: authStore.isAdmin ? 100 : 80,
+      fixed: 'right',
+      render(row) {
+        const buttons = [
           h(
             NButton,
             {
               size: 'small',
               quaternary: true,
-              type: 'error',
               onClick: (e: Event) => {
                 e.stopPropagation()
-                openDeleteDialog(row)
+                router.push({ name: 'tasks-detail', params: { id: row.id } })
               },
             },
             {
-              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+              icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
             },
           ),
-        )
-      }
-      return h('div', { class: 'flex items-center gap-1' }, buttons)
+        ]
+        if (authStore.isAdmin) {
+          buttons.push(
+            h(
+              NButton,
+              {
+                size: 'small',
+                quaternary: true,
+                type: 'error',
+                onClick: (e: Event) => {
+                  e.stopPropagation()
+                  openDeleteDialog(row)
+                },
+              },
+              {
+                icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+              },
+            ),
+          )
+        }
+        return h('div', { class: 'flex items-center gap-1' }, buttons)
+      },
     },
-  },
-])
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'tool' || col.key === 'actions')
+  }
+  return all
+})
 
 watch(statusFilter, () => {
   currentPage.value = 1

@@ -164,14 +164,19 @@ function handleReset() {
 
 <template>
   <AppLayout>
-    <main class="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div class="space-y-8">
         <!-- Breadcrumb -->
         <ToolBreadcrumb :tool-name="toolTitle" />
 
         <!-- Header -->
         <div class="space-y-2">
-          <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
+          <div class="flex items-center justify-between gap-4">
+            <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
+            <span v-if="totalCost > 0" class="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              {{ t('tools.totalCredits', { n: totalCost }) }}
+            </span>
+          </div>
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
@@ -215,6 +220,9 @@ function handleReset() {
                 &nbsp;· {{ totalCost }} {{ t('tools.credits') }}
               </template>
             </n-button>
+            <n-alert v-if="submitMutation.error.value" type="error" :bordered="false">
+              {{ submitMutation.error.value.message }}
+            </n-alert>
           </div>
 
           <!-- Step 1: Processing -->

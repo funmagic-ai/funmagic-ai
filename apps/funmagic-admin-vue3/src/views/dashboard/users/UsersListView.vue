@@ -13,6 +13,7 @@ import type { DataTableColumns } from 'naive-ui'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { EyeOutline, SearchOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
 import PageHeader from '@/components/shared/PageHeader.vue'
@@ -20,6 +21,7 @@ import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const search = ref('')
 const roleFilter = ref<string | null>(null)
@@ -74,71 +76,77 @@ const paginatedUsers = computed(() => {
 })
 
 // Table columns
-const columns = computed<DataTableColumns>(() => [
-  {
-    title: t('common.name'),
-    key: 'name',
-    minWidth: 140,
-    ellipsis: { tooltip: true },
-    render(row: any) {
-      return row.name || '--'
+const columns = computed<DataTableColumns>(() => {
+  const all: DataTableColumns = [
+    {
+      title: t('common.name'),
+      key: 'name',
+      minWidth: 140,
+      ellipsis: { tooltip: true },
+      render(row: any) {
+        return row.name || '--'
+      },
     },
-  },
-  {
-    title: t('users.email'),
-    key: 'email',
-    minWidth: 200,
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('users.role'),
-    key: 'role',
-    width: 120,
-    render(row: any) {
-      return h(StatusBadge, { status: row.role === 'super_admin' ? 'active' : row.role === 'admin' ? 'processing' : 'default' })
+    {
+      title: t('users.email'),
+      key: 'email',
+      minWidth: 200,
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('users.credits'),
-    key: 'credits',
-    width: 100,
-    render(row: any) {
-      return row.credits?.balance ?? 0
+    {
+      title: t('users.role'),
+      key: 'role',
+      width: 120,
+      render(row: any) {
+        return h(StatusBadge, { status: row.role === 'super_admin' ? 'active' : row.role === 'admin' ? 'processing' : 'default' })
+      },
     },
-    sorter: (a: any, b: any) => (a.credits?.balance ?? 0) - (b.credits?.balance ?? 0),
-  },
-  {
-    title: t('common.createdAt'),
-    key: 'createdAt',
-    width: 140,
-    sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    render(row: any) {
-      return new Date(row.createdAt).toLocaleDateString()
+    {
+      title: t('users.credits'),
+      key: 'credits',
+      width: 100,
+      render(row: any) {
+        return row.credits?.balance ?? 0
+      },
+      sorter: (a: any, b: any) => (a.credits?.balance ?? 0) - (b.credits?.balance ?? 0),
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 80,
-    fixed: 'right',
-    render(row: any) {
-      return h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          onClick: (e: Event) => {
-            e.stopPropagation()
-            router.push({ name: 'users-detail', params: { id: row.id } })
+    {
+      title: t('common.createdAt'),
+      key: 'createdAt',
+      width: 140,
+      sorter: (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render(row: any) {
+        return new Date(row.createdAt).toLocaleDateString()
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 80,
+      fixed: 'right',
+      render(row: any) {
+        return h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              router.push({ name: 'users-detail', params: { id: row.id } })
+            },
           },
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
-        },
-      )
+          {
+            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
+          },
+        )
+      },
     },
-  },
-])
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'name' || col.key === 'actions')
+  }
+  return all
+})
 
 // Reset page on filter change
 watch([search, roleFilter], () => {

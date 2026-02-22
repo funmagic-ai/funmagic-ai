@@ -2,6 +2,7 @@
 import { NButton, NDataTable, NIcon, NSwitch, NTag, NPopover } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline, LinkOutline, CopyOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
@@ -15,6 +16,7 @@ const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
 const queryClient = useQueryClient()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['banners'],
@@ -78,97 +80,103 @@ function copyToClipboard(text: string) {
 
 const banners = computed(() => data.value?.banners ?? [])
 
-const columns = computed<DataTableColumns>(() => [
-  {
-    title: t('common.title'),
-    key: 'title',
-    width: 200,
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('content.bannerType'),
-    key: 'type',
-    width: 120,
-    render: (row: any) => {
-      return h(NTag, { size: 'small', type: row.type === 'main' ? 'primary' : 'default' }, {
-        default: () => row.type,
-      })
+const columns = computed<DataTableColumns>(() => {
+  const all: DataTableColumns = [
+    {
+      title: t('common.title'),
+      key: 'title',
+      width: 200,
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('content.linkUrl'),
-    key: 'link',
-    width: 80,
-    render: (row: any) => {
-      if (!row.link) return '-'
-      return h(NPopover, { trigger: 'click', placement: 'bottom' }, {
-        trigger: () => h(NButton, { size: 'small', quaternary: true }, {
-          icon: () => h(NIcon, null, { default: () => h(LinkOutline) }),
-        }),
-        default: () => h('div', { class: 'flex items-center gap-2 max-w-xs' }, [
-          h('span', { class: 'text-sm break-all' }, row.link),
-          h(NButton, {
-            size: 'tiny',
-            quaternary: true,
-            onClick: () => copyToClipboard(row.link),
-          }, {
-            icon: () => h(NIcon, { size: 16 }, { default: () => h(CopyOutline) }),
+    {
+      title: t('content.bannerType'),
+      key: 'type',
+      width: 120,
+      render: (row: any) => {
+        return h(NTag, { size: 'small', type: row.type === 'main' ? 'primary' : 'default' }, {
+          default: () => row.type,
+        })
+      },
+    },
+    {
+      title: t('content.linkUrl'),
+      key: 'link',
+      width: 80,
+      render: (row: any) => {
+        if (!row.link) return '-'
+        return h(NPopover, { trigger: 'click', placement: 'bottom' }, {
+          trigger: () => h(NButton, { size: 'small', quaternary: true }, {
+            icon: () => h(NIcon, null, { default: () => h(LinkOutline) }),
           }),
-        ]),
-      })
+          default: () => h('div', { class: 'flex items-center gap-2 max-w-xs' }, [
+            h('span', { class: 'text-sm break-all' }, row.link),
+            h(NButton, {
+              size: 'tiny',
+              quaternary: true,
+              onClick: () => copyToClipboard(row.link),
+            }, {
+              icon: () => h(NIcon, { size: 16 }, { default: () => h(CopyOutline) }),
+            }),
+          ]),
+        })
+      },
     },
-  },
-  {
-    title: t('common.position'),
-    key: 'position',
-    width: 100,
-    render: (row: any) => row.position ?? '-',
-  },
-  {
-    title: t('common.status'),
-    key: 'isActive',
-    width: 120,
-    render: (row: any) => {
-      return h(NSwitch, {
-        value: row.isActive,
-        loading: toggleActiveMutation.isPending.value,
-        onUpdateValue: () => toggleActiveMutation.mutate(row.id),
-      })
+    {
+      title: t('common.position'),
+      key: 'position',
+      width: 100,
+      render: (row: any) => row.position ?? '-',
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 120,
-    render: (row: any) => {
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            onClick: () => router.push({ name: 'banners-detail', params: { id: row.id } }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            type: 'error',
-            onClick: () => openDeleteDialog({ id: row.id, title: row.title }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
-          },
-        ),
-      ])
+    {
+      title: t('common.status'),
+      key: 'isActive',
+      width: 120,
+      render: (row: any) => {
+        return h(NSwitch, {
+          value: row.isActive,
+          loading: toggleActiveMutation.isPending.value,
+          onUpdateValue: () => toggleActiveMutation.mutate(row.id),
+        })
+      },
     },
-  },
-])
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 120,
+      render: (row: any) => {
+        return h('div', { class: 'flex items-center gap-1' }, [
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              onClick: () => router.push({ name: 'banners-detail', params: { id: row.id } }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
+            },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: () => openDeleteDialog({ id: row.id, title: row.title }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        ])
+      },
+    },
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'title' || col.key === 'actions')
+  }
+  return all
+})
 </script>
 
 <template>

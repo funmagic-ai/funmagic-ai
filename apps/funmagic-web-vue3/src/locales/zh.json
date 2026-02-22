@@ -88,6 +88,7 @@
     "searchPlaceholder": "搜索工具...",
     "noTools": "暂无可用工具",
     "credits": "积分",
+    "totalCredits": "总计：{n} 积分",
     "tryNow": "立即体验",
     "processing": "处理中...",
     "uploadImage": "上传图片",

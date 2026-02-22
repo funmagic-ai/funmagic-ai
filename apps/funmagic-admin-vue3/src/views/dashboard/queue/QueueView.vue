@@ -22,10 +22,12 @@ import {
 } from '@vicons/ionicons5'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
+import { useMediaQuery } from '@vueuse/core'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const { t } = useI18n()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 type JobStatus = 'waiting' | 'active' | 'completed' | 'failed' | 'delayed'
 
@@ -187,94 +189,100 @@ function extractToolProvider(data: Record<string, unknown>): string {
 }
 
 // ─── Table columns ──────────────────────────────────────
-const columns = computed<DataTableColumns<QueueJob>>(() => [
-  {
-    type: 'expand',
-    renderExpand(row) {
-      return h('div', { class: 'p-4' }, [
-        h('p', { class: 'mb-2 text-sm font-medium text-muted-foreground' }, t('queue.jobData')),
-        h(NCode, {
-          code: JSON.stringify(row.data, null, 2),
-          language: 'json',
-          wordWrap: true,
-        }),
-      ])
+const columns = computed<DataTableColumns<QueueJob>>(() => {
+  const all: DataTableColumns<QueueJob> = [
+    {
+      type: 'expand',
+      renderExpand(row) {
+        return h('div', { class: 'p-4' }, [
+          h('p', { class: 'mb-2 text-sm font-medium text-muted-foreground' }, t('queue.jobData')),
+          h(NCode, {
+            code: JSON.stringify(row.data, null, 2),
+            language: 'json',
+            wordWrap: true,
+          }),
+        ])
+      },
     },
-  },
-  {
-    title: t('queue.jobId'),
-    key: 'id',
-    width: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      const display = row.id.length > 16 ? row.id.substring(0, 16) + '...' : row.id
-      return display
+    {
+      title: t('queue.jobId'),
+      key: 'id',
+      width: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        const display = row.id.length > 16 ? row.id.substring(0, 16) + '...' : row.id
+        return display
+      },
     },
-  },
-  {
-    title: t('queue.queueName'),
-    key: 'queue',
-    width: 100,
-    render(row) {
-      const info = queueLabelMap[row.queue]
-      if (info) {
-        return h(NTag, { size: 'small', type: info.type, round: true }, { default: () => info.label })
-      }
-      return row.queue
+    {
+      title: t('queue.queueName'),
+      key: 'queue',
+      width: 100,
+      render(row) {
+        const info = queueLabelMap[row.queue]
+        if (info) {
+          return h(NTag, { size: 'small', type: info.type, round: true }, { default: () => info.label })
+        }
+        return row.queue
+      },
     },
-  },
-  {
-    title: t('common.status'),
-    key: 'status',
-    width: 100,
-    render(row) {
-      return h(StatusBadge, { status: row.status })
+    {
+      title: t('common.status'),
+      key: 'status',
+      width: 100,
+      render(row) {
+        return h(StatusBadge, { status: row.status })
+      },
     },
-  },
-  {
-    title: t('queue.taskId'),
-    key: 'taskId',
-    width: 140,
-    ellipsis: { tooltip: true },
-    render(row) {
-      const val = extractIdentifier(row.data)
-      if (val === '--') return val
-      return val.length > 12 ? val.substring(0, 12) + '...' : val
+    {
+      title: t('queue.taskId'),
+      key: 'taskId',
+      width: 140,
+      ellipsis: { tooltip: true },
+      render(row) {
+        const val = extractIdentifier(row.data)
+        if (val === '--') return val
+        return val.length > 12 ? val.substring(0, 12) + '...' : val
+      },
     },
-  },
-  {
-    title: t('queue.toolProvider'),
-    key: 'toolProvider',
-    width: 120,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return extractToolProvider(row.data)
+    {
+      title: t('queue.toolProvider'),
+      key: 'toolProvider',
+      width: 120,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return extractToolProvider(row.data)
+      },
     },
-  },
-  {
-    title: t('queue.attempts'),
-    key: 'attemptsMade',
-    width: 80,
-    align: 'center',
-  },
-  {
-    title: t('queue.createdAt'),
-    key: 'timestamp',
-    width: 170,
-    render(row) {
-      return formatTime(row.timestamp)
+    {
+      title: t('queue.attempts'),
+      key: 'attemptsMade',
+      width: 80,
+      align: 'center',
     },
-  },
-  {
-    title: t('queue.error'),
-    key: 'failedReason',
-    minWidth: 200,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.failedReason ?? '--'
+    {
+      title: t('queue.createdAt'),
+      key: 'timestamp',
+      width: 170,
+      render(row) {
+        return formatTime(row.timestamp)
+      },
     },
-  },
-])
+    {
+      title: t('queue.error'),
+      key: 'failedReason',
+      minWidth: 200,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.failedReason ?? '--'
+      },
+    },
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'id' || col.key === 'status')
+  }
+  return all
+})
 </script>
 
 <template>

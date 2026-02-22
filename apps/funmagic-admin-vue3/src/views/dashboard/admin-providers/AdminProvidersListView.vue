@@ -2,6 +2,7 @@
 import { NButton, NDataTable, NIcon, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
@@ -15,6 +16,7 @@ const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
 const queryClient = useQueryClient()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['admin-providers'],
@@ -75,83 +77,89 @@ function confirmDelete() {
 
 const providers = computed(() => data.value?.providers ?? [])
 
-const columns = computed<DataTableColumns>(() => [
-  {
-    title: t('common.name'),
-    key: 'displayName',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('common.slug'),
-    key: 'name',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('common.description'),
-    key: 'description',
-    ellipsis: { tooltip: true },
-    render: (row: any) => row.description || '-',
-  },
-  {
-    title: t('providers.baseUrl'),
-    key: 'baseUrl',
-    ellipsis: { tooltip: true },
-    render: (row: any) => row.baseUrl || '-',
-  },
-  {
-    title: t('providers.apiKey'),
-    key: 'apiKeyPreview',
-    width: 140,
-    render: (row: any) => {
-      if (!row.apiKeyPreview) return h('span', { class: 'text-muted-foreground text-xs' }, t('providers.notSet'))
-      return h('code', { class: 'text-xs font-mono bg-muted px-1.5 py-0.5 rounded' }, row.apiKeyPreview)
+const columns = computed<DataTableColumns>(() => {
+  const all: DataTableColumns = [
+    {
+      title: t('common.name'),
+      key: 'displayName',
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.status'),
-    key: 'isActive',
-    width: 100,
-    render: (row: any) => {
-      return h(NSwitch, {
-        value: row.isActive,
-        loading: toggleActiveMutation.isPending.value,
-        onUpdateValue: (val: boolean) => toggleActiveMutation.mutate({ id: row.id, isActive: val }),
-      })
+    {
+      title: t('common.slug'),
+      key: 'name',
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 120,
-    render: (row: any) => {
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            onClick: () => router.push({ name: 'admin-providers-detail', params: { id: row.id } }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            type: 'error',
-            onClick: () => openDeleteDialog({ id: row.id, displayName: row.displayName }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
-          },
-        ),
-      ])
+    {
+      title: t('common.description'),
+      key: 'description',
+      ellipsis: { tooltip: true },
+      render: (row: any) => row.description || '-',
     },
-  },
-])
+    {
+      title: t('providers.baseUrl'),
+      key: 'baseUrl',
+      ellipsis: { tooltip: true },
+      render: (row: any) => row.baseUrl || '-',
+    },
+    {
+      title: t('providers.apiKey'),
+      key: 'apiKeyPreview',
+      width: 140,
+      render: (row: any) => {
+        if (!row.apiKeyPreview) return h('span', { class: 'text-muted-foreground text-xs' }, t('providers.notSet'))
+        return h('code', { class: 'text-xs font-mono bg-muted px-1.5 py-0.5 rounded' }, row.apiKeyPreview)
+      },
+    },
+    {
+      title: t('common.status'),
+      key: 'isActive',
+      width: 100,
+      render: (row: any) => {
+        return h(NSwitch, {
+          value: row.isActive,
+          loading: toggleActiveMutation.isPending.value,
+          onUpdateValue: (val: boolean) => toggleActiveMutation.mutate({ id: row.id, isActive: val }),
+        })
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 120,
+      render: (row: any) => {
+        return h('div', { class: 'flex items-center gap-1' }, [
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              onClick: () => router.push({ name: 'admin-providers-detail', params: { id: row.id } }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
+            },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: () => openDeleteDialog({ id: row.id, displayName: row.displayName }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        ])
+      },
+    },
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'displayName' || col.key === 'actions')
+  }
+  return all
+})
 </script>
 
 <template>

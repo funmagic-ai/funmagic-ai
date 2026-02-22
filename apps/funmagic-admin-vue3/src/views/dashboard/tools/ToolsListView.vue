@@ -4,6 +4,7 @@ import type { DataTableColumns } from 'naive-ui'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { TrashOutline, CreateOutline, AddOutline, SearchOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { api } from '@/lib/api'
 import { extractApiError } from '@/lib/api-error'
 import { useApiError } from '@/composables/useApiError'
@@ -15,6 +16,7 @@ const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
 const queryClient = useQueryClient()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const search = ref('')
 const currentPage = ref(1)
@@ -100,86 +102,92 @@ function confirmDelete() {
 }
 
 // Table columns
-const columns = computed<DataTableColumns>(() => [
-  {
-    title: t('common.name'),
-    key: 'title',
-    ellipsis: { tooltip: true },
-    minWidth: 160,
-  },
-  {
-    title: t('tools.slug'),
-    key: 'slug',
-    width: 160,
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('tools.toolType'),
-    key: 'toolType',
-    width: 140,
-    render(row: any) {
-      return row.toolType?.title ?? '--'
+const columns = computed<DataTableColumns>(() => {
+  const all: DataTableColumns = [
+    {
+      title: t('common.name'),
+      key: 'title',
+      ellipsis: { tooltip: true },
+      minWidth: 160,
     },
-  },
-  {
-    title: t('common.usage'),
-    key: 'usageCount',
-    width: 80,
-    sorter: (a: any, b: any) => a.usageCount - b.usageCount,
-  },
-  {
-    title: t('common.status'),
-    key: 'isActive',
-    width: 100,
-    render(row: any) {
-      return h(NSwitch, {
-        value: row.isActive,
-        loading: toggleActiveMutation.isPending.value,
-        onClick: (e: Event) => e.stopPropagation(),
-        onUpdateValue: (val: boolean) => toggleActiveMutation.mutate({ id: row.id, isActive: val }),
-      })
+    {
+      title: t('tools.slug'),
+      key: 'slug',
+      width: 160,
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 120,
-    fixed: 'right',
-    render(row: any) {
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            onClick: (e: Event) => {
-              e.stopPropagation()
-              router.push({ name: 'tools-detail', params: { id: row.id } })
+    {
+      title: t('tools.toolType'),
+      key: 'toolType',
+      width: 140,
+      render(row: any) {
+        return row.toolType?.title ?? '--'
+      },
+    },
+    {
+      title: t('common.usage'),
+      key: 'usageCount',
+      width: 80,
+      sorter: (a: any, b: any) => a.usageCount - b.usageCount,
+    },
+    {
+      title: t('common.status'),
+      key: 'isActive',
+      width: 100,
+      render(row: any) {
+        return h(NSwitch, {
+          value: row.isActive,
+          loading: toggleActiveMutation.isPending.value,
+          onClick: (e: Event) => e.stopPropagation(),
+          onUpdateValue: (val: boolean) => toggleActiveMutation.mutate({ id: row.id, isActive: val }),
+        })
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 120,
+      fixed: 'right',
+      render(row: any) {
+        return h('div', { class: 'flex items-center gap-1' }, [
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                router.push({ name: 'tools-detail', params: { id: row.id } })
+              },
             },
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            type: 'error',
-            onClick: (e: Event) => {
-              e.stopPropagation()
-              openDeleteDialog({ id: row.id, title: row.title })
+            {
+              icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
             },
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
-          },
-        ),
-      ])
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: (e: Event) => {
+                e.stopPropagation()
+                openDeleteDialog({ id: row.id, title: row.title })
+              },
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        ])
+      },
     },
-  },
-])
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'title' || col.key === 'actions')
+  }
+  return all
+})
 
 // Reset page on search
 watch(search, () => {

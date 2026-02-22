@@ -8,6 +8,7 @@ import { useUpload } from '@/composables/useUpload'
 import { useTaskProgress } from '@/composables/useTaskProgress'
 import { useTaskRestore } from '@/composables/useTaskRestore'
 import { useAuthStore } from '@/stores/auth'
+import { useApiError } from '@/composables/useApiError'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImagePicker from '@/components/upload/ImagePicker.vue'
 import StepIndicator from '@/components/tools/StepIndicator.vue'
@@ -20,6 +21,7 @@ const PointCloudViewer = defineAsyncComponent(() =>
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { handleError } = useApiError()
 const queryClient = useQueryClient()
 const route = useRoute()
 const locale = computed(() => (route.params.locale as string) || 'en')
@@ -184,6 +186,7 @@ const cloudMutation = useMutation({
     cloudTaskId.value = data.task.id
     queryClient.invalidateQueries({ queryKey: ['user-tasks'] })
   },
+  onError: handleError,
 })
 
 function startCloudGeneration() {
@@ -293,14 +296,19 @@ function handleReset() {
 
 <template>
   <AppLayout>
-    <main class="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
       <div class="space-y-8">
         <!-- Breadcrumb -->
         <ToolBreadcrumb :tool-name="toolTitle" />
 
         <!-- Header -->
         <div class="space-y-2">
-          <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
+          <div class="flex items-center justify-between gap-4">
+            <h1 class="text-3xl sm:text-4xl font-bold">{{ toolTitle }}</h1>
+            <span v-if="totalCost > 0" class="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+              {{ t('tools.totalCredits', { n: totalCost }) }}
+            </span>
+          </div>
           <p class="text-muted-foreground">{{ toolDescription }}</p>
         </div>
 
@@ -339,10 +347,13 @@ function handleReset() {
               @click="handleSubmit"
             >
               {{ t('tools.startProcessing') }}
-              <template v-if="totalCost > 0">
-                &nbsp;· {{ totalCost }} {{ t('tools.credits') }}
+              <template v-if="step0?.cost">
+                &nbsp;· {{ step0.cost }}/{{ totalCost }} {{ t('tools.credits') }}
               </template>
             </n-button>
+            <n-alert v-if="submitMutation.error.value" type="error" :bordered="false">
+              {{ submitMutation.error.value.message }}
+            </n-alert>
           </div>
 
           <!-- Step 1: Background Removal -->
@@ -383,7 +394,7 @@ function handleReset() {
               >
                 {{ step1Name }}
                 <template v-if="step1?.cost">
-                  &nbsp;· {{ step1.cost }} {{ t('tools.credits') }}
+                  &nbsp;· {{ step1.cost }}/{{ totalCost }} {{ t('tools.credits') }}
                 </template>
               </n-button>
               <n-button @click="handleReset">{{ t('tools.startOver') }}</n-button>

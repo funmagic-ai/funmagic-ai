@@ -13,10 +13,12 @@ import type { DataTableColumns } from 'naive-ui'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { EyeOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import PageHeader from '@/components/shared/PageHeader.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const statusFilter = ref<string>('all')
 
@@ -109,67 +111,73 @@ function getStatusType(status: string): 'default' | 'info' | 'success' | 'warnin
   }
 }
 
-const columns = computed<DataTableColumns<ProjectRow>>(() => [
-  {
-    title: t('studio.projectTitle'),
-    key: 'title',
-    minWidth: 200,
-    ellipsis: { tooltip: true },
-    render(row) {
-      return row.title || t('studio.untitledProject')
+const columns = computed<DataTableColumns<ProjectRow>>(() => {
+  const all: DataTableColumns<ProjectRow> = [
+    {
+      title: t('studio.projectTitle'),
+      key: 'title',
+      minWidth: 200,
+      ellipsis: { tooltip: true },
+      render(row) {
+        return row.title || t('studio.untitledProject')
+      },
     },
-  },
-  {
-    title: t('studio.generationCount'),
-    key: 'generationCount',
-    width: 120,
-    render(row) {
-      return `${row.generationCount} ${t('studio.generations').toLowerCase()}`
+    {
+      title: t('studio.generationCount'),
+      key: 'generationCount',
+      width: 120,
+      render(row) {
+        return `${row.generationCount} ${t('studio.generations').toLowerCase()}`
+      },
     },
-  },
-  {
-    title: t('common.status'),
-    key: 'statusCounts',
-    width: 220,
-    render(row) {
-      const entries = Object.entries(row.statusCounts)
-      if (entries.length === 0) return '--'
-      return h('div', { class: 'flex gap-1 flex-wrap' }, entries.map(([status, count]) =>
-        h(NTag, { size: 'small', type: getStatusType(status), bordered: false }, { default: () => `${status}: ${count}` }),
-      ))
+    {
+      title: t('common.status'),
+      key: 'statusCounts',
+      width: 220,
+      render(row) {
+        const entries = Object.entries(row.statusCounts)
+        if (entries.length === 0) return '--'
+        return h('div', { class: 'flex gap-1 flex-wrap' }, entries.map(([status, count]) =>
+          h(NTag, { size: 'small', type: getStatusType(status), bordered: false }, { default: () => `${status}: ${count}` }),
+        ))
+      },
     },
-  },
-  {
-    title: t('studio.lastActivity'),
-    key: 'updatedAt',
-    width: 160,
-    render(row) {
-      return new Date(row.updatedAt).toLocaleString()
+    {
+      title: t('studio.lastActivity'),
+      key: 'updatedAt',
+      width: 160,
+      render(row) {
+        return new Date(row.updatedAt).toLocaleString()
+      },
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 80,
-    fixed: 'right',
-    render(row) {
-      return h(
-        NButton,
-        {
-          size: 'small',
-          quaternary: true,
-          onClick: (e: Event) => {
-            e.stopPropagation()
-            router.push({ name: 'studio-projects-detail', params: { id: row.id } })
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 80,
+      fixed: 'right',
+      render(row) {
+        return h(
+          NButton,
+          {
+            size: 'small',
+            quaternary: true,
+            onClick: (e: Event) => {
+              e.stopPropagation()
+              router.push({ name: 'studio-projects-detail', params: { id: row.id } })
+            },
           },
-        },
-        {
-          icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
-        },
-      )
+          {
+            icon: () => h(NIcon, null, { default: () => h(EyeOutline) }),
+          },
+        )
+      },
     },
-  },
-])
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'title' || col.key === 'actions')
+  }
+  return all
+})
 </script>
 
 <template>

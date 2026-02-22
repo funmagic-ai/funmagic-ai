@@ -1,54 +1,54 @@
 {
   "common": {
     "appName": "FunMagic",
-    "loading": "Loading...",
-    "error": "An error occurred",
-    "retry": "Retry",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "confirm": "Confirm",
-    "back": "Back",
-    "next": "Next",
-    "submit": "Submit",
-    "search": "Search",
-    "noResults": "No results found",
-    "viewAll": "View All"
+    "loading": "読み込み中...",
+    "error": "エラーが発生しました",
+    "retry": "再試行",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "confirm": "確認",
+    "back": "戻る",
+    "next": "次へ",
+    "submit": "送信",
+    "search": "検索",
+    "noResults": "結果が見つかりません",
+    "viewAll": "すべて表示"
   },
   "nav": {
-    "home": "Home",
-    "tools": "Tools",
-    "pricing": "Pricing",
-    "login": "Login",
-    "register": "Register",
-    "profile": "Profile",
+    "home": "ホーム",
+    "tools": "ツール",
+    "pricing": "料金",
+    "login": "ログイン",
+    "register": "登録",
+    "profile": "プロフィール",
     "assets": "マイ作品",
-    "logout": "Logout",
-    "help": "Help",
-    "terms": "Terms of Service",
-    "privacy": "Privacy Policy"
+    "logout": "ログアウト",
+    "help": "ヘルプ",
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー"
   },
   "home": {
-    "heroTitle": "AI-Powered Creative Tools",
-    "heroSubtitle": "Transform your ideas into reality with our suite of AI tools",
-    "getStarted": "Get Started",
-    "featuredTools": "Featured Tools",
-    "explorAll": "Explore All Tools"
+    "heroTitle": "AIクリエイティブツール",
+    "heroSubtitle": "AIツールであなたのアイデアを形にしましょう",
+    "getStarted": "始める",
+    "featuredTools": "おすすめツール",
+    "explorAll": "すべてのツールを見る"
   },
   "auth": {
-    "loginTitle": "Welcome Back",
-    "loginSubtitle": "Sign in to your account",
-    "registerTitle": "Create Account",
-    "registerSubtitle": "Start your creative journey",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "confirmPassword": "Confirm Password",
-    "signIn": "Sign In",
-    "signUp": "Sign Up",
-    "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?",
-    "forgotPassword": "Forgot password?",
+    "loginTitle": "おかえりなさい",
+    "loginSubtitle": "アカウントにログイン",
+    "registerTitle": "アカウント作成",
+    "registerSubtitle": "クリエイティブな旅を始めましょう",
+    "email": "メールアドレス",
+    "password": "パスワード",
+    "name": "名前",
+    "confirmPassword": "パスワード確認",
+    "signIn": "ログイン",
+    "signUp": "登録",
+    "noAccount": "アカウントをお持ちでないですか？",
+    "hasAccount": "すでにアカウントをお持ちですか？",
+    "forgotPassword": "パスワードをお忘れですか？",
     "loginError": "メールアドレスまたはパスワードが無効です",
     "registerError": "登録に失敗しました",
     "errorCodes": {
@@ -64,26 +64,40 @@
       "FAILED_TO_CREATE_USER": "アカウントの作成に失敗しました",
       "FAILED_TO_CREATE_SESSION": "ログインに失敗しました。もう一度お試しください"
     },
+    "welcomeBack": "おかえりなさい！",
+    "accountCreated": "アカウントが正常に作成されました！",
     "orContinueWith": "またはメールで続ける",
     "continueWithGoogle": "Googleで続ける",
     "continueWithApple": "Appleで続ける",
     "continueWithFacebook": "Facebookで続ける",
-    "socialLoginError": "ソーシャルログインに失敗しました。もう一度お試しください。"
+    "socialLoginError": "ソーシャルログインに失敗しました。もう一度お試しください。",
+    "validation": {
+      "emailRequired": "メールアドレスは必須です",
+      "emailInvalid": "有効なメールアドレスを入力してください",
+      "passwordRequired": "パスワードは必須です",
+      "passwordMin6": "パスワードは6文字以上で入力してください",
+      "passwordMin8": "パスワードは8文字以上で入力してください",
+      "nameRequired": "名前は必須です",
+      "nameMin2": "名前は2文字以上で入力してください",
+      "confirmPasswordRequired": "パスワードを再入力してください",
+      "passwordsMismatch": "パスワードが一致しません"
+    }
   },
   "tools": {
-    "allTools": "All Tools",
-    "searchPlaceholder": "Search tools...",
-    "noTools": "No tools available",
-    "credits": "credits",
-    "tryNow": "Try Now",
-    "processing": "Processing...",
-    "uploadImage": "Upload Image",
-    "download": "Download",
-    "result": "Result",
-    "startProcessing": "Start Processing",
-    "resultReady": "Result Ready",
-    "processAnother": "Process Another",
-    "original": "Original",
+    "allTools": "すべてのツール",
+    "searchPlaceholder": "ツールを検索...",
+    "noTools": "利用可能なツールはありません",
+    "credits": "クレジット",
+    "totalCredits": "合計：{n} クレジット",
+    "tryNow": "今すぐ試す",
+    "processing": "処理中...",
+    "uploadImage": "画像をアップロード",
+    "download": "ダウンロード",
+    "result": "結果",
+    "startProcessing": "処理を開始",
+    "resultReady": "結果の準備完了",
+    "processAnother": "別のファイルを処理",
+    "original": "オリジナル",
     "featured": "おすすめ",
     "uses": "回使用",
     "signInRequired": "このツールを使用するにはログインしてください。",
@@ -123,21 +137,58 @@
       "settings": "設定",
       "triangles": "三角面",
       "downloadGLB": "GLBをダウンロード"
+    },
+    "pointCloud": {
+      "tab3D": "3Dモデル",
+      "loading": "3Dビューアを読み込み中...",
+      "resultDescription": "{count} 点を生成しました",
+      "points": "ポイント数",
+      "autoRotate": "自動回転",
+      "pointSize": "ポイントサイズ",
+      "confidence": "信頼度しきい値",
+      "zCrop": "Z軸クロップ（Z > 0）",
+      "downloadPLY": "PLYをダウンロード",
+      "downloadTXT": "TXTをダウンロード",
+      "settings": "設定",
+      "loadingData": "点群データを読み込み中..."
     }
   },
   "pricing": {
-    "title": "Pricing",
-    "subtitle": "Choose the plan that works for you",
-    "popular": "Popular",
-    "buy": "Buy Now",
-    "free": "Free",
-    "paid": "Paid"
+    "title": "料金プラン",
+    "subtitle": "あなたに合ったプランをお選びください",
+    "popular": "人気",
+    "buy": "購入する",
+    "free": "無料",
+    "paid": "有料",
+    "noPackages": "利用可能なパッケージはありません",
+    "bonusCredits": "ボーナス",
+    "comingSoon": "決済機能は近日公開予定です！"
   },
   "profile": {
-    "title": "Profile",
-    "credits": "Credits",
-    "transactions": "Transaction History",
-    "noTransactions": "No transactions yet"
+    "title": "プロフィール",
+    "credits": "クレジット",
+    "transactions": "取引履歴",
+    "noTransactions": "取引履歴はまだありません",
+    "totalBalance": "合計残高",
+    "available": "利用可能",
+    "reserved": "予約済み",
+    "lifetimeUsed": "累計使用量",
+    "date": "日付",
+    "type": "種類",
+    "amount": "金額",
+    "balanceAfter": "取引後残高",
+    "description": "説明",
+    "types": {
+      "purchase": "購入",
+      "bonus": "ボーナス",
+      "welcome": "ウェルカム",
+      "usage": "使用",
+      "refund": "返金",
+      "reservation": "予約",
+      "release": "解放",
+      "admin_adjust": "調整",
+      "expiry": "期限切れ"
+    }
   },
   "assets": {
     "title": "マイ作品",
@@ -179,7 +230,169 @@
       "created": "作成日"
     }
   },
+  "help": {
+    "subtitle": "FunMagic AIツールの使い方に関するよくある質問をご覧ください。",
+    "faqTitle": "よくある質問",
+    "contactTitle": "お問い合わせ",
+    "contactSubtitle": "お探しの情報が見つかりませんか？サポートチームにお気軽にご連絡ください。",
+    "contactResponseTime": "回答時間：24時間以内",
+    "faq": {
+      "what": {
+        "title": "FunMagicとは何ですか？",
+        "content": "FunMagicは、AI搭載のクリエイティブツールを提供するプラットフォームです。画像の背景除去、3Dモデルの生成、デザインの作成など、さまざまなツールをご利用いただけます。すべてのツールはシンプルなクレジット制でご利用いただけます。"
+      },
+      "credits": {
+        "title": "クレジットはどのように使いますか？",
+        "content": "クレジットはFunMagicのAIツールを利用するための通貨です。各ツールには処理の複雑さに応じた所要クレジットが設定されています。料金ページからクレジットパッケージを購入できます。一部のパッケージにはお得なボーナスクレジットが含まれています。"
+      },
+      "formats": {
+        "title": "対応しているファイル形式は？",
+        "content": "ほとんどの画像ツールは、JPEG、PNG、WebPなどの一般的な形式に対応しています。特定のツールでは追加の形式にも対応している場合があります。対応する入出力形式の詳細は、各ツールの説明をご確認ください。"
+      },
+      "processing": {
+        "title": "処理にはどのくらい時間がかかりますか？",
+        "content": "処理時間はツールや入力の複雑さによって異なります。背景除去のような簡単な操作は通常数秒で完了しますが、3Dモデル生成のような複雑なタスクには数分かかることがあります。処理中は進捗インジケーターが表示されます。"
+      },
+      "refunds": {
+        "title": "クレジットの返金はできますか？",
+        "content": "クレジットは原則として返金不可です。ただし、システムエラーによりツールの処理に失敗した場合は、クレジットが自動的にアカウントに返金されます。問題が発生した場合は、サポートチームにお問い合わせください。"
+      },
+      "storage": {
+        "title": "生成されたアセットはどこに保存されますか？",
+        "content": "すべての生成アセットは「マイアセット」ページからアクセスできる個人用アセットライブラリに保存されます。いつでもアセットのダウンロードや削除が可能です。アセットはクラウドに安全に保存され、ご本人のみアクセスできます。"
+      },
+      "expiry": {
+        "title": "クレジットに有効期限はありますか？",
+        "content": "クレジットの有効期限は、購入されたパッケージによって異なります。有効期限の詳細については、各クレジットパッケージの規約をご確認ください。"
+      },
+      "security": {
+        "title": "データは安全ですか？",
+        "content": "はい、データのセキュリティには万全を期しています。すべてのデータは転送中および保存時に暗号化されています。お客様の個人データやアップロードされたコンテンツを第三者と共有することはありません。データの取り扱いについての詳細は、プライバシーポリシーをご覧ください。"
+      }
+    }
+  },
+  "terms": {
+    "sections": {
+      "acceptance": {
+        "title": "1. 利用規約の同意",
+        "content": "FunMagic（以下「本サービス」）にアクセスし利用することにより、お客様は本利用規約に拘束されることに同意するものとします。本規約に同意されない場合は、本サービスをご利用にならないでください。"
+      },
+      "description": {
+        "title": "2. サービスの説明",
+        "content": "FunMagicは、デジタルコンテンツの処理、生成、変換を可能にするAI搭載のクリエイティブツールを提供します。本サービスは、ユーザーがクレジットを購入してさまざまなツールや機能にアクセスするクレジット制で運営されています。"
+      },
+      "accounts": {
+        "title": "3. ユーザーアカウント",
+        "content": "本サービスのほとんどの機能を利用するには、アカウントの作成が必要です。お客様は、アカウント認証情報の機密性を維持し、アカウントで発生するすべての活動に対して責任を負うものとします。アカウントの不正使用があった場合は、直ちに当社にご連絡ください。"
+      },
+      "credits": {
+        "title": "4. クレジットと支払い",
+        "content": "本サービスはクレジット制を採用しています。AIツールの使用時にクレジットが消費されます。クレジットパッケージは料金ページから購入できます。クレジットは、適用法で要求される場合を除き、返金不可です。未使用のクレジットは、購入時に指定された条件に従い有効期限が切れる場合があります。"
+      },
+      "acceptable": {
+        "title": "5. 利用上の注意",
+        "content": "お客様は、違法または無許可の目的で本サービスを使用しないことに同意するものとします。有害、虐待的、または他者の権利を侵害するコンテンツを生成するために本サービスを使用してはなりません。当社は、本規約に違反するアカウントを一時停止または終了する権利を有します。"
+      },
+      "ip": {
+        "title": "6. 知的財産権",
+        "content": "本サービスを使用して生成されたコンテンツは、基盤となるAIモデルの制限に従い、お客様に帰属します。お客様は、サービスの提供に必要な範囲でコンテンツを保存・処理するための限定的なライセンスを当社に付与するものとします。当社は、本サービスのデザイン、コード、ブランディングを含む、本サービス自体に対するすべての権利を保有します。"
+      },
+      "liability": {
+        "title": "7. 責任の制限",
+        "content": "本サービスは、いかなる種類の保証もなく「現状のまま」提供されます。当社は、本サービスの使用から生じる間接的、偶発的、または結果的な損害について責任を負いません。当社の総責任は、過去12か月間にお客様が本サービスに支払った金額に限定されます。"
+      },
+      "changes": {
+        "title": "8. 規約の変更",
+        "content": "当社は、本利用規約を随時更新することがあります。重要な変更については、メールまたは本サービスを通じてお知らせします。変更後も引き続き本サービスをご利用になることにより、更新された規約に同意したものとみなされます。"
+      },
+      "contact": {
+        "title": "9. お問い合わせ",
+        "content": "本利用規約に関するご質問は、support@funmagic.ai までお問い合わせください。"
+      }
+    },
+    "lastUpdated": "最終更新：2025年1月"
+  },
+  "privacy": {
+    "sections": {
+      "collect": {
+        "title": "1. 収集する情報",
+        "content": "当社は、アカウント作成時やクレジット購入時にお客様が直接提供する情報（氏名、メールアドレス、支払い情報など）を収集します。また、使用するツール、処理時間、アップロードされたコンテンツのメタデータなどの利用データも収集します。"
+      },
+      "use": {
+        "title": "2. 情報の利用方法",
+        "content": "当社は、サービスの提供・改善、支払いの処理、アカウントに関するご連絡、プラットフォームのセキュリティ確保のためにお客様の情報を使用します。また、分析やサービス改善のために、集約・匿名化されたデータを使用することがあります。"
+      },
+      "processing": {
+        "title": "3. コンテンツの処理",
+        "content": "お客様がアップロードしたファイルやコンテンツは、AIツールによって処理され、一時的に当社のサーバーに保存されることがあります。処理結果は、お客様が削除するまでアセットライブラリに保存されます。お客様の明示的な同意なしに、アップロードされたコンテンツをAIモデルのトレーニングに使用することはありません。"
+      },
+      "sharing": {
+        "title": "4. データの共有",
+        "content": "当社はお客様の個人情報を販売しません。本サービスの運営を支援する第三者サービスプロバイダー（決済処理業者やクラウドホスティングプロバイダーなど）とデータを共有することがあります。これらのプロバイダーは、お客様のデータを保護する契約上の義務を負っています。"
+      },
+      "security": {
+        "title": "5. データのセキュリティ",
+        "content": "当社は、転送中および保存時の暗号化、アクセス制御、定期的なセキュリティ監査を含む、業界標準のセキュリティ対策を実施してお客様のデータを保護しています。ただし、インターネット上の通信方法は100%安全ではなく、絶対的なセキュリティを保証することはできません。"
+      },
+      "retention": {
+        "title": "6. データの保持",
+        "content": "当社は、お客様のアカウントが有効である限り、アカウント情報を保持します。生成されたアセットは、お客様が削除するかアカウントを閉鎖するまで保存されます。取引記録は、適用法で要求される法的・会計上の目的のために保持されます。"
+      },
+      "rights": {
+        "title": "7. お客様の権利",
+        "content": "お客様には、個人データへのアクセス、修正、削除の権利があります。いつでもアセットをダウンロードし、アカウントの削除を要求することができます。これらの権利を行使するには、privacy@funmagic.ai までご連絡ください。"
+      },
+      "cookies": {
+        "title": "8. Cookie",
+        "content": "当社は、セッションや設定を維持するために必須Cookieを使用しています。本サービスの利用状況を把握するために分析Cookieを使用することがあります。Cookieの設定はブラウザの設定で管理できます。"
+      },
+      "changes": {
+        "title": "9. ポリシーの変更",
+        "content": "当社は、本プライバシーポリシーを随時更新することがあります。重要な変更については、メールまたは本サービスを通じてお知らせします。最新の改訂日は本ページの下部に記載されています。"
+      },
+      "contact": {
+        "title": "10. お問い合わせ",
+        "content": "プライバシーに関するお問い合わせは、privacy@funmagic.ai までご連絡ください。"
+      }
+    },
+    "lastUpdated": "最終更新：2025年1月"
+  },
+  "notFound": {
+    "title": "ページが見つかりません",
+    "description": "お探しのページは存在しないか、移動された可能性があります。",
+    "goHome": "ホームに戻る"
+  },
   "footer": {
     "copyright": "All rights reserved."
+  },
+  "rateLimit": {
+    "title": "しばらくお待ちください",
+    "description": "リクエストが多すぎます。少々お待ちいただいてから再度お試しください。",
+    "countdown": "{seconds}秒後に再試行できます",
+    "ready": "再試行できます",
+    "goBack": "戻る"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "問題が発生しました。しばらくしてからもう一度お試しください。",
+    "NOT_FOUND": "リクエストされたリソースが見つかりません。",
+    "VALIDATION_ERROR": "入力内容を確認して、もう一度お試しください。",
+    "AUTH_UNAUTHORIZED": "セッションの有効期限が切れました。再度ログインしてください。",
+    "AUTH_FORBIDDEN": "この操作を行う権限がありません。",
+    "RATE_LIMIT_EXCEEDED": "リクエストが多すぎます。しばらく待ってからもう一度お試しください。",
+    "CREDITS_INSUFFICIENT": "クレジットが不足しています。続行するにはクレジットを追加購入してください。",
+    "TOOL_NOT_FOUND": "このツールが見つかりません。",
+    "TOOL_INACTIVE": "このツールは現在利用できません。",
+    "TASK_NOT_FOUND": "タスクが見つかりません。",
+    "TASK_CREATION_FAILED": "処理の開始に失敗しました。もう一度お試しください。",
+    "TASK_SERVICE_UNAVAILABLE": "このサービスは一時的に利用できません。しばらくしてからもう一度お試しください。",
+    "TASK_CONFIG_ERROR": "このツールの設定が正しくありません。サポートにお問い合わせください。",
+    "TASK_PROCESSING_FAILED": "リクエストの処理に失敗しました。もう一度お試しください。",
+    "TASK_INPUT_INVALID": "入力内容を確認して、もう一度お試しください。",
+    "UPLOAD_INVALID_TYPE": "このファイル形式はサポートされていません。",
+    "UPLOAD_SIZE_EXCEEDED": "ファイルサイズが上限を超えています。",
+    "UPLOAD_EXTENSION_MISMATCH": "ファイルの拡張子がコンテンツタイプと一致しません。",
+    "ASSET_NOT_FOUND": "アセットが見つかりません。",
+    "ASSET_FORBIDDEN": "このアセットへのアクセス権がありません。",
+    "fallback": "予期しないエラーが発生しました。"
   }
 }

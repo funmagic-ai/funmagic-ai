@@ -64,17 +64,31 @@
       "FAILED_TO_CREATE_USER": "Tạo tài khoản thất bại",
       "FAILED_TO_CREATE_SESSION": "Đăng nhập thất bại. Vui lòng thử lại."
     },
+    "welcomeBack": "Chào mừng trở lại!",
+    "accountCreated": "Tạo tài khoản thành công!",
     "orContinueWith": "hoặc tiếp tục bằng email",
     "continueWithGoogle": "Tiếp tục với Google",
     "continueWithApple": "Tiếp tục với Apple",
     "continueWithFacebook": "Tiếp tục với Facebook",
-    "socialLoginError": "Đăng nhập mạng xã hội thất bại. Vui lòng thử lại."
+    "socialLoginError": "Đăng nhập mạng xã hội thất bại. Vui lòng thử lại.",
+    "validation": {
+      "emailRequired": "Vui lòng nhập email",
+      "emailInvalid": "Vui lòng nhập email hợp lệ",
+      "passwordRequired": "Vui lòng nhập mật khẩu",
+      "passwordMin6": "Mật khẩu phải có ít nhất 6 ký tự",
+      "passwordMin8": "Mật khẩu phải có ít nhất 8 ký tự",
+      "nameRequired": "Vui lòng nhập tên",
+      "nameMin2": "Tên phải có ít nhất 2 ký tự",
+      "confirmPasswordRequired": "Vui lòng xác nhận mật khẩu",
+      "passwordsMismatch": "Mật khẩu không khớp"
+    }
   },
   "tools": {
     "allTools": "All Tools",
     "searchPlaceholder": "Search tools...",
     "noTools": "No tools available",
     "credits": "credits",
+    "totalCredits": "Tổng: {n} tín dụng",
     "tryNow": "Try Now",
     "processing": "Processing...",
     "uploadImage": "Upload Image",
@@ -123,6 +137,20 @@
       "settings": "Cài đặt",
       "triangles": "Tam giác",
       "downloadGLB": "Tải GLB"
+    },
+    "pointCloud": {
+      "tab3D": "Mô hình 3D",
+      "loading": "Đang tải trình xem 3D...",
+      "resultDescription": "Đã tạo {count} điểm",
+      "points": "Điểm",
+      "autoRotate": "Tự động xoay",
+      "pointSize": "Kích thước điểm",
+      "confidence": "Ngưỡng tin cậy",
+      "zCrop": "Cắt trục Z (Z > 0)",
+      "downloadPLY": "Tải PLY",
+      "downloadTXT": "Tải TXT",
+      "settings": "Cài đặt",
+      "loadingData": "Đang tải dữ liệu đám mây điểm..."
     }
   },
   "pricing": {
@@ -131,13 +159,36 @@
     "popular": "Popular",
     "buy": "Buy Now",
     "free": "Miễn phí",
-    "paid": "Trả phí"
+    "paid": "Trả phí",
+    "noPackages": "Không có gói nào",
+    "bonusCredits": "thưởng",
+    "comingSoon": "Tích hợp thanh toán sắp ra mắt!"
   },
   "profile": {
     "title": "Profile",
     "credits": "Credits",
     "transactions": "Transaction History",
-    "noTransactions": "No transactions yet"
+    "noTransactions": "No transactions yet",
+    "totalBalance": "Tổng số dư",
+    "available": "Khả dụng",
+    "reserved": "Đã đặt trước",
+    "lifetimeUsed": "Đã dùng toàn bộ",
+    "date": "Ngày",
+    "type": "Loại",
+    "amount": "Số lượng",
+    "balanceAfter": "Số dư sau",
+    "description": "Mô tả",
+    "types": {
+      "purchase": "Mua",
+      "bonus": "Thưởng",
+      "welcome": "Chào mừng",
+      "usage": "Sử dụng",
+      "refund": "Hoàn tiền",
+      "reservation": "Đặt trước",
+      "release": "Giải phóng",
+      "admin_adjust": "Điều chỉnh",
+      "expiry": "Hết hạn"
+    }
   },
   "assets": {
     "title": "Sáng tạo của tôi",
@@ -179,7 +230,169 @@
       "created": "Ngày tạo"
     }
   },
+  "help": {
+    "subtitle": "Tìm câu trả lời cho các câu hỏi thường gặp về việc sử dụng các công cụ AI của FunMagic.",
+    "faqTitle": "Câu hỏi thường gặp",
+    "contactTitle": "Liên hệ với chúng tôi",
+    "contactSubtitle": "Không tìm thấy điều bạn cần? Liên hệ với đội ngũ hỗ trợ của chúng tôi.",
+    "contactResponseTime": "Thời gian phản hồi: trong vòng 24 giờ",
+    "faq": {
+      "what": {
+        "title": "FunMagic là gì?",
+        "content": "FunMagic là một nền tảng cung cấp các công cụ sáng tạo hỗ trợ bởi AI. Bạn có thể sử dụng các công cụ của chúng tôi để xóa nền ảnh, tạo mô hình 3D, thiết kế đồ họa và nhiều hơn nữa. Tất cả công cụ đều có thể truy cập thông qua hệ thống tín dụng đơn giản."
+      },
+      "credits": {
+        "title": "Tín dụng hoạt động như thế nào?",
+        "content": "Tín dụng là đơn vị tiền tệ được sử dụng để truy cập các công cụ AI trên FunMagic. Mỗi công cụ có chi phí tín dụng cụ thể dựa trên độ phức tạp của quá trình xử lý. Bạn có thể mua các gói tín dụng từ trang bảng giá. Một số gói bao gồm tín dụng thưởng để có giá trị tốt hơn."
+      },
+      "formats": {
+        "title": "Những định dạng tệp nào được hỗ trợ?",
+        "content": "Hầu hết các công cụ hình ảnh của chúng tôi hỗ trợ các định dạng phổ biến bao gồm JPEG, PNG và WebP. Một số công cụ có thể hỗ trợ thêm các định dạng khác -- hãy kiểm tra mô tả của từng công cụ để biết chi tiết về các định dạng đầu vào và đầu ra được hỗ trợ."
+      },
+      "processing": {
+        "title": "Quá trình xử lý mất bao lâu?",
+        "content": "Thời gian xử lý khác nhau tùy thuộc vào công cụ và độ phức tạp của dữ liệu đầu vào. Các thao tác đơn giản như xóa nền thường hoàn thành trong vài giây, trong khi các tác vụ phức tạp hơn như tạo mô hình 3D có thể mất vài phút. Bạn sẽ thấy thanh tiến trình trong quá trình xử lý."
+      },
+      "refunds": {
+        "title": "Tôi có thể hoàn lại tín dụng không?",
+        "content": "Tín dụng thường không được hoàn lại. Tuy nhiên, nếu một công cụ không xử lý được nội dung của bạn do lỗi hệ thống, tín dụng sẽ được tự động hoàn lại vào tài khoản của bạn. Nếu bạn gặp sự cố, vui lòng liên hệ đội ngũ hỗ trợ."
+      },
+      "storage": {
+        "title": "Tài nguyên đã tạo được lưu trữ ở đâu?",
+        "content": "Tất cả tài nguyên đã tạo được lưu trữ trong thư viện tài nguyên cá nhân của bạn, có thể truy cập từ trang \"Sáng tạo của tôi\". Bạn có thể tải xuống hoặc xóa tài nguyên bất cứ lúc nào. Tài nguyên được lưu trữ an toàn trên đám mây và chỉ bạn mới có quyền truy cập."
+      },
+      "expiry": {
+        "title": "Tín dụng có hết hạn không?",
+        "content": "Chính sách hết hạn tín dụng tùy thuộc vào gói bạn mua. Vui lòng kiểm tra các điều khoản cụ thể của từng gói tín dụng để biết chi tiết về thời hạn sử dụng."
+      },
+      "security": {
+        "title": "Dữ liệu của tôi có an toàn không?",
+        "content": "Có, chúng tôi rất coi trọng bảo mật dữ liệu. Tất cả dữ liệu được mã hóa trong quá trình truyền tải và lưu trữ. Chúng tôi không chia sẻ dữ liệu cá nhân hoặc nội dung tải lên của bạn với bên thứ ba. Vui lòng xem Chính sách Bảo mật để biết thêm chi tiết về cách chúng tôi xử lý dữ liệu của bạn."
+      }
+    }
+  },
+  "terms": {
+    "sections": {
+      "acceptance": {
+        "title": "1. Chấp nhận Điều khoản",
+        "content": "Bằng việc truy cập và sử dụng FunMagic (\"Dịch vụ\"), bạn đồng ý tuân theo các Điều khoản Dịch vụ này. Nếu bạn không đồng ý với các điều khoản này, vui lòng không sử dụng Dịch vụ."
+      },
+      "description": {
+        "title": "2. Mô tả Dịch vụ",
+        "content": "FunMagic cung cấp các công cụ sáng tạo hỗ trợ bởi AI cho phép người dùng xử lý, tạo và chuyển đổi nội dung số. Dịch vụ hoạt động trên hệ thống tín dụng, trong đó người dùng mua tín dụng để truy cập các công cụ và tính năng khác nhau."
+      },
+      "accounts": {
+        "title": "3. Tài khoản Người dùng",
+        "content": "Bạn phải tạo tài khoản để sử dụng hầu hết các tính năng của Dịch vụ. Bạn chịu trách nhiệm bảo mật thông tin đăng nhập tài khoản và cho tất cả các hoạt động xảy ra dưới tài khoản của bạn. Bạn đồng ý thông báo cho chúng tôi ngay lập tức về bất kỳ việc sử dụng trái phép nào đối với tài khoản của bạn."
+      },
+      "credits": {
+        "title": "4. Tín dụng và Thanh toán",
+        "content": "Dịch vụ sử dụng hệ thống tín dụng. Tín dụng được tiêu thụ khi bạn sử dụng các công cụ AI. Các gói tín dụng có thể được mua qua trang bảng giá. Tín dụng không được hoàn lại trừ khi pháp luật hiện hành yêu cầu. Tín dụng chưa sử dụng có thể hết hạn theo các điều khoản được quy định tại thời điểm mua."
+      },
+      "acceptable": {
+        "title": "5. Sử dụng Chấp nhận được",
+        "content": "Bạn đồng ý không sử dụng Dịch vụ cho bất kỳ mục đích bất hợp pháp hoặc trái phép nào. Bạn không được sử dụng Dịch vụ để tạo nội dung có hại, lạm dụng hoặc vi phạm quyền của người khác. Chúng tôi có quyền tạm ngưng hoặc chấm dứt tài khoản vi phạm các điều khoản này."
+      },
+      "ip": {
+        "title": "6. Sở hữu Trí tuệ",
+        "content": "Nội dung được tạo bằng Dịch vụ thuộc về bạn, tuân theo các giới hạn của các mô hình AI cơ bản. Bạn cấp cho chúng tôi giấy phép hạn chế để lưu trữ và xử lý nội dung của bạn khi cần thiết để cung cấp Dịch vụ. Chúng tôi giữ tất cả quyền đối với Dịch vụ, bao gồm thiết kế, mã nguồn và thương hiệu."
+      },
+      "liability": {
+        "title": "7. Giới hạn Trách nhiệm",
+        "content": "Dịch vụ được cung cấp \"nguyên trạng\" mà không có bất kỳ bảo đảm nào. Chúng tôi không chịu trách nhiệm về bất kỳ thiệt hại gián tiếp, ngẫu nhiên hoặc hậu quả nào phát sinh từ việc bạn sử dụng Dịch vụ. Tổng trách nhiệm của chúng tôi được giới hạn ở số tiền bạn đã thanh toán cho Dịch vụ trong 12 tháng qua."
+      },
+      "changes": {
+        "title": "8. Thay đổi Điều khoản",
+        "content": "Chúng tôi có thể cập nhật các Điều khoản Dịch vụ này theo thời gian. Chúng tôi sẽ thông báo cho bạn về các thay đổi quan trọng qua email hoặc thông qua Dịch vụ. Việc bạn tiếp tục sử dụng Dịch vụ sau khi các thay đổi có hiệu lực được coi là chấp nhận các điều khoản cập nhật."
+      },
+      "contact": {
+        "title": "9. Liên hệ",
+        "content": "Nếu bạn có câu hỏi về các Điều khoản Dịch vụ này, vui lòng liên hệ chúng tôi tại support@funmagic.ai."
+      }
+    },
+    "lastUpdated": "Cập nhật lần cuối: tháng 1 năm 2025"
+  },
+  "privacy": {
+    "sections": {
+      "collect": {
+        "title": "1. Thông tin Chúng tôi Thu thập",
+        "content": "Chúng tôi thu thập thông tin bạn cung cấp trực tiếp, chẳng hạn như tên, địa chỉ email và thông tin thanh toán khi bạn tạo tài khoản hoặc mua tín dụng. Chúng tôi cũng thu thập dữ liệu sử dụng bao gồm các công cụ bạn sử dụng, thời gian xử lý và siêu dữ liệu nội dung tải lên."
+      },
+      "use": {
+        "title": "2. Cách Chúng tôi Sử dụng Thông tin của Bạn",
+        "content": "Chúng tôi sử dụng thông tin của bạn để cung cấp và cải thiện Dịch vụ, xử lý thanh toán, liên lạc với bạn về tài khoản và đảm bảo an ninh nền tảng. Chúng tôi cũng có thể sử dụng dữ liệu tổng hợp, ẩn danh cho mục đích phân tích và cải thiện dịch vụ."
+      },
+      "processing": {
+        "title": "3. Xử lý Nội dung",
+        "content": "Tệp và nội dung bạn tải lên được xử lý bởi các công cụ AI của chúng tôi và có thể được lưu trữ tạm thời trên máy chủ. Kết quả xử lý được lưu trong thư viện tài nguyên của bạn cho đến khi bạn chọn xóa chúng. Chúng tôi không sử dụng nội dung tải lên của bạn để huấn luyện mô hình AI mà không có sự đồng ý rõ ràng của bạn."
+      },
+      "sharing": {
+        "title": "4. Chia sẻ Dữ liệu",
+        "content": "Chúng tôi không bán thông tin cá nhân của bạn. Chúng tôi có thể chia sẻ dữ liệu với các nhà cung cấp dịch vụ bên thứ ba giúp chúng tôi vận hành Dịch vụ (như đơn vị xử lý thanh toán và nhà cung cấp lưu trữ đám mây). Các nhà cung cấp này bị ràng buộc bởi nghĩa vụ hợp đồng để bảo vệ dữ liệu của bạn."
+      },
+      "security": {
+        "title": "5. Bảo mật Dữ liệu",
+        "content": "Chúng tôi áp dụng các biện pháp bảo mật theo tiêu chuẩn ngành để bảo vệ dữ liệu của bạn, bao gồm mã hóa trong quá trình truyền tải và lưu trữ, kiểm soát truy cập và kiểm tra bảo mật định kỳ. Tuy nhiên, không có phương thức truyền tải nào qua Internet là an toàn 100%, và chúng tôi không thể đảm bảo an toàn tuyệt đối."
+      },
+      "retention": {
+        "title": "6. Lưu giữ Dữ liệu",
+        "content": "Chúng tôi lưu giữ thông tin tài khoản của bạn miễn là tài khoản còn hoạt động. Tài nguyên đã tạo của bạn được lưu trữ cho đến khi bạn xóa chúng hoặc đóng tài khoản. Hồ sơ giao dịch được lưu giữ cho mục đích pháp lý và kế toán theo yêu cầu của pháp luật hiện hành."
+      },
+      "rights": {
+        "title": "7. Quyền của Bạn",
+        "content": "Bạn có quyền truy cập, chỉnh sửa hoặc xóa dữ liệu cá nhân của mình. Bạn có thể tải xuống tài nguyên bất cứ lúc nào và yêu cầu xóa tài khoản. Để thực hiện các quyền này, vui lòng liên hệ chúng tôi tại privacy@funmagic.ai."
+      },
+      "cookies": {
+        "title": "8. Cookie",
+        "content": "Chúng tôi sử dụng cookie thiết yếu để duy trì phiên làm việc và tùy chọn của bạn. Chúng tôi có thể sử dụng cookie phân tích để hiểu cách bạn sử dụng Dịch vụ. Bạn có thể quản lý tùy chọn cookie thông qua cài đặt trình duyệt."
+      },
+      "changes": {
+        "title": "9. Thay đổi Chính sách",
+        "content": "Chúng tôi có thể cập nhật Chính sách Bảo mật này theo thời gian. Chúng tôi sẽ thông báo cho bạn về các thay đổi quan trọng qua email hoặc thông qua Dịch vụ. Ngày sửa đổi mới nhất được ghi ở cuối trang này."
+      },
+      "contact": {
+        "title": "10. Liên hệ Chúng tôi",
+        "content": "Đối với các câu hỏi liên quan đến quyền riêng tư, vui lòng liên hệ chúng tôi tại privacy@funmagic.ai."
+      }
+    },
+    "lastUpdated": "Cập nhật lần cuối: tháng 1 năm 2025"
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "description": "Trang bạn đang tìm kiếm không tồn tại hoặc đã được di chuyển.",
+    "goHome": "Về trang chủ"
+  },
   "footer": {
     "copyright": "All rights reserved."
+  },
+  "rateLimit": {
+    "title": "Hãy chậm lại",
+    "description": "Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi trước khi thử lại.",
+    "countdown": "Bạn có thể thử lại sau {seconds} giây",
+    "ready": "Bạn có thể thử lại ngay bây giờ",
+    "goBack": "Quay lại"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "Đã xảy ra lỗi. Vui lòng thử lại sau.",
+    "NOT_FOUND": "Không tìm thấy tài nguyên yêu cầu.",
+    "VALIDATION_ERROR": "Vui lòng kiểm tra dữ liệu nhập và thử lại.",
+    "AUTH_UNAUTHORIZED": "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại.",
+    "AUTH_FORBIDDEN": "Bạn không có quyền thực hiện hành động này.",
+    "RATE_LIMIT_EXCEEDED": "Quá nhiều yêu cầu. Vui lòng đợi một chút rồi thử lại.",
+    "CREDITS_INSUFFICIENT": "Không đủ tín dụng. Vui lòng mua thêm tín dụng để tiếp tục.",
+    "TOOL_NOT_FOUND": "Không tìm thấy công cụ này.",
+    "TOOL_INACTIVE": "Công cụ này hiện không khả dụng.",
+    "TASK_NOT_FOUND": "Không tìm thấy tác vụ.",
+    "TASK_CREATION_FAILED": "Không thể bắt đầu xử lý. Vui lòng thử lại.",
+    "TASK_SERVICE_UNAVAILABLE": "Dịch vụ này tạm thời không khả dụng. Vui lòng thử lại sau.",
+    "TASK_CONFIG_ERROR": "Công cụ này chưa được cấu hình đúng. Vui lòng liên hệ hỗ trợ.",
+    "TASK_PROCESSING_FAILED": "Không thể xử lý yêu cầu của bạn. Vui lòng thử lại.",
+    "TASK_INPUT_INVALID": "Vui lòng kiểm tra dữ liệu nhập và thử lại.",
+    "UPLOAD_INVALID_TYPE": "Loại tệp này không được hỗ trợ.",
+    "UPLOAD_SIZE_EXCEEDED": "Kích thước tệp vượt quá giới hạn cho phép.",
+    "UPLOAD_EXTENSION_MISMATCH": "Phần mở rộng tệp không khớp với loại nội dung.",
+    "ASSET_NOT_FOUND": "Không tìm thấy tài nguyên.",
+    "ASSET_FORBIDDEN": "Bạn không có quyền truy cập tài nguyên này.",
+    "fallback": "Đã xảy ra lỗi không mong muốn."
   }
 }

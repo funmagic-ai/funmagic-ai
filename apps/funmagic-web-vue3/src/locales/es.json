@@ -1,54 +1,54 @@
 {
   "common": {
     "appName": "FunMagic",
-    "loading": "Loading...",
-    "error": "An error occurred",
-    "retry": "Retry",
-    "save": "Save",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "confirm": "Confirm",
-    "back": "Back",
-    "next": "Next",
-    "submit": "Submit",
-    "search": "Search",
-    "noResults": "No results found",
-    "viewAll": "View All"
+    "loading": "Cargando...",
+    "error": "Ocurrió un error",
+    "retry": "Reintentar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "confirm": "Confirmar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "noResults": "No se encontraron resultados",
+    "viewAll": "Ver todo"
   },
   "nav": {
-    "home": "Home",
-    "tools": "Tools",
-    "pricing": "Pricing",
-    "login": "Login",
-    "register": "Register",
-    "profile": "Profile",
+    "home": "Inicio",
+    "tools": "Herramientas",
+    "pricing": "Precios",
+    "login": "Iniciar sesión",
+    "register": "Registrarse",
+    "profile": "Perfil",
     "assets": "Mis creaciones",
-    "logout": "Logout",
-    "help": "Help",
-    "terms": "Terms of Service",
-    "privacy": "Privacy Policy"
+    "logout": "Cerrar sesión",
+    "help": "Ayuda",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad"
   },
   "home": {
-    "heroTitle": "AI-Powered Creative Tools",
-    "heroSubtitle": "Transform your ideas into reality with our suite of AI tools",
-    "getStarted": "Get Started",
-    "featuredTools": "Featured Tools",
-    "explorAll": "Explore All Tools"
+    "heroTitle": "Herramientas creativas con IA",
+    "heroSubtitle": "Transforma tus ideas en realidad con nuestro conjunto de herramientas de IA",
+    "getStarted": "Comenzar",
+    "featuredTools": "Herramientas destacadas",
+    "explorAll": "Explorar todas las herramientas"
   },
   "auth": {
-    "loginTitle": "Welcome Back",
-    "loginSubtitle": "Sign in to your account",
-    "registerTitle": "Create Account",
-    "registerSubtitle": "Start your creative journey",
-    "email": "Email",
-    "password": "Password",
-    "name": "Name",
-    "confirmPassword": "Confirm Password",
-    "signIn": "Sign In",
-    "signUp": "Sign Up",
-    "noAccount": "Don't have an account?",
-    "hasAccount": "Already have an account?",
-    "forgotPassword": "Forgot password?",
+    "loginTitle": "Bienvenido de nuevo",
+    "loginSubtitle": "Inicia sesión en tu cuenta",
+    "registerTitle": "Crear cuenta",
+    "registerSubtitle": "Comienza tu aventura creativa",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "name": "Nombre",
+    "confirmPassword": "Confirmar contraseña",
+    "signIn": "Iniciar sesión",
+    "signUp": "Registrarse",
+    "noAccount": "¿No tienes una cuenta?",
+    "hasAccount": "¿Ya tienes una cuenta?",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
     "loginError": "Email o contraseña inválidos",
     "registerError": "El registro falló",
     "errorCodes": {
@@ -64,25 +64,39 @@
       "FAILED_TO_CREATE_USER": "Error al crear la cuenta",
       "FAILED_TO_CREATE_SESSION": "Error al iniciar sesión. Inténtalo de nuevo."
     },
+    "welcomeBack": "¡Bienvenido de nuevo!",
+    "accountCreated": "¡Cuenta creada exitosamente!",
     "orContinueWith": "o continuar con correo",
     "continueWithGoogle": "Continuar con Google",
     "continueWithApple": "Continuar con Apple",
     "continueWithFacebook": "Continuar con Facebook",
-    "socialLoginError": "Error en el inicio de sesión social. Inténtalo de nuevo."
+    "socialLoginError": "Error en el inicio de sesión social. Inténtalo de nuevo.",
+    "validation": {
+      "emailRequired": "El correo electrónico es obligatorio",
+      "emailInvalid": "Introduce un correo electrónico válido",
+      "passwordRequired": "La contraseña es obligatoria",
+      "passwordMin6": "La contraseña debe tener al menos 6 caracteres",
+      "passwordMin8": "La contraseña debe tener al menos 8 caracteres",
+      "nameRequired": "El nombre es obligatorio",
+      "nameMin2": "El nombre debe tener al menos 2 caracteres",
+      "confirmPasswordRequired": "Confirma tu contraseña",
+      "passwordsMismatch": "Las contraseñas no coinciden"
+    }
   },
   "tools": {
-    "allTools": "All Tools",
-    "searchPlaceholder": "Search tools...",
-    "noTools": "No tools available",
-    "credits": "credits",
-    "tryNow": "Try Now",
-    "processing": "Processing...",
-    "uploadImage": "Upload Image",
-    "download": "Download",
-    "result": "Result",
-    "startProcessing": "Start Processing",
-    "resultReady": "Result Ready",
-    "processAnother": "Process Another",
+    "allTools": "Todas las herramientas",
+    "searchPlaceholder": "Buscar herramientas...",
+    "noTools": "No hay herramientas disponibles",
+    "credits": "créditos",
+    "totalCredits": "Total: {n} créditos",
+    "tryNow": "Probar ahora",
+    "processing": "Procesando...",
+    "uploadImage": "Subir imagen",
+    "download": "Descargar",
+    "result": "Resultado",
+    "startProcessing": "Iniciar procesamiento",
+    "resultReady": "Resultado listo",
+    "processAnother": "Procesar otro",
     "original": "Original",
     "featured": "Destacado",
     "uses": "usos",
@@ -123,21 +137,58 @@
       "settings": "Configuración",
       "triangles": "Triángulos",
       "downloadGLB": "Descargar GLB"
+    },
+    "pointCloud": {
+      "tab3D": "Modelo 3D",
+      "loading": "Cargando visor 3D...",
+      "resultDescription": "{count} puntos generados",
+      "points": "Puntos",
+      "autoRotate": "Rotación automática",
+      "pointSize": "Tamaño del punto",
+      "confidence": "Umbral de confianza",
+      "zCrop": "Recorte eje Z (Z > 0)",
+      "downloadPLY": "Descargar PLY",
+      "downloadTXT": "Descargar TXT",
+      "settings": "Configuración",
+      "loadingData": "Cargando datos de nube de puntos..."
     }
   },
   "pricing": {
-    "title": "Pricing",
-    "subtitle": "Choose the plan that works for you",
+    "title": "Precios",
+    "subtitle": "Elige el plan que mejor se adapte a ti",
     "popular": "Popular",
-    "buy": "Buy Now",
+    "buy": "Comprar ahora",
     "free": "Gratis",
-    "paid": "De pago"
+    "paid": "De pago",
+    "noPackages": "No hay paquetes disponibles",
+    "bonusCredits": "extra",
+    "comingSoon": "¡Integración de pagos próximamente!"
   },
   "profile": {
-    "title": "Profile",
-    "credits": "Credits",
-    "transactions": "Transaction History",
-    "noTransactions": "No transactions yet"
+    "title": "Perfil",
+    "credits": "Créditos",
+    "transactions": "Historial de transacciones",
+    "noTransactions": "Aún no hay transacciones",
+    "totalBalance": "Saldo total",
+    "available": "Disponible",
+    "reserved": "Reservado",
+    "lifetimeUsed": "Total utilizado",
+    "date": "Fecha",
+    "type": "Tipo",
+    "amount": "Cantidad",
+    "balanceAfter": "Saldo posterior",
+    "description": "Descripción",
+    "types": {
+      "purchase": "Compra",
+      "bonus": "Bonificación",
+      "welcome": "Bienvenida",
+      "usage": "Uso",
+      "refund": "Reembolso",
+      "reservation": "Reservado",
+      "release": "Liberado",
+      "admin_adjust": "Ajuste",
+      "expiry": "Expirado"
+    }
   },
   "assets": {
     "title": "Mis creaciones",
@@ -179,7 +230,169 @@
       "created": "Creado"
     }
   },
+  "help": {
+    "subtitle": "Encuentra respuestas a preguntas frecuentes sobre las herramientas de IA de FunMagic.",
+    "faqTitle": "Preguntas frecuentes",
+    "contactTitle": "Contáctanos",
+    "contactSubtitle": "¿No encuentras lo que buscas? Comunícate con nuestro equipo de soporte.",
+    "contactResponseTime": "Tiempo de respuesta: dentro de 24 horas",
+    "faq": {
+      "what": {
+        "title": "¿Qué es FunMagic?",
+        "content": "FunMagic es una plataforma que ofrece herramientas creativas impulsadas por IA. Puedes usar nuestras herramientas para eliminar fondos de imágenes, generar modelos 3D, crear diseños y más. Todas las herramientas son accesibles mediante un sencillo sistema basado en créditos."
+      },
+      "credits": {
+        "title": "¿Cómo funcionan los créditos?",
+        "content": "Los créditos son la moneda utilizada para acceder a las herramientas de IA en FunMagic. Cada herramienta tiene un costo específico en créditos según la complejidad del procesamiento. Puedes comprar paquetes de créditos en nuestra página de precios. Algunos paquetes incluyen créditos extra para un mejor valor."
+      },
+      "formats": {
+        "title": "¿Qué formatos de archivo son compatibles?",
+        "content": "La mayoría de nuestras herramientas de imagen admiten formatos comunes como JPEG, PNG y WebP. Herramientas específicas pueden admitir formatos adicionales; consulta la descripción de cada herramienta para conocer los formatos de entrada y salida compatibles."
+      },
+      "processing": {
+        "title": "¿Cuánto tarda el procesamiento?",
+        "content": "El tiempo de procesamiento varía según la herramienta y la complejidad de tu archivo. Operaciones sencillas como la eliminación de fondo suelen completarse en segundos, mientras que tareas más complejas como la generación de modelos 3D pueden tardar unos minutos. Verás un indicador de progreso durante el procesamiento."
+      },
+      "refunds": {
+        "title": "¿Puedo obtener un reembolso de créditos?",
+        "content": "Los créditos generalmente no son reembolsables. Sin embargo, si una herramienta falla al procesar tu contenido debido a un error del sistema, los créditos se reembolsarán automáticamente a tu cuenta. Si tienes problemas, comunícate con nuestro equipo de soporte."
+      },
+      "storage": {
+        "title": "¿Dónde se almacenan mis recursos generados?",
+        "content": "Todos los recursos generados se almacenan en tu biblioteca personal, accesible desde la página \"Mis creaciones\". Puedes descargar o eliminar tus recursos en cualquier momento. Los recursos se almacenan de forma segura en la nube y solo tú puedes acceder a ellos."
+      },
+      "expiry": {
+        "title": "¿Los créditos caducan?",
+        "content": "Las políticas de caducidad de créditos dependen del paquete que compres. Consulta los términos específicos de cada paquete de créditos para conocer los períodos de caducidad."
+      },
+      "security": {
+        "title": "¿Mis datos están seguros?",
+        "content": "Sí, nos tomamos muy en serio la seguridad de los datos. Todos los datos están cifrados en tránsito y en reposo. No compartimos tus datos personales ni el contenido subido con terceros. Consulta nuestra Política de Privacidad para más detalles sobre cómo gestionamos tus datos."
+      }
+    }
+  },
+  "terms": {
+    "sections": {
+      "acceptance": {
+        "title": "1. Aceptación de los términos",
+        "content": "Al acceder y utilizar FunMagic (\"el Servicio\"), aceptas estar sujeto a estos Términos de Servicio. Si no estás de acuerdo con estos términos, no utilices el Servicio."
+      },
+      "description": {
+        "title": "2. Descripción del servicio",
+        "content": "FunMagic proporciona herramientas creativas impulsadas por IA que permiten a los usuarios procesar, generar y transformar contenido digital. El Servicio opera con un sistema basado en créditos donde los usuarios compran créditos para acceder a diversas herramientas y funciones."
+      },
+      "accounts": {
+        "title": "3. Cuentas de usuario",
+        "content": "Debes crear una cuenta para utilizar la mayoría de las funciones del Servicio. Eres responsable de mantener la confidencialidad de las credenciales de tu cuenta y de todas las actividades que ocurran bajo tu cuenta. Aceptas notificarnos de inmediato sobre cualquier uso no autorizado de tu cuenta."
+      },
+      "credits": {
+        "title": "4. Créditos y pagos",
+        "content": "El Servicio utiliza un sistema basado en créditos. Los créditos se consumen al usar las herramientas de IA. Los paquetes de créditos se pueden comprar a través de la página de precios. Los créditos no son reembolsables excepto según lo requiera la ley aplicable. Los créditos no utilizados pueden caducar según los términos especificados en el momento de la compra."
+      },
+      "acceptable": {
+        "title": "5. Uso aceptable",
+        "content": "Aceptas no utilizar el Servicio para ningún propósito ilegal o no autorizado. No debes usar el Servicio para generar contenido dañino, abusivo o que viole los derechos de terceros. Nos reservamos el derecho de suspender o cancelar cuentas que violen estos términos."
+      },
+      "ip": {
+        "title": "6. Propiedad intelectual",
+        "content": "El contenido generado mediante el Servicio te pertenece, sujeto a las limitaciones de los modelos de IA subyacentes. Nos otorgas una licencia limitada para almacenar y procesar tu contenido según sea necesario para proporcionar el Servicio. Conservamos todos los derechos sobre el Servicio en sí, incluido su diseño, código y marca."
+      },
+      "liability": {
+        "title": "7. Limitación de responsabilidad",
+        "content": "El Servicio se proporciona \"tal cual\" sin garantías de ningún tipo. No somos responsables de daños indirectos, incidentales o consecuentes derivados del uso del Servicio. Nuestra responsabilidad total se limita al monto que hayas pagado por el Servicio en los últimos 12 meses."
+      },
+      "changes": {
+        "title": "8. Cambios en los términos",
+        "content": "Podemos actualizar estos Términos de Servicio periódicamente. Te notificaremos sobre cambios significativos por correo electrónico o a través del Servicio. Tu uso continuado del Servicio después de que los cambios entren en vigor constituye la aceptación de los términos actualizados."
+      },
+      "contact": {
+        "title": "9. Contacto",
+        "content": "Si tienes preguntas sobre estos Términos de Servicio, contáctanos en support@funmagic.ai."
+      }
+    },
+    "lastUpdated": "Última actualización: enero de 2025"
+  },
+  "privacy": {
+    "sections": {
+      "collect": {
+        "title": "1. Información que recopilamos",
+        "content": "Recopilamos la información que proporcionas directamente, como tu nombre, dirección de correo electrónico e información de pago cuando creas una cuenta o compras créditos. También recopilamos datos de uso, incluyendo las herramientas que utilizas, los tiempos de procesamiento y los metadatos del contenido subido."
+      },
+      "use": {
+        "title": "2. Cómo usamos tu información",
+        "content": "Usamos tu información para proporcionar y mejorar el Servicio, procesar pagos, comunicarnos contigo sobre tu cuenta y garantizar la seguridad de nuestra plataforma. También podemos usar datos agregados y anonimizados para análisis y mejora del servicio."
+      },
+      "processing": {
+        "title": "3. Procesamiento de contenido",
+        "content": "Los archivos y el contenido que subes son procesados por nuestras herramientas de IA y pueden almacenarse temporalmente en nuestros servidores. Los resultados procesados se almacenan en tu biblioteca de recursos hasta que decidas eliminarlos. No usamos tu contenido subido para entrenar modelos de IA sin tu consentimiento explícito."
+      },
+      "sharing": {
+        "title": "4. Compartición de datos",
+        "content": "No vendemos tu información personal. Podemos compartir datos con proveedores de servicios terceros que nos ayudan a operar el Servicio (como procesadores de pagos y proveedores de alojamiento en la nube). Estos proveedores están sujetos a obligaciones contractuales para proteger tus datos."
+      },
+      "security": {
+        "title": "5. Seguridad de datos",
+        "content": "Implementamos medidas de seguridad estándar de la industria para proteger tus datos, incluyendo cifrado en tránsito y en reposo, controles de acceso y auditorías de seguridad periódicas. Sin embargo, ningún método de transmisión por Internet es 100% seguro, y no podemos garantizar una seguridad absoluta."
+      },
+      "retention": {
+        "title": "6. Retención de datos",
+        "content": "Conservamos la información de tu cuenta mientras tu cuenta esté activa. Tus recursos generados se almacenan hasta que los elimines o cierres tu cuenta. Los registros de transacciones se conservan con fines legales y contables según lo requiera la ley aplicable."
+      },
+      "rights": {
+        "title": "7. Tus derechos",
+        "content": "Tienes derecho a acceder, corregir o eliminar tus datos personales. Puedes descargar tus recursos en cualquier momento y solicitar la eliminación de tu cuenta. Para ejercer estos derechos, contáctanos en privacy@funmagic.ai."
+      },
+      "cookies": {
+        "title": "8. Cookies",
+        "content": "Usamos cookies esenciales para mantener tu sesión y preferencias. Podemos usar cookies analíticas para comprender cómo utilizas el Servicio. Puedes gestionar las preferencias de cookies a través de la configuración de tu navegador."
+      },
+      "changes": {
+        "title": "9. Cambios en esta política",
+        "content": "Podemos actualizar esta Política de Privacidad periódicamente. Te notificaremos sobre cambios importantes por correo electrónico o a través del Servicio. La fecha de la última revisión se indica al final de esta página."
+      },
+      "contact": {
+        "title": "10. Contáctanos",
+        "content": "Para consultas relacionadas con la privacidad, contáctanos en privacy@funmagic.ai."
+      }
+    },
+    "lastUpdated": "Última actualización: enero de 2025"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La página que buscas no existe o ha sido movida.",
+    "goHome": "Ir al inicio"
+  },
   "footer": {
-    "copyright": "All rights reserved."
+    "copyright": "Todos los derechos reservados."
+  },
+  "rateLimit": {
+    "title": "Demasiado rápido",
+    "description": "Has realizado demasiadas solicitudes. Por favor espera antes de intentarlo de nuevo.",
+    "countdown": "Puedes intentarlo de nuevo en {seconds} segundos",
+    "ready": "Puedes intentarlo de nuevo ahora",
+    "goBack": "Volver"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "Algo salió mal. Por favor inténtalo más tarde.",
+    "NOT_FOUND": "El recurso solicitado no fue encontrado.",
+    "VALIDATION_ERROR": "Revisa los datos ingresados e inténtalo de nuevo.",
+    "AUTH_UNAUTHORIZED": "Tu sesión ha expirado. Inicia sesión de nuevo.",
+    "AUTH_FORBIDDEN": "No tienes permiso para realizar esta acción.",
+    "RATE_LIMIT_EXCEEDED": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
+    "CREDITS_INSUFFICIENT": "Créditos insuficientes. Compra más créditos para continuar.",
+    "TOOL_NOT_FOUND": "No se pudo encontrar esta herramienta.",
+    "TOOL_INACTIVE": "Esta herramienta no está disponible actualmente.",
+    "TASK_NOT_FOUND": "Tarea no encontrada.",
+    "TASK_CREATION_FAILED": "Error al iniciar el procesamiento. Inténtalo de nuevo.",
+    "TASK_SERVICE_UNAVAILABLE": "Este servicio no está disponible temporalmente. Inténtalo más tarde.",
+    "TASK_CONFIG_ERROR": "Esta herramienta no está configurada correctamente. Contacta con soporte.",
+    "TASK_PROCESSING_FAILED": "Error al procesar tu solicitud. Inténtalo de nuevo.",
+    "TASK_INPUT_INVALID": "Revisa los datos ingresados e inténtalo de nuevo.",
+    "UPLOAD_INVALID_TYPE": "Este tipo de archivo no es compatible.",
+    "UPLOAD_SIZE_EXCEEDED": "El tamaño del archivo excede el límite máximo permitido.",
+    "UPLOAD_EXTENSION_MISMATCH": "La extensión del archivo no coincide con el tipo de contenido.",
+    "ASSET_NOT_FOUND": "Recurso no encontrado.",
+    "ASSET_FORBIDDEN": "No tienes acceso a este recurso.",
+    "fallback": "Ocurrió un error inesperado."
   }
 }

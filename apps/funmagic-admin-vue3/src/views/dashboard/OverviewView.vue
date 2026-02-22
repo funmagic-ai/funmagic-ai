@@ -3,12 +3,14 @@ import { NDataTable, NSpin, NEmpty } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { useQuery } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
+import { useMediaQuery } from '@vueuse/core'
 import { api } from '@/lib/api'
 import PageHeader from '@/components/shared/PageHeader.vue'
 import StatusBadge from '@/components/shared/StatusBadge.vue'
 
 const { t } = useI18n()
 const router = useRouter()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 // Fetch tools list to get total count
 const { data: toolsData, isLoading: toolsLoading } = useQuery({
@@ -69,48 +71,54 @@ const stats = computed(() => [
 ])
 
 // Recent tools table columns
-const toolColumns = computed<DataTableColumns>(() => [
-  {
-    title: t('common.name'),
-    key: 'title',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('common.slug'),
-    key: 'slug',
-    width: 180,
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('common.type'),
-    key: 'toolType',
-    width: 140,
-    render(row: any) {
-      return row.toolType?.title ?? '--'
+const toolColumns = computed<DataTableColumns>(() => {
+  const all: DataTableColumns = [
+    {
+      title: t('common.name'),
+      key: 'title',
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.status'),
-    key: 'isActive',
-    width: 100,
-    render(row: any) {
-      return h(StatusBadge, { status: row.isActive ? 'active' : 'inactive' })
+    {
+      title: t('common.slug'),
+      key: 'slug',
+      width: 180,
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.usage'),
-    key: 'usageCount',
-    width: 80,
-  },
-  {
-    title: t('common.createdAt'),
-    key: 'createdAt',
-    width: 160,
-    render(row: any) {
-      return new Date(row.createdAt).toLocaleDateString()
+    {
+      title: t('common.type'),
+      key: 'toolType',
+      width: 140,
+      render(row: any) {
+        return row.toolType?.title ?? '--'
+      },
     },
-  },
-])
+    {
+      title: t('common.status'),
+      key: 'isActive',
+      width: 100,
+      render(row: any) {
+        return h(StatusBadge, { status: row.isActive ? 'active' : 'inactive' })
+      },
+    },
+    {
+      title: t('common.usage'),
+      key: 'usageCount',
+      width: 80,
+    },
+    {
+      title: t('common.createdAt'),
+      key: 'createdAt',
+      width: 160,
+      render(row: any) {
+        return new Date(row.createdAt).toLocaleDateString()
+      },
+    },
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'title')
+  }
+  return all
+})
 
 const recentTools = computed(() => {
   const tools = toolsData.value?.tools ?? []

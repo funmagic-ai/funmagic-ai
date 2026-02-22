@@ -29,6 +29,10 @@ const { data, isLoading, isError } = useQuery({
 })
 
 const tool = computed(() => data.value?.tool ?? null)
+const totalCost = computed(() => {
+  const config = tool.value?.config as { steps?: Array<{ cost?: number }> } | null
+  return config?.steps?.reduce((sum, s) => sum + (s.cost ?? 0), 0) ?? 0
+})
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const selectedFile = ref<File | null>(null)
@@ -53,7 +57,7 @@ function goBack() {
 
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <!-- Back Button -->
       <n-button text class="mb-6" @click="goBack">
         &larr; {{ t('common.back') }}
@@ -98,7 +102,12 @@ function goBack() {
               </n-icon>
             </div>
             <div class="flex-1">
-              <h1 class="text-3xl font-bold text-foreground">{{ tool.title }}</h1>
+              <div class="flex items-center justify-between gap-4">
+                <h1 class="text-3xl font-bold text-foreground">{{ tool.title }}</h1>
+                <span v-if="totalCost > 0" class="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                  {{ t('tools.totalCredits', { n: totalCost }) }}
+                </span>
+              </div>
               <p v-if="tool.description" class="mt-2 text-muted-foreground">
                 {{ tool.description }}
               </p>

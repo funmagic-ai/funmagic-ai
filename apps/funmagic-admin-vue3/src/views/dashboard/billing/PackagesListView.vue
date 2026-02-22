@@ -2,6 +2,7 @@
 import { NButton, NDataTable, NIcon, NSwitch } from 'naive-ui'
 import type { DataTableColumns } from 'naive-ui'
 import { AddOutline, CreateOutline, TrashOutline } from '@vicons/ionicons5'
+import { useMediaQuery } from '@vueuse/core'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { api } from '@/lib/api'
@@ -15,6 +16,7 @@ const router = useRouter()
 const message = useMessage()
 const { handleError } = useApiError()
 const queryClient = useQueryClient()
+const isMobile = useMediaQuery('(max-width: 767px)')
 
 const { data, isLoading, isError, error } = useQuery({
   queryKey: ['packages'],
@@ -75,84 +77,90 @@ const packages = computed(() => data.value?.packages ?? [])
 
 type PackageRow = (typeof packages.value)[number]
 
-const columns = computed<DataTableColumns<PackageRow>>(() => [
-  {
-    title: t('common.name'),
-    key: 'name',
-    ellipsis: { tooltip: true },
-  },
-  {
-    title: t('billing.price'),
-    key: 'price',
-    width: 120,
-    render: (row) => `${row.currency?.toUpperCase() || 'USD'} ${row.price}`,
-  },
-  {
-    title: t('billing.credits'),
-    key: 'credits',
-    width: 100,
-  },
-  {
-    title: t('common.bonus'),
-    key: 'bonusCredits',
-    width: 100,
-  },
-  {
-    title: t('common.popular'),
-    key: 'isPopular',
-    width: 100,
-    render: (row) => row.isPopular ? t('common.yes') : t('common.no'),
-  },
-  {
-    title: t('common.order'),
-    key: 'sortOrder',
-    width: 80,
-  },
-  {
-    title: t('common.status'),
-    key: 'isActive',
-    width: 120,
-    render: (row) => {
-      return h(NSwitch, {
-        value: row.isActive,
-        loading: toggleActiveMutation.isPending.value,
-        onUpdateValue: () => toggleActiveMutation.mutate(row.id),
-      })
+const columns = computed<DataTableColumns<PackageRow>>(() => {
+  const all: DataTableColumns<PackageRow> = [
+    {
+      title: t('common.name'),
+      key: 'name',
+      ellipsis: { tooltip: true },
     },
-  },
-  {
-    title: t('common.actions'),
-    key: 'actions',
-    width: 120,
-    render: (row) => {
-      return h('div', { class: 'flex items-center gap-1' }, [
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            onClick: () => router.push({ name: 'packages-detail', params: { id: row.id } }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
-          },
-        ),
-        h(
-          NButton,
-          {
-            size: 'small',
-            quaternary: true,
-            type: 'error',
-            onClick: () => openDeleteDialog({ id: row.id, name: row.name }),
-          },
-          {
-            icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
-          },
-        ),
-      ])
+    {
+      title: t('billing.price'),
+      key: 'price',
+      width: 120,
+      render: (row) => `${row.currency?.toUpperCase() || 'USD'} ${row.price}`,
     },
-  },
-])
+    {
+      title: t('billing.credits'),
+      key: 'credits',
+      width: 100,
+    },
+    {
+      title: t('common.bonus'),
+      key: 'bonusCredits',
+      width: 100,
+    },
+    {
+      title: t('common.popular'),
+      key: 'isPopular',
+      width: 100,
+      render: (row) => row.isPopular ? t('common.yes') : t('common.no'),
+    },
+    {
+      title: t('common.order'),
+      key: 'sortOrder',
+      width: 80,
+    },
+    {
+      title: t('common.status'),
+      key: 'isActive',
+      width: 120,
+      render: (row) => {
+        return h(NSwitch, {
+          value: row.isActive,
+          loading: toggleActiveMutation.isPending.value,
+          onUpdateValue: () => toggleActiveMutation.mutate(row.id),
+        })
+      },
+    },
+    {
+      title: t('common.actions'),
+      key: 'actions',
+      width: 120,
+      render: (row) => {
+        return h('div', { class: 'flex items-center gap-1' }, [
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              onClick: () => router.push({ name: 'packages-detail', params: { id: row.id } }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(CreateOutline) }),
+            },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
+              quaternary: true,
+              type: 'error',
+              onClick: () => openDeleteDialog({ id: row.id, name: row.name }),
+            },
+            {
+              icon: () => h(NIcon, null, { default: () => h(TrashOutline) }),
+            },
+          ),
+        ])
+      },
+    },
+  ]
+  if (isMobile.value) {
+    return all.filter((col: any) => col.key === 'name' || col.key === 'actions')
+  }
+  return all
+})
 </script>
 
 <template>
