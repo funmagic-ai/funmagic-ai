@@ -2,6 +2,7 @@ import type { ToolWorker } from '../types';
 import { figmeWorker } from './figme';
 import { backgroundRemoveWorker } from './background-remove';
 import { crystalMemoryWorker } from './crystal-memory';
+import { vintageTraceWorker } from './vintage-trace';
 
 /**
  * Registry of tool workers mapped by tool slug
@@ -10,6 +11,7 @@ const toolWorkers: Record<string, ToolWorker> = {
   'figme': figmeWorker,
   'background-remove': backgroundRemoveWorker,
   'crystal-memory': crystalMemoryWorker,
+  'vintage-trace': vintageTraceWorker,
 };
 
 /**
@@ -27,4 +29,4 @@ export function getRegisteredTools(): string[] {
   return Object.keys(toolWorkers);
 }
 
-export { figmeWorker, backgroundRemoveWorker, crystalMemoryWorker };
+export { figmeWorker, backgroundRemoveWorker, crystalMemoryWorker, vintageTraceWorker };

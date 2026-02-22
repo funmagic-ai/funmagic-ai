@@ -30,6 +30,12 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'tools/vintage-trace',
+          name: 'vintage-trace',
+          component: () => import('@/views/tools/VintageTraceView.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'tools/crystal-memory',
           name: 'crystal-memory',
           component: () => import('@/views/tools/CrystalMemoryView.vue'),
