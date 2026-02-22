@@ -2,6 +2,7 @@ import { figmeDefinition } from './figme';
 import { backgroundRemoveDefinition } from './background-remove';
 import { crystalMemoryDefinition } from './crystal-memory';
 import { vintageTraceDefinition } from './vintage-trace';
+import { imageTo3dDefinition } from './image-to-3d';
 import type { ToolDefinition, ToolRegistry } from './types';
 
 /**
@@ -12,6 +13,7 @@ export const toolRegistry: ToolRegistry = {
   'background-remove': backgroundRemoveDefinition,
   'crystal-memory': crystalMemoryDefinition,
   'vintage-trace': vintageTraceDefinition,
+  'image-to-3d': imageTo3dDefinition,
 } as const;
 
 /**
@@ -57,3 +59,4 @@ export { figmeDefinition } from './figme';
 export { backgroundRemoveDefinition } from './background-remove';
 export { crystalMemoryDefinition } from './crystal-memory';
 export { vintageTraceDefinition } from './vintage-trace';
+export { imageTo3dDefinition } from './image-to-3d';

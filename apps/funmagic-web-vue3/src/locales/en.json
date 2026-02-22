@@ -138,6 +138,24 @@
       "triangles": "Triangles",
       "downloadGLB": "Download GLB"
     },
+    "imageTo3d": {
+      "selectProvider": "Select Provider",
+      "tripoProvider": "Tripo",
+      "hunyuanProvider": "Hunyuan",
+      "providerOptions": "Options",
+      "modelVersion": "Model Version",
+      "faceLimit": "Face Limit",
+      "faceCount": "Face Count",
+      "enablePBR": "Enable PBR",
+      "generateType": "Generate Type",
+      "generateTypeNormal": "Normal",
+      "generateTypeLowPoly": "LowPoly",
+      "generateTypeGeometry": "Geometry",
+      "generateTypeSketch": "Sketch",
+      "generate3DModel": "Generate 3D Model",
+      "configureOptions": "Configure Options",
+      "uploadAndConfigure": "Upload & Configure"
+    },
     "pointCloud": {
       "tab3D": "3D Model",
       "loading": "Loading 3D Viewer...",

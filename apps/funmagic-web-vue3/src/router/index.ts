@@ -42,6 +42,12 @@ const router = createRouter({
           meta: { requiresAuth: true },
         },
         {
+          path: 'tools/image-to-3d',
+          name: 'image-to-3d',
+          component: () => import('@/views/tools/ImageTo3dView.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'tools/:slug',
           name: 'tool-detail',
           component: () => import('@/views/ToolDetailView.vue'),
